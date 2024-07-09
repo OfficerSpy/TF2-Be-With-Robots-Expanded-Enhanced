@@ -1,0 +1,301 @@
+"Games"
+{
+	"tf"
+	{
+		"Keys"
+		{
+			"CTFPlayer_BaseOffset"
+			{
+				"windows"	"m_bArenaSpectator"
+				"linux"		"m_bArenaSpectator"
+			}
+			"CPopulationManager_BaseOffset"
+			{
+				"windows"	"m_vecOrigin"
+				"linux"		"m_vecOrigin"
+			}
+		}
+		"Signatures"
+		{
+			"CTFPlayer::PlaySpecificSequence"
+			{
+				"windows"	"\x55\x8B\xEC\x53\x56\x8B\x75\x2A\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8"
+				"linux"		"@_ZN9CTFPlayer20PlaySpecificSequenceEPKc"
+			}
+			"CTFPlayer::DoAnimationEvent"
+			{
+				"windows"	"\x55\x8B\xEC\x51\x53\x56\x8B\x35\x2A\x2A\x2A\x2A\x8B\xD9\x8B\xCE"
+				"linux"   	"@_ZN9CTFPlayer16DoAnimationEventE17PlayerAnimEvent_ti"
+			}
+			"CCaptureZone::Capture"
+			{
+				"windows"	"\x55\x8B\xEC\x51\x53\x57\x8B\x7D\x2A\x8B\xD9\x85\xFF\x0F\x84"
+				"linux"		"@_ZN12CCaptureZone7CaptureEP11CBaseEntity"
+			}
+			"CTeamplayRoundBasedRules::PlayThrottledAlert"
+			{
+				"windows"	"\x55\x8B\xEC\xA1\x2A\x2A\x2A\x2A\x56\x8B\xF1\xF3\x0F\x10\x40"
+				"linux"		"@_ZN24CTeamplayRoundBasedRules18PlayThrottledAlertEiPKcf"
+			}
+			"CTFPlayer::PostInventoryApplication"
+			{
+				"windows"	"\x55\x8B\xEC\x83\xEC\x40\x53\x8B\xD9\x56\x57\x89\x5D\x2A\x8D\x8B"
+				"linux"		"@_ZN9CTFPlayer24PostInventoryApplicationEv"
+			}
+			"CPopulationManager::GetSentryBusterDamageAndKillThreshold"
+			{
+				"windows"	"\x55\x8B\xEC\x83\xEC\x08\x33\xC0\x89\x4D"
+				"linux"		"@_ZNK18CPopulationManager37GetSentryBusterDamageAndKillThresholdERiS0_"
+			}
+			"CTFPlayer::RemoveObject"
+			{
+				"windows"	"\x55\x8B\xEC\x56\x57\x8B\xF9\x8B\xB7\x2A\x2A\x2A\x2A\x83\xEE\x01"
+				"linux"		"@_ZN9CTFPlayer12RemoveObjectEP11CBaseObject"
+			}
+			"CTFPlayer::DropCurrencyPack"
+			{
+				"windows"	"\x55\x8B\xEC\x83\xEC\x18\x57\x8B\xF9\x8B\x07"
+				"linux"		"@_ZN9CTFPlayer16DropCurrencyPackE17CurrencyRewards_tibP11CBasePlayer"
+			}
+			"CTFBot::GetEventChangeAttributes"
+			{
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x30\x29\x00\x00"
+				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
+			}
+			"CBaseObject::FindSnapToBuildPos"
+			{
+				"windows"	"\x55\x8B\xEC\x83\xEC\x5C\x53\x57\x8B\xF9\x89\x7D\xF4"
+				"linux"		"@_ZN11CBaseObject18FindSnapToBuildPosEPS_"
+			}
+			"CTFPlayer::CanBuild"
+			{
+				"windows"	"\x55\x8B\xEC\x83\xEC\x0C\x53\x8B\x5D\x08\x57\x8B\xF9\x83\xFB\x03"
+				"linux"		"@_ZN9CTFPlayer8CanBuildEii"
+			}
+			"CTFPlayer::CanBeForcedToLaugh"
+			{
+				"windows"	"\xA1\x2A\x2A\x2A\x2A\x56\x8B\xF1\x85\xC0\x74\x2A\x80\xB8\x2A\x2A\x2A\x2A\x00\x74\x2A\x8B\x06"
+				"linux"		"@_ZN9CTFPlayer18CanBeForcedToLaughEv"
+			}
+		}
+		"Offsets"
+		{
+			//These are virtual function offsets
+			"CTFWeaponBase::Clip1"
+			{
+				"windows"	"344"
+				"linux"		"350"
+			}
+			"CTFWeaponBase::GetMaxClip1"
+			{
+				"windows"	"324"
+				"linux"		"330"
+			}
+			"CBaseEntity::ShouldTransmit"		
+			{
+				"windows"	"20"
+				"linux"		"21"
+			}
+			"CBaseEntity::Event_Killed"
+			{
+				"windows"	"68"
+				"linux"		"69"
+			}
+			"CBaseFilter::PassesFilterImpl"
+			{
+				"windows"	"198"
+				"linux"		"199"
+			}
+			"CTFPlayer::ShouldGib"
+			{
+				"windows"	"296"
+				"linux"		"297"
+			}
+			"CBaseEntity::AcceptInput"
+			{
+				"windows"	"38"
+				"linux"		"39"
+			}
+			//These numbers are used to calculate the actual offset based on the base netprop offset in the Keys section
+			//The calculation formula is base offset + this number
+			"CTFPlayer::m_nDeployingBombState"
+			{
+				"windows"	"4" //build 8835751: 9272
+				"linux"		"4" //build 8835751: 9276
+			}
+			"CPopulationManager::m_canBotsAttackWhileInSpawnRoom"
+			{
+				"windows"	"645" //build 8835751: 1477
+				"linux"		"645" //build 8835751: 1501
+			}
+			"CTFPlayer::m_accumulatedSentryGunDamageDealt"
+			{
+				"windows"	"268" //build 8835751: 9536
+				"linux"		"268" //build 8835751: 9540
+			}
+			"CTFPlayer::m_accumulatedSentryGunKillCount"
+			{
+				"windows"	"272" //build 8835751: 9540
+				"linux"		"272" //build 8835751: 9544
+			}
+			"CPopulationManager::m_bSpawningPaused"
+			{
+				"windows"	"716" //build 8835751: 1548
+				"linux"		"716" //build 8835751: 1572
+			}
+		}
+		"Functions"
+		{
+			"CTFBot::GetEventChangeAttributes"
+			{
+				"signature" "CTFBot::GetEventChangeAttributes"
+				"callconv"	"thiscall"
+				"return"	"int" //EventChangeAttributes_t
+				"this"		"entity"
+				"arguments"
+				{
+					"pzaEventName"
+					{
+						"type"	"objectptr"
+					}
+				}
+			}
+			"CBaseObject::FindSnapToBuildPos"
+			{
+				"signature"	"CBaseObject::FindSnapToBuildPos"
+				"callconv"	"thiscall"
+				"return"	"bool"
+				"this"		"entity"
+				"arguments"
+				{
+					"pObjectOverride"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+			"CTFPlayer::CanBuild"
+			{
+				"signature"	"CTFPlayer::CanBuild"
+				"callconv"	"thiscall"
+				"return"	"int"
+				"this"		"entity"
+				"arguments"
+				{
+					"iObjectType"
+					{
+						"type"	"int"
+					}
+					"iObjectMode"
+					{
+						"type"	"int"
+					}
+				}
+			}
+			"CTFPlayer::CanBeForcedToLaugh"
+			{
+				"signature" "CTFPlayer::CanBeForcedToLaugh"
+				"callconv"	"thiscall"
+				"return"	"bool"
+				"this"		"entity"
+			}
+			"CBaseEntity::ShouldTransmit"
+			{
+				"offset"	"CBaseEntity::ShouldTransmit"
+				"hooktype"	"entity"
+				"return"	"int"
+				"this"		"entity"
+				"arguments"
+				{
+					"cchecktransmitinfo"
+					{
+						"type"	"objectptr"
+					}
+				}
+			}
+			"CBaseEntity::Event_Killed"
+			{
+				"offset"	"CBaseEntity::Event_Killed"
+				"hooktype"	"entity"
+				"return"	"void"
+				"this"		"entity"
+				"arguments"
+				{
+					"info"
+					{
+						"type"	"objectptr"
+						"flags"	"byref"
+					}
+				}
+			}
+			"CBaseFilter::PassesFilterImpl"
+			{
+				"offset"	"CBaseFilter::PassesFilterImpl"
+				"hooktype"	"entity"
+				"return"	"bool"
+				"this"		"entity"
+				"arguments"
+				{
+					"pCaller"
+					{
+						"type"	"cbaseentity"
+					}
+					"pEntity"
+					{
+						"type"	"cbaseentity"
+					}
+				}
+			}
+			"CTFPlayer::ShouldGib"
+			{
+				"offset"	"CTFPlayer::ShouldGib"
+				"hooktype"	"entity"
+				"return"	"bool"
+				"this"		"entity"
+				"arguments"
+				{
+					"info"
+					{
+						"type"	"objectptr"
+						"flags"	"byref"
+					}
+				}
+			}
+			"CBaseEntity::AcceptInput"
+			{
+				"offset"		"CBaseEntity::AcceptInput"
+				"hooktype"		"entity"
+				"return"		"bool"
+				"this"			"entity"
+				"arguments"
+				{
+					"szInputName"
+					{
+						"type"	"charptr"
+					}
+					"pActivator"
+					{
+						"type"	"cbaseentity"
+					}
+					"pCaller"
+					{
+						"type"	"cbaseentity"
+					}
+					"Value"
+					{
+						//For windows
+						"type"	"object"
+						"size"	"20"
+						
+						//For linux
+						//"type"	"objectptr"
+					}
+					"outputID"
+					{
+						"type"	"int"
+					}
+				}
+			}
+		}
+	}
+}
