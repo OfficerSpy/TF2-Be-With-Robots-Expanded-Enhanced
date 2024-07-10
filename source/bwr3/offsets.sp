@@ -84,9 +84,9 @@ bool CanBotsAttackWhileInSpawnRoom(int populator)
 	return view_as<bool>(GetEntData(populator, GetOffset("CPopulationManager", "m_canBotsAttackWhileInSpawnRoom"), 1));
 }
 
-int GetAccumulatedSentryGunDamageDealt(int client)
+float GetAccumulatedSentryGunDamageDealt(int client)
 {
-	return GetEntData(client, GetOffset("CTFPlayer", "m_accumulatedSentryGunDamageDealt"));
+	return GetEntDataFloat(client, GetOffset("CTFPlayer", "m_accumulatedSentryGunDamageDealt"));
 }
 
 int GetAccumulatedSentryGunKillCount(int client)

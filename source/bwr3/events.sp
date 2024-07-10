@@ -4,6 +4,7 @@ void InitGameEventHooks()
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("mvm_begin_wave", Event_MvmBeginWave);
 	HookEvent("player_builtobject", Event_PlayerBuiltObject);
+	HookEvent("player_spawn", Event_PlayerSpawn);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -213,6 +214,16 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	TF2_PushAllPlayersAway(GetAbsOrigin(entity), 400.0, 500.0, TFTeam_Red);
 }
 
+static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+#if defined TELEPORTER_METHOD_MANUAL
+	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))
+		CreateTimer(0.1, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
+#endif
+}
+
 #if defined FIX_VOTE_CONTROLLER
 static void Event_VoteOptions(Event event, const char[] name, bool dontBroadcast)
 {
@@ -230,7 +241,31 @@ static void Event_VoteOptions(Event event, const char[] name, bool dontBroadcast
 	//Undo what we did a frame later
 	RequestFrame(FrameResetRobotPlayersTeam);
 }
+#endif
 
+#if defined TELEPORTER_METHOD_MANUAL
+static Action Timer_TFBotSpawn(Handle timer, any data)
+{
+	if (!IsClientInGame(data) || !IsPlayerAlive(data) || TF2_GetClientTeam(data) != TFTeam_Blue || !IsTFBotPlayer(data))
+		return Plugin_Stop;
+	
+	//Only teleport the bot if they're in a spawn room, otherwise they were probably already teleported
+	if (!TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(data), data))
+		return Plugin_Stop;
+	
+	float spawnPos[3];
+	
+	if (FindSpawnLocation(spawnPos) == SPAWN_LOCATION_TELEPORTER)
+	{
+		TeleportEntity(data, spawnPos);
+		OnBotTeleported(data);
+	}
+	
+	return Plugin_Stop;
+}
+#endif
+
+#if defined FIX_VOTE_CONTROLLER
 static void FrameResetRobotPlayersTeam()
 {
 	for (int i = 1; i <= MaxClients; i++)

@@ -28,7 +28,7 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		return view_as<MvMSuicideBomber>(index);
 	}
 	
-	public void Initialize(int victim)
+	public void InitializeSuicideBomber(int victim)
 	{
 		this.SetMissionTarget(victim);
 		
@@ -179,8 +179,8 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		//SM NOTE: bForce is always set to true in SM 1.12
 		ForcePlayerSuicide(this.index);
 		
-		// if (IsPlayerAlive(this.index))
-			// VS_ForceChangeTeam(this.index, TFTeam_Spectator);
+		/* if (IsPlayerAlive(this.index))
+			VS_ForceChangeTeam(this.index, TFTeam_Spectator); */
 		
 		if (m_bWasKilled[this.index])
 		{
@@ -570,8 +570,12 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	OSTFPlayer player = OSTFPlayer(client);
 	
+	//If an icon wasn't specified, then we just use the class's default icon
+	//Even though we don't modify it, we still copy it over cause we're going to use it for the wavebar
 	if (strlen(strClassIcon) > 0)
 		player.SetClassIconName(strClassIcon);
+	else
+		player.GetClassIconName(strClassIcon, sizeof(strClassIcon));
 	
 	roboPlayer.ClearTeleportWhere();
 	
@@ -705,7 +709,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (nMission == CTFBot_MISSION_DESTROY_SENTRIES)
 	{
-		MvMSuicideBomber(client).Initialize(GetMostThreateningSentry());
+		MvMSuicideBomber(client).InitializeSuicideBomber(GetMostThreateningSentry());
 		
 		if (IsValidEntity(g_iObjectiveResource))
 		{
@@ -751,7 +755,9 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	float rawHere[3];
 	
-	if (GetSpawnLocation(rawHere) == SPAWN_LOCATION_TELEPORTER)
+	SpawnLocationResult result = FindSpawnLocation(rawHere);
+	
+	if (result == SPAWN_LOCATION_TELEPORTER)
 		OnBotTeleported(client);
 	
 	float here[3]; here = rawHere;
@@ -773,7 +779,14 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		// return Plugin_Stop;
 	}
 	
-	TeleportEntity(client, here);
+	if (result != SPAWN_LOCATION_NOT_FOUND)
+		TeleportEntity(client, here);
+	else
+		LogError("Timer_FinishRobotPlayer: No suitable spawn could be found for %N!", client);
+	
+#if defined TESTING_ONLY
+	PrintToChatAll("[Timer_FinishRobotPlayer] Spawn Location for %N at %6.1f %6.1f %6.1f", client, here[0], here[1], here[2]);
+#endif
 	
 	if (iClass == TFClass_Spy)
 	{
@@ -1162,11 +1175,11 @@ static int GetMostThreateningSentry()
 	int nKillLimit = 0;
 	GetSentryBusterDamageAndKillThreshold(g_iPopulationManager, nDmgLimit, nKillLimit);
 	
-	int iEnt = -1;
+	int ent = -1;
 	
-	while ((iEnt = FindEntityByClassname(iEnt, "obj_sentrygun")) != -1)
+	while ((ent = FindEntityByClassname(ent, "obj_sentrygun")) != -1)
 	{
-		OSBaseObject cboSentry = OSBaseObject(iEnt);
+		OSBaseObject cboSentry = OSBaseObject(ent);
 		
 		if (cboSentry.IsDisposableBuilding())
 			continue;
@@ -1177,11 +1190,11 @@ static int GetMostThreateningSentry()
 			
 			if (sentryOwner != -1)
 			{
-				int nDmgDone = GetAccumulatedSentryGunDamageDealt(sentryOwner);
+				int nDmgDone = RoundFloat(GetAccumulatedSentryGunDamageDealt(sentryOwner));
 				int nKillsMade = GetAccumulatedSentryGunKillCount(sentryOwner);
 				
 				if (nDmgDone >= nDmgLimit || nKillsMade >= nKillLimit)
-					return iEnt;
+					return ent;
 			}
 		}
 	}
@@ -1189,7 +1202,7 @@ static int GetMostThreateningSentry()
 	return -1;
 }
 
-static SpawnLocationResult GetSpawnLocation(float vSpawnPosition[3])
+SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale = 1.0)
 {
 	int activeTeleporter = EntRefToEntIndex(g_iRefLastTeleporter);
 	
@@ -1256,8 +1269,7 @@ static SpawnLocationResult GetSpawnLocation(float vSpawnPosition[3])
 		adtSpawnPoints.Erase(index);
 		origin = WorldSpaceCenter(spawn);
 		
-		//TODO: this should factor in the scale of the robot
-		if (IsSpaceToSpawnHere(origin))
+		if (IsSpaceToSpawnHere(origin, playerScale))
 		{
 			vSpawnPosition = origin;
 			break;
@@ -1269,10 +1281,17 @@ static SpawnLocationResult GetSpawnLocation(float vSpawnPosition[3])
 	if (IsZeroVector(vSpawnPosition))
 		return SPAWN_LOCATION_NOT_FOUND;
 	
+	CNavArea spawnArea = TheNavMesh.GetNearestNavArea(vSpawnPosition);
+	
+	if (spawnArea == NULL_AREA)
+		return SPAWN_LOCATION_NOT_FOUND;
+	
+	spawnArea.GetCenter(vSpawnPosition);
+	
 	return SPAWN_LOCATION_NAV;
 }
 
-static void OnBotTeleported(int client)
+void OnBotTeleported(int client)
 {
 	int teleporter = EntRefToEntIndex(g_iRefLastTeleporter);
 	
@@ -1360,6 +1379,12 @@ static bool IsSentryAlreadyTargeted(int sentry)
 	return false;
 }
 
+static bool AreGatebotsAvailable()
+{
+	//If there's a point RED can defend, then it's a point BLUE can capture
+	return GetDefendablePointTrigger(TFTeam_Red) != -1;
+}
+
 void SelectSpawnRobotTypeForPlayer(int client)
 {
 	/* int sentry = GetMostThreateningSentry();
@@ -1370,26 +1395,18 @@ void SelectSpawnRobotTypeForPlayer(int client)
 		return;
 	} */
 	
-	// bool bShouldBeGatebot = RollRandomChanceFloat(50.0);
+	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwr3_robot_gatebot_chance.FloatValue);
 	
-	if (GetTeamClientCount(TFTeam_Red) >= bwr3_minmimum_players_for_giants.IntValue)
+	if (GetTeamClientCount(view_as<int>(TFTeam_Red)) >= bwr3_minmimum_players_for_giants.IntValue)
 	{
-		//TOOD: factor giant gatebots
-		
-		if (RollRandomChanceFloat(50.0))
+		if (RollRandomChanceFloat(bwr3_robot_giant_chance.FloatValue))
 		{
-			TurnPlayerIntoRandomRobot(client, ROBOT_GIANT);
+			TurnPlayerIntoRandomRobot(client, bShouldBeGatebot ? ROBOT_GATEBOT_GIANT : ROBOT_GIANT);
 			return;
 		}
 	}
 	
-	/* if (bShouldBeGatebot)
-	{
-		TurnPlayerIntoRandomRobot(client, ROBOT_GATEBOT);
-		return;
-	} */
-	
-	TurnPlayerIntoRandomRobot(client, ROBOT_STANDARD);
+	TurnPlayerIntoRandomRobot(client, bShouldBeGatebot ? ROBOT_GATEBOT : ROBOT_STANDARD);
 }
 
 void StopIdleSound(int client)

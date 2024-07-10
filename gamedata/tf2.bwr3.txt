@@ -120,23 +120,23 @@
 			//The calculation formula is base offset + this number
 			"CTFPlayer::m_nDeployingBombState"
 			{
-				"windows"	"4" //build 8835751: 9272
-				"linux"		"4" //build 8835751: 9276
+				"windows"	"4" //build 8622567: 9272
+				"linux"		"4" //build 8622567: 9276
 			}
 			"CPopulationManager::m_canBotsAttackWhileInSpawnRoom"
 			{
-				"windows"	"645" //build 8835751: 1477
-				"linux"		"645" //build 8835751: 1501
+				"windows"	"645" //build 8622567: 1477
+				"linux"		"645" //build 8622567: 1501
 			}
 			"CTFPlayer::m_accumulatedSentryGunDamageDealt"
 			{
-				"windows"	"268" //build 8835751: 9536
-				"linux"		"268" //build 8835751: 9540
+				"windows"	"268" //build 8622567: 9536
+				"linux"		"268" //build 8622567: 9540
 			}
 			"CTFPlayer::m_accumulatedSentryGunKillCount"
 			{
-				"windows"	"272" //build 8835751: 9540
-				"linux"		"272" //build 8835751: 9544
+				"windows"	"272" //build 8622567: 9540
+				"linux"		"272" //build 8622567: 9544
 			}
 			"CPopulationManager::m_bSpawningPaused"
 			{

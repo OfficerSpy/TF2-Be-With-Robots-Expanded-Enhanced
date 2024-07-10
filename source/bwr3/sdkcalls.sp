@@ -107,8 +107,8 @@ bool InitSDKCalls(GameData hGamedata)
 	
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CPopulationManager::GetSentryBusterDamageAndKillThreshold");
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByRef);
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByRef);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
 	if ((m_hGetSentryBusterDamageAndKillThreshold = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed To create SDKCall for CPopulationManager::GetSentryBusterDamageAndKillThreshold!");

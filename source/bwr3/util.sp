@@ -275,17 +275,24 @@ bool Player_IsVisibleInFOVNow(int client, int entity)
 	return IsInFieldOfView(client, entity);
 }
 
-bool IsSpaceToSpawnHere(const float where[3])
+//This is based on the game's function, but it's been modified to also factor in the player's scale
+bool IsSpaceToSpawnHere(const float where[3], float playerScale = 1.0)
 {
+	float scaledVecHullMin[3]; scaledVecHullMin = TF_VEC_HULL_MIN;
+	ScaleVector(scaledVecHullMin, playerScale);
+	
+	float scaledVecHullMax[3]; scaledVecHullMax = TF_VEC_HULL_MAX;
+	ScaleVector(scaledVecHullMax, playerScale);
+	
 	const float bloat = 5.0;
 	
 	float mins[3];
 	float bloatMin[3] = {bloat, bloat, 0.0};
-	SubtractVectors(TF_VEC_HULL_MIN, bloatMin, mins);
+	SubtractVectors(scaledVecHullMin, bloatMin, mins);
 	
 	float maxs[3];
 	float bloatMax[3] = {bloat, bloat, bloat};
-	AddVectors(TF_VEC_HULL_MAX, bloatMax, maxs);
+	AddVectors(scaledVecHullMax, bloatMax, maxs);
 	
 	Handle trace = TR_TraceHullFilterEx(where, where, mins, maxs, MASK_SOLID | CONTENTS_PLAYERCLIP, TraceFilter_RobotSpawn);
 	
@@ -775,6 +782,42 @@ void RemoveSpellbook(int client)
 	
 	if (book != -1)
 		RemoveEntity(book);
+}
+
+int GetDefendablePointTrigger(TFTeam team)
+{
+	int trigger = -1;
+	
+	//Look for a trigger_timer_door associated with a control point
+	while ((trigger = FindEntityByClassname(trigger, "trigger_timer_door")) != -1)
+	{		
+		//Ignore disabled triggers
+		if (GetEntProp(trigger, Prop_Data, "m_bDisabled") == 1)
+			continue;
+		
+		//Apparently some community maps don't disable the trigger when capped
+		char cpname[32]; GetEntPropString(trigger, Prop_Data, "m_iszCapPointName", cpname, sizeof(cpname));
+		
+		//Trigger has no point associated with it
+		if (strlen(cpname) < 3)
+			continue;
+		
+		//Now find the matching control point
+		int point = -1;
+		char targetname[32];
+		
+		while ((point = FindEntityByClassname(point, "team_control_point")) != -1)
+		{
+			GetEntPropString(point, Prop_Data, "m_iName", targetname, sizeof(targetname));
+			
+			//Found the match
+			if (strcmp(targetname, cpname, false) == 0)
+				if (BaseEntity_GetTeamNumber(point) == view_as<int>(team))
+					return trigger;
+		}
+	}
+	
+	return -1;
 }
 
 #if defined MOD_EXT_CBASENPC

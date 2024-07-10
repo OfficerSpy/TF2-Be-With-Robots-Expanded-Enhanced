@@ -20,12 +20,13 @@ Author: ★ Officer Spy ★
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_NAME	"[TF2] Be with Robots: Sex Edition"
-#define PLUGIN_PREFIX	"[BWRSEX]"
+#define PLUGIN_NAME	"[TF2] Be with Robots: Expanded & Enhanced"
+#define PLUGIN_PREFIX	"[BWR E&E]"
 
 #define TESTING_ONLY
 
-// #define FIX_VOTE_CONTROLLER
+#define TELEPORTER_METHOD_MANUAL
+#define FIX_VOTE_CONTROLLER
 
 bool g_bLateLoad;
 bool g_bCanBotsAttackInSpawn;
@@ -73,6 +74,9 @@ ConVar bwr3_bomb_upgrade_mode;
 ConVar bwr3_cosmetic_mode;
 ConVar bwr3_max_invaders;
 ConVar bwr3_minmimum_players_for_giants;
+ConVar bwr3_robot_giant_chance;
+ConVar bwr3_robot_boss_chance;
+ConVar bwr3_robot_gatebot_chance;
 
 ConVar tf_deploying_bomb_delay_time;
 ConVar tf_deploying_bomb_time;
@@ -435,6 +439,9 @@ public void OnPluginStart()
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_minmimum_players_for_giants = CreateConVar("sm_bwr3_minmimum_players_for_giants", "6", _, FCVAR_NOTIFY);
+	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "20", _, FCVAR_NOTIFY);
+	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
+	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
@@ -446,11 +453,10 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_joinblu", Command_JoinBlue, "Join the blue team and become a robot!");
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
 	
 #if defined TESTING_ONLY	
 	RegConsoleCmd("sm_johnblue", Command_JoinBlue, "Join the blue team and become a robot!");
-	
-	// RegAdminCmd("sm_bwr3_dump_parsed_item_attributes", Command_DumpParsedItemAttributes, ADMFLAG_GENERIC);
 #endif
 	
 	AddCommandListener(CommandListener_Voicemenu, "voicemenu");
@@ -572,6 +578,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 		g_iObjectiveResource = entity;
 	else if (StrEqual(classname, "info_populator"))
 		g_iPopulationManager = entity;
+	else if (StrEqual(classname, "item_teamflag"))
+		SDKHook(entity, SDKHook_Touch, CaptureFlag_Touch);
 	else if (StrEqual(classname, "obj_attachment_sapper"))
 		SDKHook(entity, SDKHook_SpawnPost, ObjectSapper_SpawnPost);
 	
@@ -593,11 +601,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			buttons &= ~IN_ATTACK;
 		}
 		
+		if (buttons & IN_ATTACK2)
+		{
+			buttons &= ~IN_ATTACK2;
+		}
+		
 		//Keep us protected though
 		player.AddCond(TFCond_Ubercharged, 0.5);
 		player.AddCond(TFCond_UberchargedHidden, 0.5);
 		player.AddCond(TFCond_UberchargeFading, 0.5);
-		player.AddCond(TFCond_ImmuneToPushback, 1.0);
+		// player.AddCond(TFCond_ImmuneToPushback, 1.0);
 		
 		return Plugin_Continue;
 	}
@@ -961,25 +974,49 @@ public Action Command_JoinBlue(int client, int args)
 
 public Action Command_PlayAsRobotType(int client, int args)
 {
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
 	char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 	
-	TurnPlayerIntoRandomRobot(client, StringToInt(arg1));
+	TurnPlayerIntoRandomRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)));
 	
 	return Plugin_Handled;
 }
 
-#if defined TESTING_ONLY
-/* public Action Command_DumpParsedItemAttributes(int client, int args)
+public Action Command_DebugSentryBuster(int client, int args)
 {
-	char arg1[3]; GetCmdArg(1, arg1, sizeof(arg1));
-	char arg2[3]; GetCmdArg(2, arg2, sizeof(arg2));
-	char arg3[3]; GetCmdArg(3, arg3, sizeof(arg3));
+	int nDmgLimit = 0;
+	int nKillLimit = 0;
+	GetSentryBusterDamageAndKillThreshold(g_iPopulationManager, nDmgLimit, nKillLimit);
 	
-	DumpParsedItemAttributesToFile(StringToInt(arg1), StringToInt(arg2), view_as<eRobotTemplateType>(StringToInt(arg3)));
+	PrintToChat(client, "SENTRY BUSTER\nDamage limit = %d\nKill limit = %d", nDmgLimit, nKillLimit);
+	
+	int ent = -1;
+	
+	while ((ent = FindEntityByClassname(ent, "obj_sentrygun")) != -1)
+	{
+		OSBaseObject cboSentry = OSBaseObject(ent);
+		
+		if (cboSentry.IsDisposableBuilding())
+			continue;
+		
+		if (cboSentry.GetTeamNumber() == view_as<int>(TFTeam_Red))
+		{
+			int sentryOwner = cboSentry.GetOwner();
+			
+			if (sentryOwner != -1)
+			{
+				int nDmgDone = RoundFloat(GetAccumulatedSentryGunDamageDealt(sentryOwner));
+				int nKillsMade = GetAccumulatedSentryGunKillCount(sentryOwner);
+				
+				PrintToChat(client, "%N's sentry damage = %d, sentry kills = %d", sentryOwner, nDmgDone, nKillsMade);
+			}
+		}
+	}
 	
 	return Plugin_Handled;
-} */
-#endif
+}
 
 public Action CommandListener_Voicemenu(int client, const char[] command, int argc)
 {
@@ -1040,6 +1077,8 @@ public void CaptureFlag_OnPickup(const char[] output, int caller, int activator,
 	if (!IsPlayingAsRobot(owner))
 		return;
 	
+	//Set this here so we don't prematurely upgrade
+	//It will be properly set on the next frame
 	MvMRobotPlayer(owner).BombUpgradeLevel = DONT_UPGRADE;
 	
 	//CCaptureFlag::PickUp updates the bomb hud and fires this output on the same frame
@@ -1095,6 +1134,28 @@ public Action ObjectTeleporter_GetMaxHealth(int entity, int &maxhealth)
 		IPS_CreateParticle(entity, "teleporter_mvm_bot_persist", vec, true);
 		SDKUnhook(entity, SDKHook_GetMaxHealth, ObjectTeleporter_GetMaxHealth);
 	}
+	
+	return Plugin_Continue;
+}
+
+public Action CaptureFlag_Touch(int entity, int other)
+{
+	if (!BaseEntity_IsPlayer(other))
+		return Plugin_Continue;
+	
+	if (!IsPlayingAsRobot(other))
+		return Plugin_Continue;
+	
+	if (!IsPlayerAlive(other))
+		return Plugin_Continue;
+	
+	//Mission robots can't pick up the flag
+	if (MvMRobotPlayer(other).IsOnAnyMission())
+		return Plugin_Handled;
+	
+	//This robot is currently ignoring the flag
+	if (MvMRobotPlayer(other).HasAttribute(CTFBot_IGNORE_FLAG))
+		return Plugin_Handled;
 	
 	return Plugin_Continue;
 }
