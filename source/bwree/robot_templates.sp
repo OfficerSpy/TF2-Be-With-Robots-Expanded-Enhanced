@@ -2,7 +2,7 @@
 #define ROBOT_CLASS_COUNT	view_as<int>(TFClass_Engineer)
 #define MAXLEN_STRING_TEMPLATE	256
 #define STRING_TEMPLATE_VALUE_NOT_FOUND	"KEYVALUE_NO_SEX_FOUND"
-#define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwr3"
+#define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree"
 #define ROBOT_NAME_UNDEFINED	"TFBot"
 
 enum eRobotTemplateType

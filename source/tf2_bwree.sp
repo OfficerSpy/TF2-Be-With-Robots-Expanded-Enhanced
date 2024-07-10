@@ -406,12 +406,12 @@ methodmap MvMRobotPlayer
 	}
 }
 
-#include "bwr3/util.sp"
-#include "bwr3/offsets.sp"
-#include "bwr3/sdkcalls.sp"
-#include "bwr3/events.sp"
-#include "bwr3/dhooks.sp"
-#include "bwr3/robot_templates.sp"
+#include "bwree/util.sp"
+#include "bwree/offsets.sp"
+#include "bwree/sdkcalls.sp"
+#include "bwree/events.sp"
+#include "bwree/dhooks.sp"
+#include "bwree/robot_templates.sp"
 
 public Plugin myinfo =
 {
@@ -468,7 +468,7 @@ public void OnPluginStart()
 	
 	InitGameEventHooks();
 	
-	GameData hGamedata = new GameData("tf2.bwr3");
+	GameData hGamedata = new GameData("tf2.bwree");
 	
 	if (hGamedata)
 	{
@@ -489,7 +489,7 @@ public void OnPluginStart()
 	}
 	else
 	{
-		SetFailState("Failed to load gamedata file tf2.bwr3.txt");
+		SetFailState("Failed to load gamedata file tf2.bwree.txt");
 	}
 	
 	//Initialize the tags list
