@@ -14,14 +14,20 @@
 #include <stocklib_officerspy/util>
 #include <stocklib_officerspy/baseserver>
 
+#define IsEmptyString(%1) (%1[0] == 0)
+
+//CTFBotDeliverFlag
 #define DONT_UPGRADE	-1
 
 #define MAX_BOT_TAG_CHECKS	10 //Maximum amount of tags we will look for
 #define BOT_TAGS_BUFFER_MAX_LENGTH	PLATFORM_MAX_PATH //How long the whole string list of tags can be
 #define BOT_TAG_EACH_MAX_LENGTH	16 //How long each named tag can be
+
+//PlayerLocomotion::GetStepHeight
 #define TFBOT_STEP_HEIGHT	18.0
 
-#define IsEmptyString(%1) (%1[0] == 0)
+//Minibosses take reduced damage from sentry busters in CTFPlayer::OnTakeDamage
+#define SENTRYBUSTER_DMG_TO_MINIBOSS	600.0
 
 #define SOUND_GIANT_SCOUT_LOOP	"mvm/giant_scout/giant_scout_loop.wav"
 #define SOUND_GIANT_SOLDIER_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
@@ -29,9 +35,6 @@
 #define SOUND_GIANT_DEMOMAN_LOOP	"mvm/giant_demoman/giant_demoman_loop.wav"
 #define SOUND_GIANT_HEAVY_LOOP	")mvm/giant_heavy/giant_heavy_loop.wav"
 #define SOUND_SENTRYBUSTER_LOOP	"mvm/sentrybuster/mvm_sentrybuster_loop.wav"
-
-//Minibosses take reduced damage from sentry busters in CTFPlayer::OnTakeDamage
-#define SENTRYBUSTER_DMG_TO_MINIBOSS	600.0
 
 #if !defined __tf_econ_data_included
 #define TF_ITEMDEF_DEFAULT	-1

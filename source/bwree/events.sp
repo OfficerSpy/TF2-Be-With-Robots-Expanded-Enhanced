@@ -4,6 +4,8 @@ void InitGameEventHooks()
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("mvm_begin_wave", Event_MvmBeginWave);
 	HookEvent("player_builtobject", Event_PlayerBuiltObject);
+	HookEvent("mvm_wave_failed", Event_MvmWaveFailed);
+	HookEvent("mvm_wave_complete", Event_MvmWaveComplete);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	
 #if defined FIX_VOTE_CONTROLLER
@@ -189,6 +191,10 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	
 	int entity = event.GetInt("index");
 	
+	//We don't care about re-deployed buildings
+	if (GetEntProp(entity, Prop_Send, "m_bCarryDeploy") == 1)
+		return;
+	
 	if (objectType == TFObject_Sentry)
 	{
 		//Destroy the previous building we have built
@@ -212,6 +218,18 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	}
 	
 	TF2_PushAllPlayersAway(GetAbsOrigin(entity), 400.0, 500.0, TFTeam_Red);
+}
+
+static void Event_MvmWaveFailed(Event event, const char[] name, bool dontBroadcast)
+{
+	if (!UpdateSentryBusterSpawningCriteria())
+		LogError("Failed to update sentry buster spawning criteria for the current mission!");
+}
+
+static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroadcast)
+{
+	if (!UpdateSentryBusterSpawningCriteria())
+		LogError("Failed to update sentry buster spawning criteria for the current mission!");
 }
 
 static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
@@ -257,6 +275,7 @@ static Action Timer_TFBotSpawn(Handle timer, any data)
 	
 	if (FindSpawnLocation(spawnPos) == SPAWN_LOCATION_TELEPORTER)
 	{
+		spawnPos[2] += TFBOT_STEP_HEIGHT;
 		TeleportEntity(data, spawnPos);
 		OnBotTeleported(data);
 	}

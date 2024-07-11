@@ -192,6 +192,9 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 int g_iRefLastTeleporter = INVALID_ENT_REFERENCE;
 float g_flLastTeleportTime = -1.0;
 
+static float m_flDestroySentryCooldownDuration;
+static float m_flSentryBusterCooldown;
+
 static int m_iSpyTeleportAttempt[MAXPLAYERS + 1];
 
 static Action Timer_SuicideBomberDetonate(Handle timer, any data)
@@ -1168,7 +1171,24 @@ static void AddRomevisionCosmetics(int client)
 	// PostInventoryApplication(client);
 }
 
-//TODO: fix me
+static bool ShouldDispatchSentryBuster()
+{
+	//Still on cooldown
+	if (m_flSentryBusterCooldown > GetGameTime())
+		return false;
+	
+	//TODO: we should actually check if other sentries can be targeted, not just single out one
+	int sentry = GetMostThreateningSentry();
+	
+	if (sentry == -1)
+		return false;
+	
+	if (IsSentryAlreadyTargeted(sentry))
+		return false;
+	
+	return true;
+}
+
 static int GetMostThreateningSentry()
 {
 	int nDmgLimit = 0;
@@ -1385,15 +1405,23 @@ static bool AreGatebotsAvailable()
 	return GetDefendablePointTrigger(TFTeam_Red) != -1;
 }
 
+void ResetRobotSpawnerData()
+{
+	m_flDestroySentryCooldownDuration = 0.0;
+	m_flSentryBusterCooldown = 0.0;
+	
+	g_iRefLastTeleporter = INVALID_ENT_REFERENCE;
+	g_flLastTeleportTime = 0.0;
+}
+
 void SelectSpawnRobotTypeForPlayer(int client)
 {
-	/* int sentry = GetMostThreateningSentry();
-	
-	if (sentry != -1 && !IsSentryAlreadyTargeted(sentry))
+	if (ShouldDispatchSentryBuster())
 	{
+		m_flSentryBusterCooldown = GetGameTime() + m_flDestroySentryCooldownDuration;
 		TurnPlayerIntoRandomRobot(client, ROBOT_SENTRYBUSTER);
 		return;
-	} */
+	}
 	
 	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwr3_robot_gatebot_chance.FloatValue);
 	
@@ -1463,4 +1491,56 @@ void MvMEngineerTeleportSpawn(int client)
 	pack.WriteCell(hintEntity);
 	
 	TF2_PushAllPlayersAway(GetAbsOrigin(hintEntity), 400.0, 500.0, TFTeam_Red);
+}
+
+bool UpdateSentryBusterSpawningCriteria()
+{
+	//TODO: actually read the current popfile
+	
+	int currentWaveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
+	bool bUpdated = false;
+	KeyValues kv = new KeyValues("Population");
+	
+	//Search the pop file for a sentry buster specification that can be used for this current wave
+	if (kv.GotoFirstSubKey())
+	{
+		char name[8];
+		char botMissionName[16];
+		
+		do
+		{
+			kv.GetSectionName(name, sizeof(name));
+			
+			if (!strcmp(name, "Mission", false))
+			{
+				kv.GetString("Objective", botMissionName, sizeof(botMissionName));
+				
+				if (GetBotMissionFromString(botMissionName) == CTFBot_MISSION_DESTROY_SENTRIES)
+				{
+					int beginAtWaveNumber = kv.GetNum("BeginAtWave");
+					
+					if (currentWaveNumber >= beginAtWaveNumber)
+					{
+						int waveDuration = kv.GetNum("RunForThisManyWaves");
+						int stopAtWaveNumber = beginAtWaveNumber + waveDuration - 1; //Subtract 1 to exclude the first wave
+						
+						if (currentWaveNumber <= stopAtWaveNumber)
+						{
+							m_flDestroySentryCooldownDuration = kv.GetFloat("CooldownTime");
+							bUpdated = true;
+							break;
+						}
+					}
+				}
+			}
+		} while (kv.GotoNextKey())
+	}
+	
+	delete kv;
+	
+#if defined TESTING_ONLY
+	PrintToChatAll("[UpdateSentryBusterSpawningCriteria] Sentry buster cooldown for wave %d: %f", currentWaveNumber, m_flDestroySentryCooldownDuration);
+#endif
+	
+	return bUpdated;
 }

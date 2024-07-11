@@ -519,6 +519,8 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnMapStart()
 {
 	g_bCanBotsAttackInSpawn = false;
+	
+	ResetRobotSpawnerData();
 }
 
 public void OnClientPutInServer(int client)
@@ -740,6 +742,42 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				if (!bShouldCharge)
 				{
 					//Only allowed to charge in the air
+					buttons &= ~IN_ATTACK2;
+				}
+			}
+		}
+		
+		if (myWeapon != -1 && TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_MEDIGUN)
+		{
+			bool bUseUber = true; //TODO: change this
+			
+			//These human players don't have a variable their patient, but this will be treated as theirs
+			//TODO: realistically, i think we should make our own variable and allow the player to switch their patient by healing someone else
+			int myPatient = GetEntPropEnt(myWeapon, Prop_Send, "m_hHealingTarget");
+			
+			if (myPatient != -1 && BaseEntity_IsPlayer(myPatient))
+			{
+				//Use uber if the patient is getting low
+				/* const float healthyRatio = 0.5;
+				bUseUber = GetClientHealth(myPatient) / TF2Util_GetEntityMaxHealth(myPatient) < healthyRatio; */
+				
+				//The patient is already ubered
+				if (TF2_IsPlayerInCondition(myPatient, TFCond_Ubercharged) || TF2_IsPlayerInCondition(myPatient, TFCond_MegaHeal))
+					bUseUber = false;
+				
+				//TODO: uber health threshold?
+				
+				//We're about to die
+				/* if (player.GetHealth() < 25)
+					bUseUber = true; */
+				
+				//Special MvM case, we're both in spawn
+				if (TF2_IsPlayerInCondition(myPatient, TFCond_UberchargedHidden) && player.InCond(TFCond_UberchargedHidden))
+					bUseUber = false;
+				
+				if (!bUseUber)
+				{
+					//Not allowed to uber
 					buttons &= ~IN_ATTACK2;
 				}
 			}
