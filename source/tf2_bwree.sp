@@ -23,7 +23,7 @@ Author: ★ Officer Spy ★
 #define PLUGIN_NAME	"[TF2] Be with Robots: Expanded & Enhanced"
 #define PLUGIN_PREFIX	"[BWR E&E]"
 
-#define TESTING_ONLY
+// #define TESTING_ONLY
 
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
@@ -419,10 +419,10 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.1",
+	version = "1.0.2",
 	url = ""
 };
-	
+
 public void OnPluginStart()
 {
 #if defined MOD_EXT_CBASENPC

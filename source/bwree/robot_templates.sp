@@ -303,13 +303,16 @@ static Action Timer_MvMEngineerTeleportSpawn(Handle timer, DataPack pack)
 
 static float SentryBuster_GetDamageForVictim(int victim, float baseDamage)
 {
-	//Sentry busters are an exception to the damage override on minibosses rule
-	//This is due to an order of precdence in CTFPlayer::OnTakeDamage
-	if (IsSentryBusterRobot(victim))
-		return baseDamage * 4;
-	
-	if (TF2_IsMiniBoss(victim))
-		return SENTRYBUSTER_DMG_TO_MINIBOSS;
+	if (BaseEntity_IsPlayer(victim))
+	{
+		//Sentry busters are an exception to the damage override on minibosses rule
+		//This is due to an order of precdence in CTFPlayer::OnTakeDamage
+		if (IsSentryBusterRobot(victim))
+			return baseDamage * 4;
+		
+		if (TF2_IsMiniBoss(victim))
+			return SENTRYBUSTER_DMG_TO_MINIBOSS;
+	}
 	
 	return baseDamage * 4;
 }

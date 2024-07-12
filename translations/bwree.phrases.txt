@@ -1,0 +1,25 @@
+"Phrases"
+{
+	"RobotPlayer_Notify_Upgrade_Bomb"
+	{
+		"en"			"You can upgrade me!"
+	}
+	"Player_Already_Robot"
+	{
+		"en"	"You are already playing as robot."
+	}
+	"Robot_Player_Limit_Reached"
+	{
+		"en"	"Max limit reached."
+	}
+	"Player_Spawn_As_Robot"
+	{
+		"#format"	"{1:s}"
+		"en"	"You have spawned as {1}."
+	}
+	"Player_Changed_Heal_Target"
+	{
+		"#format"	"{1:s}"
+		"en"	"You changed your healing target to {1}."
+	}
+}
