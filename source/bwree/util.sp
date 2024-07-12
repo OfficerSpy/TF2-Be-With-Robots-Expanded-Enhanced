@@ -1166,3 +1166,20 @@ stock bool RollRandomChanceFloat(float percent)
 {
 	return GetRandomFloat(1.0, 100.0) <= percent;
 }
+
+stock bool IsProjectileArrow(int entity)
+{
+	return HasEntProp(entity, Prop_Send, "m_bArrowAlight");
+}
+
+stock void ShowAnnotationToClient(int client, char[] message, int target, float duration, char[] sound = "")
+{
+	Event event = CreateEvent("show_annotation");
+	event.SetInt("id", target);
+	event.SetInt("follow_entindex", target);
+	event.SetFloat("lifetime", duration);
+	event.SetString("text", message);
+	event.SetString("play_sound", sound);
+	event.FireToClient(client);
+	event.Cancel();
+}

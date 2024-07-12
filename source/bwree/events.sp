@@ -51,7 +51,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		int spyCount = 0;
 		
 		for (int i = 1; i <= MaxClients; i++)
-			if (IsClientInGame(i) && TF2_GetClientTeam(i) == TFTeam_Blue && IsPlayerAlive(i))
+			if (i != client && IsClientInGame(i) && TF2_GetClientTeam(i) == TFTeam_Blue && IsPlayerAlive(i))
 				if (TF2_IsClass(i, TFClass_Spy))
 					spyCount++;
 		
@@ -166,6 +166,8 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 {
 	g_bCanBotsAttackInSpawn = CanBotsAttackWhileInSpawnRoom(g_iPopulationManager);
 	
+	StartSentryBusterCooldown();
+	
 	//The round started, now we turn into one of our robots
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
@@ -186,7 +188,7 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	
 	TFObjectType objectType = view_as<TFObjectType>(event.GetInt("object"));
 	
-	if (objectType != TFObject_Sentry && objectType != TFObject_Teleporter)
+	if (objectType == TFObject_Dispenser)
 		return;
 	
 	int entity = event.GetInt("index");

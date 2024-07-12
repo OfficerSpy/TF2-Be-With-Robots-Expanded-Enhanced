@@ -68,6 +68,7 @@ static float m_flAutoJumpMax[MAXPLAYERS + 1];
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
 ConVar bwr3_robot_gatebot_template_file;
+ConVar bwr3_robot_gatebot_giant_template_file;
 ConVar bwr3_robot_sentrybuster_template_file;
 ConVar bwr3_robot_boss_template_file;
 ConVar bwr3_bomb_upgrade_mode;
@@ -418,34 +419,36 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.0",
+	version = "1.0.1",
 	url = ""
 };
 	
 public void OnPluginStart()
 {
-#if defined TESTING_ONLY
 #if defined MOD_EXT_CBASENPC
 	PrintToServer("%s compiled for use with extension CBaseNPC", PLUGIN_NAME);
 #endif
-#endif
+	
+	LoadTranslations("bwree.phrases");
 	
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_template_file = CreateConVar("sm_bwr3_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
+	bwr3_robot_gatebot_giant_template_file = CreateConVar("sm_bwr3_robot_gatebot_giant_template_file", "robot_gatebot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_sentrybuster_template_file = CreateConVar("sm_bwr3_robot_sentrybuster_template_file", "robot_sentrybuster.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_template_file = CreateConVar("sm_bwr3_robot_boss_template_file", "robot_boss.cfg", _, FCVAR_NOTIFY);
 	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "1", _, FCVAR_NOTIFY);
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_minmimum_players_for_giants = CreateConVar("sm_bwr3_minmimum_players_for_giants", "6", _, FCVAR_NOTIFY);
-	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "20", _, FCVAR_NOTIFY);
+	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_gatebot_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwr3_robot_gatebot_giant_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_sentrybuster_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_boss_template_file, ConVarChanged_RobotTemplateFile);
 	
@@ -534,6 +537,8 @@ public void OnClientPutInServer(int client)
 	
 	MvMRobotPlayer(client).Reset();
 	
+	SDKHook(client, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+	
 	DHooks_OnClientPutInServer(client);
 }
 
@@ -582,6 +587,16 @@ public void OnEntityCreated(int entity, const char[] classname)
 		g_iPopulationManager = entity;
 	else if (StrEqual(classname, "item_teamflag"))
 		SDKHook(entity, SDKHook_Touch, CaptureFlag_Touch);
+	else if (StrEqual(classname, "headless_hatman"))
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+	else if (StrEqual(classname, "merasmus"))
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+	else if (StrEqual(classname, "eyeball_boss"))
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+	else if (StrEqual(classname, "base_boss"))
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+	else if (StrEqual(classname, "tank_boss"))
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 	else if (StrEqual(classname, "obj_attachment_sapper"))
 		SDKHook(entity, SDKHook_SpawnPost, ObjectSapper_SpawnPost);
 	
@@ -1176,6 +1191,27 @@ public Action ObjectTeleporter_GetMaxHealth(int entity, int &maxhealth)
 	return Plugin_Continue;
 }
 
+public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	if (BaseEntity_IsPlayer(attacker))
+	{
+		if (IsPlayingAsRobot(attacker) && MvMRobotPlayer(attacker).HasAttribute(CTFBot_ALWAYS_CRIT))
+		{
+			/* In MvM, CTFProjectile_Arrow::StrikeTarget removes DMG_CRITICAL from damagetype before it has the entity take damage from it
+			if the attacker is not a TFBot or the TFBot doesn't have bot attribute ALWAYS_CRIT
+			For our robot players, allow their arrows to deal critical damage if their robot allows it */
+			if (inflictor > 0 && IsProjectileArrow(inflictor))
+			{
+				damagetype |= DMG_CRITICAL;
+				
+				return Plugin_Changed;
+			}
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
 public Action CaptureFlag_Touch(int entity, int other)
 {
 	if (!BaseEntity_IsPlayer(other))
@@ -1265,14 +1301,14 @@ public void PlayerRobot_TouchPost(int entity, int other)
 public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
 	MvMSuicideBomber roboVictim = MvMSuicideBomber(victim);
-	OSTFPlayer plrVictim = OSTFPlayer(victim);
+	OSTFPlayer cbpVictim = OSTFPlayer(victim);
 	
 	if (roboVictim.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 	{
 		//We're about to die, detonate!
-		if (plrVictim.m_iHealth - damage <= 0)
+		if (cbpVictim.m_iHealth - damage <= 0)
 		{
-			plrVictim.m_iHealth = 1;
+			cbpVictim.m_iHealth = 1;
 			
 			roboVictim.StartDetonate(false, true);
 			
@@ -1280,12 +1316,10 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 		}
 	}
 	
-	OSTFPlayer plrAttacker = OSTFPlayer(attacker);
-	
-	if (plrAttacker.IsPlayer())
+	if (BaseEntity_IsPlayer(attacker))
 	{
 		//As giants, we should take less damage from sentry buster bots
-		if (damagecustom == TF_DMG_CUSTOM_NONE && damagetype & DMG_BLAST && damage > SENTRYBUSTER_DMG_TO_MINIBOSS && plrAttacker.IsBot() && IsSentryBusterRobot(attacker) && plrVictim.IsMiniBoss())
+		if (damagecustom == TF_DMG_CUSTOM_NONE && damagetype & DMG_BLAST && damage > SENTRYBUSTER_DMG_TO_MINIBOSS && BasePlayer_IsBot(attacker) && IsSentryBusterRobot(attacker) && cbpVictim.IsMiniBoss())
 		{
 			damage = SENTRYBUSTER_DMG_TO_MINIBOSS;
 			
@@ -1584,7 +1618,7 @@ bool CanWeaponFireInRobotSpawn(int weapon, int inputType)
 	{
 		switch (TF2Util_GetWeaponID(weapon))
 		{
-			case TF_WEAPON_MINIGUN, TF_WEAPON_SNIPERRIFLE:
+			case TF_WEAPON_MINIGUN, TF_WEAPON_SNIPERRIFLE, TF_WEAPON_MECHANICAL_ARM:
 			{
 				//These are not allowed to secondary fire
 				return false;

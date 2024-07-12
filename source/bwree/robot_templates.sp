@@ -195,6 +195,8 @@ float g_flLastTeleportTime = -1.0;
 static float m_flDestroySentryCooldownDuration;
 static float m_flSentryBusterCooldown;
 
+static char m_sIdleSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
+static int m_nIdleSoundChannel[MAXPLAYERS + 1];
 static int m_iSpyTeleportAttempt[MAXPLAYERS + 1];
 
 static Action Timer_SuicideBomberDetonate(Handle timer, any data)
@@ -356,6 +358,20 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 				ThrowError("Could not find gatebot robot config file: %s", filePath);
 			
 			KeyValues kv = new KeyValues("RobotGatebotTemplates");
+			kv.ImportFromFile(filePath);
+			
+			ParseRobotTemplateOntoPlayer(kv, client);
+			delete kv;
+		}
+		case ROBOT_GATEBOT_GIANT:
+		{
+			bwr3_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
+			
+			if (!FileExists(filePath))
+				ThrowError("Could not find giant gatebot robot config file: %s", filePath);
+			
+			KeyValues kv = new KeyValues("RobotGatebotGiantTemplates");
 			kv.ImportFromFile(filePath);
 			
 			ParseRobotTemplateOntoPlayer(kv, client);
@@ -582,8 +598,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	roboPlayer.ClearTeleportWhere();
 	
-	// PrintToChat(client, "%s %t", "Player_Spawn_As_Robot", strName);
-	
 	//TODO: SetTeleportWhjere
 	
 	if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
@@ -803,6 +817,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	//For TFBots this is actually checked in CTFBot::PhysicsSimulate
 	if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 		player.AddCond(TFCond_CritCanteen);
+	
+	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", strName);
 	
 #if defined TESTING_ONLY
 	LogAction(client, -1, "%3.2f: %L spawned as robot %s", GetGameTime(), client, strName);
@@ -1030,23 +1046,37 @@ static void StartIdleSound(int client, TFClassType class)
 {
 	StopIdleSound(client);
 	
-	//TODO: we could actually have a variable per player store the sound path they are currently playing
-	//Use GetGameSoundParams to fill out info, play the sound given from the returned sample
-	//then store that sample on a glboal string array for the player
-	
 	if (TF2_IsMiniBoss(client))
 	{
+		int level;
+		float volume;
+		int pitch;
+		bool bFound = false;
+		
 		switch (class)
 		{
-			//Use actual sound files with specific modifications since game sounds can have multiple waves
-			case TFClass_Heavy:	EmitSoundToAll(SOUND_GIANT_HEAVY_LOOP, client, SNDCHAN_STATIC, 83, _, 0.8);
-			case TFClass_Soldier:	EmitSoundToAll(SOUND_GIANT_SOLDIER_LOOP, client, SNDCHAN_STATIC, 82);
+			case TFClass_Heavy:	bFound = GetGameSoundParams("MVM.GiantHeavyLoop", m_nIdleSoundChannel[client], level, volume, pitch, m_sIdleSound[client], sizeof(m_sIdleSound[]), client);
+			case TFClass_Soldier:	bFound = GetGameSoundParams("MVM.GiantSoldierLoop", m_nIdleSoundChannel[client], level, volume, pitch, m_sIdleSound[client], sizeof(m_sIdleSound[]), client);
 			case TFClass_DemoMan:
 			{
-				EmitSoundToAll(MvMRobotPlayer(client).HasMission(CTFBot_MISSION_DESTROY_SENTRIES) ? SOUND_SENTRYBUSTER_LOOP : SOUND_GIANT_DEMOMAN_LOOP, client, SNDCHAN_STATIC, 82, _, 0.6);
+				bFound = GetGameSoundParams(MvMRobotPlayer(client).HasMission(CTFBot_MISSION_DESTROY_SENTRIES) ? "MVM.SentryBusterLoop" : "MVM.GiantDemomanLoop", m_nIdleSoundChannel[client], level, volume, pitch, m_sIdleSound[client], sizeof(m_sIdleSound[]), client);
 			}
-			case TFClass_Scout:	EmitSoundToAll(SOUND_GIANT_SCOUT_LOOP, client, SNDCHAN_STATIC, 85, _, 0.3);
-			case TFClass_Pyro:	EmitSoundToAll(SOUND_GIANT_PYRO_LOOP, client, SNDCHAN_STATIC, 83, _, 0.8);
+			case TFClass_Scout:	bFound = GetGameSoundParams("MVM.GiantScoutLoop", m_nIdleSoundChannel[client], level, volume, pitch, m_sIdleSound[client], sizeof(m_sIdleSound[]), client);
+			case TFClass_Pyro:	bFound = GetGameSoundParams("MVM.GiantPyroLoop", m_nIdleSoundChannel[client], level, volume, pitch, m_sIdleSound[client], sizeof(m_sIdleSound[]), client);
+		}
+		
+		if (bFound)
+		{
+			//Emit to everyone
+			int[] iArrClients = new int[MaxClients];
+			int total = 0;
+
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i))
+					iArrClients[total++] = i;
+			
+			if (total)
+				EmitSound(iArrClients, total, m_sIdleSound[client], client, m_nIdleSoundChannel[client], level, _, volume, pitch);
 		}
 	}
 }
@@ -1414,11 +1444,16 @@ void ResetRobotSpawnerData()
 	g_flLastTeleportTime = 0.0;
 }
 
+void StartSentryBusterCooldown()
+{
+	m_flSentryBusterCooldown = GetGameTime() + m_flDestroySentryCooldownDuration;
+}
+
 void SelectSpawnRobotTypeForPlayer(int client)
 {
 	if (ShouldDispatchSentryBuster())
 	{
-		m_flSentryBusterCooldown = GetGameTime() + m_flDestroySentryCooldownDuration;
+		StartSentryBusterCooldown();
 		TurnPlayerIntoRandomRobot(client, ROBOT_SENTRYBUSTER);
 		return;
 	}
@@ -1439,13 +1474,12 @@ void SelectSpawnRobotTypeForPlayer(int client)
 
 void StopIdleSound(int client)
 {
-	//This is kinda dumb...
-	StopSound(client, SNDCHAN_STATIC, SOUND_GIANT_HEAVY_LOOP);
-	StopSound(client, SNDCHAN_STATIC, SOUND_GIANT_SOLDIER_LOOP);
-	StopSound(client, SNDCHAN_STATIC, SOUND_GIANT_DEMOMAN_LOOP);
-	StopSound(client, SNDCHAN_STATIC, SOUND_GIANT_SCOUT_LOOP);
-	StopSound(client, SNDCHAN_STATIC, SOUND_GIANT_PYRO_LOOP);
-	StopSound(client, SNDCHAN_STATIC, SOUND_SENTRYBUSTER_LOOP);
+	if (strlen(m_sIdleSound[client]) > 0)
+	{
+		StopSound(client, m_nIdleSoundChannel[client], m_sIdleSound[client]);
+		m_sIdleSound[client] = NULL_STRING;
+		m_nIdleSoundChannel[client] = SNDCHAN_AUTO;
+	}
 }
 
 bool IsSentryBusterRobot(int client)
@@ -1495,11 +1529,22 @@ void MvMEngineerTeleportSpawn(int client)
 
 bool UpdateSentryBusterSpawningCriteria()
 {
-	//TODO: actually read the current popfile
+	char missionFilePath[PLATFORM_MAX_PATH]; TF2_GetMvMPopfileName(g_iObjectiveResource, missionFilePath, sizeof(missionFilePath));
+	
+	if (!FileExists(missionFilePath))
+	{
+		//Search the valve directory then...
+		if (!FileExists(missionFilePath, true))
+		{
+			LogError("UpdateSentryBusterSpawningCriteria: Could not find the current mission file %s!", missionFilePath);
+			return false;
+		}
+	}
 	
 	int currentWaveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
 	bool bUpdated = false;
 	KeyValues kv = new KeyValues("Population");
+	kv.ImportFromFile(missionFilePath);
 	
 	//Search the pop file for a sentry buster specification that can be used for this current wave
 	if (kv.GotoFirstSubKey())
