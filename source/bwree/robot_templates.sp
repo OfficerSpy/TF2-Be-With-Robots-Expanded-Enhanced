@@ -39,10 +39,10 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 	
 	public void DestroySuicideBomber()
 	{
-		this.DetonateTimerInvalidate();
+		this.DetonateTimer_Invalidate();
 	}
 	
-	public void DetonateTimerInvalidate()
+	public void DetonateTimer_Invalidate()
 	{
 		if (m_hDetonateTimer[this.index])
 		{
@@ -51,19 +51,19 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		}
 	}
 	
-	public bool DetonateTimerHasStarted()
+	public bool DetonateTimer_HasStarted()
 	{
 		return m_hDetonateTimer[this.index] != null;
 	}
 	
-	public void DetonateTimerStart(float duration)
+	public void DetonateTimer_Start(float duration)
 	{
 		m_hDetonateTimer[this.index] = CreateTimer(duration, Timer_SuicideBomberDetonate, this.index);
 	}
 	
 	public void StartDetonate(bool bWasSuccessful = false, bool bWasKilled = false)
 	{
-		if (this.DetonateTimerHasStarted())
+		if (this.DetonateTimer_HasStarted())
 			return;
 		
 		OSTFPlayer player = OSTFPlayer(this.index);
@@ -83,7 +83,7 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		player.m_takedamage = DAMAGE_NO;
 		
 		VS_Taunt(this.index, TAUNT_BASE_WEAPON);
-		this.DetonateTimerStart(2.0);
+		this.DetonateTimer_Start(2.0);
 		EmitGameSoundToAll("MvM.SentryBusterSpin", this.index);
 	}
 	
@@ -201,7 +201,7 @@ static int m_iSpyTeleportAttempt[MAXPLAYERS + 1];
 
 static Action Timer_SuicideBomberDetonate(Handle timer, any data)
 {
-	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data) && !ShouldTacticalMonitorSuspendAction())
+	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data) && !ShouldCurrentActionBeSuspended(data))
 	{
 		MvMSuicideBomber(data).Detonate();
 		
@@ -456,27 +456,9 @@ static void ParseRobotTemplateOntoPlayer(KeyValues kv, int client)
 				MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 				
 				//Now we set the robot's basic details here
-				char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
-				roboPlayer.SetDifficulty(GetSkillFromString(kvStringBuffer));
-				
-				roboPlayer.ClearWeaponRestrictions();
-				kv.GetString("WeaponRestrictions", kvStringBuffer, sizeof(kvStringBuffer));
-				roboPlayer.SetWeaponRestriction(GetWeaponRestrictionFlagsFromString(kvStringBuffer));
-				
 				roboPlayer.SetAutoJump(kv.GetFloat("AutoJumpMin"), kv.GetFloat("AutoJumpMax"));
-				roboPlayer.SetMaxVisionRange(kv.GetFloat("MaxVisionRange", -1.0));
-				roboPlayer.ClearTags();
 				
-				char botTags[BOT_TAGS_BUFFER_MAX_LENGTH]; kv.GetString("Tags", botTags, sizeof(botTags));
-				
-				if (strlen(botTags) > 0)
-				{
-					char splitTags[MAX_BOT_TAG_CHECKS][BOT_TAG_EACH_MAX_LENGTH];
-					int splitTagsCount = ExplodeString(botTags, ",", splitTags, sizeof(splitTags), sizeof(splitTags[]));
-					
-					for (int i = 0; i < splitTagsCount; i++)
-						roboPlayer.AddTag(splitTags[i]);
-				}
+				char kvStringBuffer[16];
 				
 				//Not usually part of a robot template, but I don't see any other way to do it here
 				kv.GetString("Objective", kvStringBuffer, sizeof(kvStringBuffer));
@@ -489,72 +471,20 @@ static void ParseRobotTemplateOntoPlayer(KeyValues kv, int client)
 				char classIcon[PLATFORM_MAX_PATH]; kv.GetString("ClassIcon", classIcon, sizeof(classIcon));
 				int credits = kv.GetNum("TotalCurrency");
 				
-				roboPlayer.ClearAllAttributes();
+				roboPlayer.ClearEventChangeAttributes();
 				
-				if (kv.JumpToKey("BotAttributes"))
+				if (kv.JumpToKey("EventChangeAttributes"))
 				{
-					roboPlayer.SetAttribute(GetBotAttributesFromKeyValues(kv));
+					//If we enter this block, this means we want to parse multiple blocks of robot stats
+					//These should be stored on the player as well so they can be referenced later
+					roboPlayer.InitializeEventChangeAttributes();
+					ParseEventChangeAttributesForPlayer(client, kv, true);
 					kv.GoBack();
 				}
-				
-				if (kv.JumpToKey("CharacterAttributes"))
+				else
 				{
-					if (kv.GotoFirstSubKey(false))
-					{
-						char attributeName[PLATFORM_MAX_PATH];
-						char attributeValue[PLATFORM_MAX_PATH];
-						
-						do
-						{
-							kv.GetSectionName(attributeName, sizeof(attributeName));
-							kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
-							
-							TF2Attrib_SetFromStringValue(client, attributeName, attributeValue);
-						} while (kv.GotoNextKey(false))
-						
-						kv.GoBack();
-					}
-					
-					kv.GoBack();
-				}
-				
-				if (kv.JumpToKey("Items"))
-				{
-					if (kv.GotoFirstSubKey(false))
-					{
-						char itemName[128];
-						int item = -1;
-						
-						do
-						{
-							kv.GetSectionName(itemName, sizeof(itemName));
-							
-							item = AddItemToPlayer(client, itemName);
-							
-							if (item != -1)
-							{
-								if (kv.GotoFirstSubKey(false))
-								{
-									char attributeName[PLATFORM_MAX_PATH];
-									char attributeValue[PLATFORM_MAX_PATH];
-									
-									do
-									{
-										kv.GetSectionName(attributeName, sizeof(attributeName));
-										kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
-										
-										TF2Attrib_SetFromStringValue(item, attributeName, attributeValue);
-									} while (kv.GotoNextKey(false))
-									
-									kv.GoBack();
-								}
-							}
-						} while (kv.GotoNextKey(false))
-						
-						kv.GoBack();
-					}
-					
-					kv.GoBack();
+					//Don't store anything as this robot will only use default stats
+					ParseEventChangeAttributesForPlayer(client, kv);
 				}
 				
 				//Now we do all the stuff needed for when the bot spawns
@@ -830,7 +760,130 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	return Plugin_Stop;
 }
 
-static DifficultyType GetSkillFromString(const char[] value)
+static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool bStoreToPlayer = false)
+{
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
+	//Before we do anything with this, store this to the player if necessary
+	if (bStoreToPlayer)
+		roboPlayer.SetEventChangeAttributes(kv);
+	
+#if defined TESTING_ONLY
+	//Dump the current block of EventChangeAttributes here
+	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "data/bwr3_eventchangeattributes.txt");
+	kv.ExportToFile(filePath);
+#endif
+	
+	//Default describes what the robot's stats are for when it first spawns in
+	bool isReadingDefaultAttributes = kv.JumpToKey("Default");
+	
+	char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
+	
+	roboPlayer.SetDifficulty(GetSkillFromString(kvStringBuffer));
+	roboPlayer.ClearWeaponRestrictions();
+	
+	kv.GetString("WeaponRestrictions", kvStringBuffer, sizeof(kvStringBuffer));
+	
+	roboPlayer.SetWeaponRestriction(GetWeaponRestrictionFlagsFromString(kvStringBuffer));
+	
+	roboPlayer.SetMaxVisionRange(kv.GetFloat("MaxVisionRange", -1.0));
+	roboPlayer.ClearTags();
+	
+	char botTags[BOT_TAGS_BUFFER_MAX_LENGTH]; kv.GetString("Tags", botTags, sizeof(botTags));
+	
+	if (strlen(botTags) > 0)
+	{
+		char splitTags[MAX_BOT_TAG_CHECKS][BOT_TAG_EACH_MAX_LENGTH];
+		int splitTagsCount = ExplodeString(botTags, ",", splitTags, sizeof(splitTags), sizeof(splitTags[]));
+		
+		for (int i = 0; i < splitTagsCount; i++)
+			roboPlayer.AddTag(splitTags[i]);
+	}
+	
+	roboPlayer.ClearAllAttributes();
+	
+	if (kv.JumpToKey("BotAttributes"))
+	{
+		roboPlayer.SetAttribute(GetBotAttributesFromKeyValues(kv));
+		kv.GoBack();
+	}
+	
+	if (kv.JumpToKey("CharacterAttributes"))
+	{
+		if (kv.GotoFirstSubKey(false))
+		{
+			char attributeName[PLATFORM_MAX_PATH];
+			char attributeValue[PLATFORM_MAX_PATH];
+			
+			do
+			{
+				kv.GetSectionName(attributeName, sizeof(attributeName));
+				kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
+				
+				TF2Attrib_SetFromStringValue(client, attributeName, attributeValue);
+			} while (kv.GotoNextKey(false))
+			
+			kv.GoBack();
+		}
+		
+		kv.GoBack();
+	}
+	
+	if (kv.JumpToKey("Items"))
+	{
+		if (kv.GotoFirstSubKey(false))
+		{
+			char itemName[128];
+			int item = -1;
+			
+			do
+			{
+				kv.GetSectionName(itemName, sizeof(itemName));
+				
+				item = AddItemToPlayer(client, itemName);
+				
+				if (item != -1)
+				{
+					if (kv.GotoFirstSubKey(false))
+					{
+						char attributeName[PLATFORM_MAX_PATH];
+						char attributeValue[PLATFORM_MAX_PATH];
+						
+						do
+						{
+							kv.GetSectionName(attributeName, sizeof(attributeName));
+							kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
+							
+							if (TF2Attrib_IsValidAttributeName(attributeName))
+							{
+								if (!DoSpecialSetFromStringValue(item, attributeName, attributeValue))
+									TF2Attrib_SetFromStringValue(item, attributeName, attributeValue);
+							}
+							else
+							{
+								LogError("ParseEventChangeAttributesForPlayer: %s is not a real item attribute", attributeName);
+							}
+						} while (kv.GotoNextKey(false))
+						
+						kv.GoBack();
+						
+						//The style may have changed, tell the game to update its model
+						VS_ReapplyProvision(item);
+					}
+				}
+			} while (kv.GotoNextKey(false))
+			
+			kv.GoBack();
+		}
+		
+		kv.GoBack();
+	}
+	
+	if (isReadingDefaultAttributes)
+		kv.GoBack();
+}
+
+DifficultyType GetSkillFromString(const char[] value)
 {
 	if (strlen(value) > 0)
 	{
@@ -860,7 +913,7 @@ static DifficultyType GetSkillFromString(const char[] value)
 	return CTFBot_EASY;
 }
 
-static WeaponRestrictionType GetWeaponRestrictionFlagsFromString(const char[] value)
+WeaponRestrictionType GetWeaponRestrictionFlagsFromString(const char[] value)
 {
 	if (strlen(value) > 0)
 	{
@@ -920,7 +973,7 @@ static int GetBotMissionFromString(const char[] value)
 	return CTFBot_NO_MISSION;
 }
 
-static AttributeType GetBotAttributesFromKeyValues(KeyValues kv)
+AttributeType GetBotAttributesFromKeyValues(KeyValues kv)
 {
 	AttributeType flags = CTFBot_NONE;
 	
@@ -1030,11 +1083,12 @@ static AttributeType GetBotAttributesFromKeyValues(KeyValues kv)
 }
 
 //Different from CTFBot::ModifyMaxHealth, as I don't feel model scale override necessary as its own variable right now
-static void ModifyMaxHealth(int client, int nNewMaxHealth, bool bSetCurrentHealth = true, bAllowModelScaling = true, float flModelScaleOverride = 0.0)
+void ModifyMaxHealth(int client, int nNewMaxHealth, bool bSetCurrentHealth = true, bAllowModelScaling = true, float flModelScaleOverride = 0.0)
 {
 	OSTFPlayer player = OSTFPlayer(client);
 	
 	int maxHealth = player.GetMaxHealth();
+	
 	if (maxHealth != nNewMaxHealth)
 		TF2Attrib_SetByName(client, "hidden maxhealth non buffed", float(nNewMaxHealth - maxHealth));
 	
@@ -1085,7 +1139,8 @@ static void StartIdleSound(int client, TFClassType class)
 }
 
 //NEW METHOD: heavily based on a function from [TF2] Chaos Mod
-static int AddItemToPlayer(int client, const char[] szItemName)
+//NOTE: it doesn't seem to always remove conflicting cosmetics...
+int AddItemToPlayer(int client, const char[] szItemName)
 {
 	int iItemDefIndex = GetItemDefinitionIndexByName(szItemName);
 	
@@ -1102,14 +1157,17 @@ static int AddItemToPlayer(int client, const char[] szItemName)
 			for (int wbl = 0; wbl < TF2Util_GetPlayerWearableCount(client); wbl++)
 			{
 				int wearable = TF2Util_GetPlayerWearable(client, wbl);
+				
 				if (wearable == -1)
 					continue;
 				
 				int iWearableDefIndex = GetEntProp(wearable, Prop_Send, "m_iItemDefinitionIndex");
+				
 				if (iWearableDefIndex == 0xFFFF)
 					continue;
 				
 				int nWearableRegionMask = TF2Econ_GetItemEquipRegionMask(iWearableDefIndex);
+				
 				if (nWearableRegionMask & nNewItemRegionMask)
 				{
 					TF2_RemoveWearable(client, wearable);
@@ -1119,6 +1177,7 @@ static int AddItemToPlayer(int client, const char[] szItemName)
 		else
 		{
 			int entity = TF2Util_GetPlayerLoadoutEntity(client, iSlot);
+			
 			if (entity != -1)
 			{
 				RemovePlayerItem(client, entity);
@@ -1146,7 +1205,7 @@ static int AddItemToPlayer(int client, const char[] szItemName)
 	{
 		if (szItemName[0])
 		{
-			LogError("GiveItem: Invalid item %s.", szItemName);
+			LogError("AddItemToPlayer: Invalid item %s.", szItemName);
 		}
 	}
 	

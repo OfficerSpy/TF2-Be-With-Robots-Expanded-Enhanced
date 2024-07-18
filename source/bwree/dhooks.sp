@@ -8,7 +8,7 @@ bool InitDHooks(GameData hGamedata)
 {
 	int failCount = 0;
 	
-	if (!RegisterDetour(hGamedata, "CTFBot::GetEventChangeAttributes", DHookCallback_GetEventChangeAttributes_Pre))
+	if (!RegisterDetour(hGamedata, "CTFBot::GetEventChangeAttributes", DHookCallback_GetEventChangeAttributes_Pre, DHookCallback_GetEventChangeAttributes_Post))
 		failCount++;
 	
 	if (!RegisterDetour(hGamedata, "CBaseObject::FindSnapToBuildPos", DHookCallback_FindSnapToBuildPos_Pre, DHookCallback_FindSnapToBuildPos_Post))
@@ -75,6 +75,18 @@ static MRESReturn DHookCallback_GetEventChangeAttributes_Pre(int pThis, DHookRet
 	{
 		hReturn.Value = 0; //Maybe one day we'll actually be able to return this kind of data
 		return MRES_Supercede;
+	}
+	
+	return MRES_Ignored;
+}
+
+static MRESReturn DHookCallback_GetEventChangeAttributes_Post(int pThis, DHookReturn hReturn, DHookParam hParams)
+{
+	if (IsPlayingAsRobot(pThis))
+	{
+		//For right now, we assume RevertGateBotsBehavior is always what gets called here
+		//Potentially, this could be moved to the input for point_populator_interface
+		MvMRobotPlayer(pThis).OnEventChangeAttributes("RevertGateBotsBehavior");
 	}
 	
 	return MRES_Ignored;

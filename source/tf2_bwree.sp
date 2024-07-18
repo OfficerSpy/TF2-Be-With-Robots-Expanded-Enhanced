@@ -64,17 +64,20 @@ static float m_flMaxVisionRange[MAXPLAYERS + 1];
 static ArrayList m_adtTeleportWhereName[MAXPLAYERS + 1];
 static float m_flAutoJumpMin[MAXPLAYERS + 1];
 static float m_flAutoJumpMax[MAXPLAYERS + 1];
+static KeyValues m_kvEventChangeAttributes[MAXPLAYERS + 1];
 
+ConVar bwr3_robot_spawn_time_min;
+ConVar bwr3_robot_spawn_time_max;
+ConVar bwr3_bomb_upgrade_mode;
+ConVar bwr3_cosmetic_mode;
+ConVar bwr3_max_invaders;
+ConVar bwr3_minmimum_players_for_giants;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
 ConVar bwr3_robot_gatebot_template_file;
 ConVar bwr3_robot_gatebot_giant_template_file;
 ConVar bwr3_robot_sentrybuster_template_file;
 ConVar bwr3_robot_boss_template_file;
-ConVar bwr3_bomb_upgrade_mode;
-ConVar bwr3_cosmetic_mode;
-ConVar bwr3_max_invaders;
-ConVar bwr3_minmimum_players_for_giants;
 ConVar bwr3_robot_giant_chance;
 ConVar bwr3_robot_boss_chance;
 ConVar bwr3_robot_gatebot_chance;
@@ -97,6 +100,8 @@ ConVar phys_pushscale;
 #if defined MOD_EXT_CBASENPC
 ConVar tf_bot_suicide_bomb_friendly_fire;
 #endif
+
+#include "bwree/util.sp"
 
 methodmap MvMRobotPlayer
 {
@@ -168,6 +173,7 @@ methodmap MvMRobotPlayer
 		this.SetMaxVisionRange(-1.0);
 		this.ClearTeleportWhere();
 		this.SetAutoJump(0.0, 0.0);
+		this.ClearEventChangeAttributes();
 	}
 	
 	public bool IsDeployingTheBomb()
@@ -314,6 +320,179 @@ methodmap MvMRobotPlayer
 		m_flAutoJumpMax[this.index] = max;
 	}
 	
+	public void InitializeEventChangeAttributes()
+	{
+		if (m_kvEventChangeAttributes[this.index] == null)
+			m_kvEventChangeAttributes[this.index] = new KeyValues("EventChangeAttributes");
+	}
+	
+	public void SetEventChangeAttributes(KeyValues data)
+	{
+		/* NOTE: okay, so I tried CloneHandle and it did copy the correct tree
+		but then manipulating the original handle also affects this one
+		and put us in the wrong spot of the tree when we go to reference it
+		So instead, we will export the current tree as a string then import it from that string
+		Since these objects won't be tied to the same one in memory, we basically created our own tree here */
+		char kvTree[2048]; data.ExportToString(kvTree, sizeof(kvTree));
+		
+		m_kvEventChangeAttributes[this.index].ImportFromString(kvTree);
+	}
+	
+	public void ClearEventChangeAttributes()
+	{
+		if (m_kvEventChangeAttributes[this.index])
+		{
+			delete m_kvEventChangeAttributes[this.index];
+			m_kvEventChangeAttributes[this.index] = null;
+		}
+	}
+	
+	public void OnEventChangeAttributes(const char[] eventName)
+	{
+		//NOTE: we don't really need to clone here, but I don't want this looking worse than it already does
+		KeyValues kv = view_as<KeyValues>(CloneHandle(m_kvEventChangeAttributes[this.index]));
+		
+		kv.GotoFirstSubKey(false);
+		
+		char sectionName[32];
+		
+		do
+		{
+			kv.GetSectionName(sectionName, sizeof(sectionName));
+			
+#if defined TESTING_ONLY
+			PrintToChatAll("[OnEventChangeAttributes] Player %d: %s", this.index, sectionName);
+#endif
+			
+			//Look for the specified event's name
+			if (StrEqual(sectionName, eventName, false))
+			{
+				//Remember our current health before removing the attributes since ModifyMaxHealth uses an attribute to set the player's health
+				// int nHealth = GetClientHealth(this.index);
+				int nMaxHealth = TF2Util_GetEntityMaxHealth(this.index);
+				
+				//Remove these as we're about to override them
+				TF2Attrib_RemoveAll(this.index);
+				
+				//Set the health back to what it was before
+				ModifyMaxHealth(this.index, nMaxHealth, false, false);
+				// BaseEntity_SetHealth(this.index, nHealth);
+				
+				//TODO: remove this when AddItemToPlayer can more reliably replace cosmetics
+				if (bwr3_cosmetic_mode.IntValue == COSMETIC_MODE_NONE)
+					RemoveCosmetics(this.index);
+				
+				/* We're really just reinventing the wheel here you fucking idiot...
+				This is literally the same as ParseEventChangeAttributesForPlayer
+				Why can' we just make one function so this shit isn't as redundant? */
+				char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
+				
+				this.SetDifficulty(GetSkillFromString(kvStringBuffer));
+				this.ClearWeaponRestrictions();
+				
+				kv.GetString("WeaponRestrictions", kvStringBuffer, sizeof(kvStringBuffer));
+				
+				this.SetWeaponRestriction(GetWeaponRestrictionFlagsFromString(kvStringBuffer));
+				
+				this.SetMaxVisionRange(kv.GetFloat("MaxVisionRange", -1.0));
+				this.ClearTags();
+				
+				char botTags[BOT_TAGS_BUFFER_MAX_LENGTH]; kv.GetString("Tags", botTags, sizeof(botTags));
+				
+				if (strlen(botTags) > 0)
+				{
+					char splitTags[MAX_BOT_TAG_CHECKS][BOT_TAG_EACH_MAX_LENGTH];
+					int splitTagsCount = ExplodeString(botTags, ",", splitTags, sizeof(splitTags), sizeof(splitTags[]));
+					
+					for (int i = 0; i < splitTagsCount; i++)
+						this.AddTag(splitTags[i]);
+				}
+				
+				this.ClearAllAttributes();
+				
+				if (kv.JumpToKey("BotAttributes"))
+				{
+					this.SetAttribute(GetBotAttributesFromKeyValues(kv));
+					kv.GoBack();
+				}
+				
+				if (kv.JumpToKey("CharacterAttributes"))
+				{
+					if (kv.GotoFirstSubKey(false))
+					{
+						char attributeName[PLATFORM_MAX_PATH];
+						char attributeValue[PLATFORM_MAX_PATH];
+						
+						do
+						{
+							kv.GetSectionName(attributeName, sizeof(attributeName));
+							kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
+							
+							TF2Attrib_SetFromStringValue(this.index, attributeName, attributeValue);
+						} while (kv.GotoNextKey(false));
+						
+						kv.GoBack();
+					}
+					
+					kv.GoBack();
+				}
+				
+				if (kv.JumpToKey("Items"))
+				{
+					if (kv.GotoFirstSubKey(false))
+					{
+						char itemName[128];
+						int item = -1;
+						
+						do
+						{
+							kv.GetSectionName(itemName, sizeof(itemName));
+							
+							item = AddItemToPlayer(this.index, itemName);
+							
+							if (item != -1)
+							{
+								if (kv.GotoFirstSubKey(false))
+								{
+									char attributeName[PLATFORM_MAX_PATH];
+									char attributeValue[PLATFORM_MAX_PATH];
+									
+									do
+									{
+										kv.GetSectionName(attributeName, sizeof(attributeName));
+										kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
+										
+										if (TF2Attrib_IsValidAttributeName(attributeName))
+										{
+											if (!DoSpecialSetFromStringValue(item, attributeName, attributeValue))
+												TF2Attrib_SetFromStringValue(item, attributeName, attributeValue);
+										}
+										else
+										{
+											LogError("OnEventChangeAttributes: %s is not a real item attribute", attributeName);
+										}
+									} while (kv.GotoNextKey(false));
+									
+									kv.GoBack();
+									
+									VS_ReapplyProvision(item);
+								}
+							}
+						} while (kv.GotoNextKey(false));
+						
+						kv.GoBack();
+					}
+					
+					kv.GoBack();
+				}
+				
+				break;
+			}
+		} while (kv.GotoNextKey(false));
+		
+		delete kv;
+	}
+	
 	//CountdownTimer
 	public void AutoJumpTimer_Start(float duration)
 	{
@@ -407,7 +586,6 @@ methodmap MvMRobotPlayer
 	}
 }
 
-#include "bwree/util.sp"
 #include "bwree/offsets.sp"
 #include "bwree/sdkcalls.sp"
 #include "bwree/events.sp"
@@ -419,7 +597,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.2",
+	version = "1.0.3",
 	url = ""
 };
 
@@ -431,16 +609,18 @@ public void OnPluginStart()
 	
 	LoadTranslations("bwree.phrases");
 	
+	bwr3_robot_spawn_time_min = CreateConVar("sm_bwr3_robot_spawn_time_min", "3", _, FCVAR_NOTIFY);
+	bwr3_robot_spawn_time_max = CreateConVar("sm_bwr3_robot_spawn_time_max", "5", _, FCVAR_NOTIFY);
+	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "1", _, FCVAR_NOTIFY);
+	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
+	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
+	bwr3_minmimum_players_for_giants = CreateConVar("sm_bwr3_minmimum_players_for_giants", "6", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_template_file = CreateConVar("sm_bwr3_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_giant_template_file = CreateConVar("sm_bwr3_robot_gatebot_giant_template_file", "robot_gatebot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_sentrybuster_template_file = CreateConVar("sm_bwr3_robot_sentrybuster_template_file", "robot_sentrybuster.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_template_file = CreateConVar("sm_bwr3_robot_boss_template_file", "robot_boss.cfg", _, FCVAR_NOTIFY);
-	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "1", _, FCVAR_NOTIFY);
-	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
-	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
-	bwr3_minmimum_players_for_giants = CreateConVar("sm_bwr3_minmimum_players_for_giants", "6", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
@@ -613,7 +793,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
 	{
 		//No attacking allowed during pre-round
-		if (buttons & IN_ATTACK)
+		/* if (buttons & IN_ATTACK)
 		{
 			buttons &= ~IN_ATTACK;
 		}
@@ -621,7 +801,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (buttons & IN_ATTACK2)
 		{
 			buttons &= ~IN_ATTACK2;
-		}
+		} */
 		
 		//Keep us protected though
 		player.AddCond(TFCond_Ubercharged, 0.5);
@@ -912,7 +1092,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						{
 							//Upgrade the bomb over time
 							if (UpgradeBomb(client))
-								SendTauntCommand(client);
+								CreateTimer(GetRandomFloat(0.0, 1.0), Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
 						}
 					}
 				}
@@ -1019,7 +1199,10 @@ public Action Command_JoinBlue(int client, int args)
 	}
 	
 	// TF2_RefundPlayer(client);
-	MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + 5.0;
+	
+	if (GameRules_GetRoundState() == RoundState_RoundRunning)
+		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
+	
 	ChangePlayerToTeamInvaders(client);
 	
 	return Plugin_Handled;
@@ -1073,7 +1256,7 @@ public Action Command_DebugSentryBuster(int client, int args)
 
 public Action CommandListener_Voicemenu(int client, const char[] command, int argc)
 {
-	if (argc >= 2 && IsPlayingAsRobot(client) && !ShouldTacticalMonitorSuspendAction())
+	if (argc >= 2 && IsPlayingAsRobot(client) && !ShouldCurrentActionBeSuspended(client))
 	{
 		MvMSuicideBomber roboPlayer = MvMSuicideBomber(client);
 		
@@ -1121,6 +1304,16 @@ public Action SoundHook_General(int clients[MAXPLAYERS], int &numClients, char s
 	}
 	
 	return Plugin_Continue;
+}
+
+public Action Timer_Taunt(Handle timer, any data)
+{
+	if (!IsClientInGame(data) || !IsPlayingAsRobot(data) || !IsPlayerAlive(data))
+		return Plugin_Stop;
+	
+	SendTauntCommand(data);
+	
+	return Plugin_Stop;
 }
 
 public void CaptureFlag_OnPickup(const char[] output, int caller, int activator, float delay)
@@ -1195,16 +1388,27 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 {
 	if (BaseEntity_IsPlayer(attacker))
 	{
-		if (IsPlayingAsRobot(attacker) && MvMRobotPlayer(attacker).HasAttribute(CTFBot_ALWAYS_CRIT))
+		if (IsPlayingAsRobot(attacker))
 		{
-			/* In MvM, CTFProjectile_Arrow::StrikeTarget removes DMG_CRITICAL from damagetype before it has the entity take damage from it
-			if the attacker is not a TFBot or the TFBot doesn't have bot attribute ALWAYS_CRIT
-			For our robot players, allow their arrows to deal critical damage if their robot allows it */
-			if (inflictor > 0 && IsProjectileArrow(inflictor))
+			if (BaseEntity_IsPlayer(victim) && GameRules_GetRoundState() == RoundState_BetweenRounds)
 			{
-				damagetype |= DMG_CRITICAL;
+				//Can't damage anyone between rounds
+				damage = 0.0;
 				
 				return Plugin_Changed;
+			}
+			
+			if (MvMRobotPlayer(attacker).HasAttribute(CTFBot_ALWAYS_CRIT))
+			{
+				/* In MvM, CTFProjectile_Arrow::StrikeTarget removes DMG_CRITICAL from damagetype before it has the entity take damage from it
+				if the attacker is not a TFBot or the TFBot doesn't have bot attribute ALWAYS_CRIT
+				For our robot players, allow their arrows to deal critical damage if their robot allows it */
+				if (inflictor > 0 && IsProjectileArrow(inflictor))
+				{
+					damagetype |= DMG_CRITICAL;
+					
+					return Plugin_Changed;
+				}
 			}
 		}
 	}
@@ -1253,7 +1457,7 @@ public void PlayerRobot_TouchPost(int entity, int other)
 	{
 		OSTFPlayer player = OSTFPlayer(entity);
 		
-		if (!ShouldTacticalMonitorSuspendAction())
+		if (!ShouldCurrentActionBeSuspended(entity))
 		{
 			char classname[PLATFORM_MAX_PATH]; GetEntityClassname(other, classname, sizeof(classname));
 			
@@ -1411,7 +1615,7 @@ Return false if we should stop deploying the bomb
 Return true to continue deploying the bomb */
 bool MvMDeployBomb_Update(int client)
 {
-	if (ShouldTacticalMonitorSuspendAction())
+	if (ShouldCurrentActionBeSuspended(client))
 		return false;
 	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
@@ -1630,8 +1834,13 @@ bool CanWeaponFireInRobotSpawn(int weapon, int inputType)
 	return true;
 }
 
-bool ShouldTacticalMonitorSuspendAction()
+bool ShouldCurrentActionBeSuspended(int client)
 {
+	//Taunting means we suspended our current behavior to do it
+	//Detonating sentry busters don't count since they taunt when they do it
+	if (TF2_IsTaunting(client) && !MvMSuicideBomber(client).DetonateTimer_HasStarted())
+		return true;
+	
 	//For TFBots, CTFBotTacticalMonitor::Update suspends CTFBotMvMDeployBomb for CTFBotSeekAndDestroy when the round has been won and they are on the winning team
 	//So for the robot players here, just stop the deploy process once their team has already won the round
 	return GameRules_GetRoundState() == RoundState_TeamWin;
@@ -1661,4 +1870,20 @@ bool ShouldAutoJump(int client)
 bool IsTouchingCaptureZone(int client)
 {
 	return m_flCaptureZoneLastTouch[client] > GetGameTime();
+}
+
+void RemoveAllRobotPlayerObjects(const char[] objectType = "obj_*")
+{
+	int ent = -1;
+	
+	while ((ent = FindEntityByClassname(ent, objectType)) != -1)
+	{
+		int builder = TF2_GetBuilder(ent);
+		
+		if (builder == -1)
+			continue;
+		
+		if (IsPlayingAsRobot(builder))
+			RemoveEntity(ent);
+	}
 }

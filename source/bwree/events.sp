@@ -33,6 +33,10 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 
 static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast)
 {
+	//None of this matters if the round hasn't started
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return;
+	
 	int iDeathFlags = event.GetInt("death_flags");
 	
 	if (iDeathFlags & TF_DEATHFLAG_DEADRINGER)
@@ -159,7 +163,12 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 		roboPlayer.DestroySuicideBomber();
 	
-	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(3.0, 5.0);
+	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
+	
+	/* Since we control the spawning of the player, they should never be allowed to respawn themselves
+	This should be set to a very high number so that the player can't spawn in whenever bot spawning gets disabled
+	Generally I'd like to think of this value as time it takes to cap (mannhattan 12) + current respawn wave time (usually 22) */
+	TF2Util_SetPlayerRespawnTimeOverride(client, 34.0);
 }
 
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)
@@ -172,10 +181,16 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
 			SelectSpawnRobotTypeForPlayer(i);
+	
+	//In case the player built objects pre-round, remove them when the game starts
+	RemoveAllRobotPlayerObjects();
 }
 
 static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBroadcast)
 {
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return;
+	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
 	if (!IsPlayingAsRobot(client))
@@ -236,6 +251,9 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 
 static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return;
+	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
 #if defined TELEPORTER_METHOD_MANUAL

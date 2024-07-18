@@ -823,6 +823,19 @@ int GetDefendablePointTrigger(TFTeam team)
 	return -1;
 }
 
+//Certain attribues have to be applied in special ways, not sure why though
+bool DoSpecialSetFromStringValue(int entity, const char[] attributeName, const char[] value)
+{
+	if (StrEqual(attributeName, "paintkit_proto_def_index", false))
+	{
+		//Strictly stored as an integer
+		TF2Attrib_SetByName(entity, attributeName, view_as<float>(StringToInt(value)));
+		return true;
+	}
+	
+	return false;
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {
