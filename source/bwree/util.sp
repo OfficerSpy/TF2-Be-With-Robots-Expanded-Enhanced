@@ -249,7 +249,7 @@ void EmitParticleEffect(const char[] particleName, const char[] attachmentName, 
 	TE_TFParticleEffect(0.0, particleName, attachType, entity, LookupEntityAttachment(entity, attachmentName));
 }
 
-bool IsInFieldOfView(int client, int subject)
+/* bool IsInFieldOfView(int client, int subject)
 {
 	if (IsInFieldOfViewVec(client, WorldSpaceCenter(subject)))
 		return true;
@@ -259,23 +259,37 @@ bool IsInFieldOfView(int client, int subject)
 	return IsInFieldOfViewVec(client, eyePosition);
 }
 
+//This may not be as accurate to IVision
 bool IsInFieldOfViewVec(int client, const float pos[3])
 {
-	//This may not be as accurate to IVision
+	//All the basic requested variables and functions
 	float m_FOV = float(GetEntProp(client, Prop_Send, "m_iFOV"));
 	float m_cosHalfFOV = Cosine(0.5 * m_FOV * FLOAT_PI / 180.0);
+	float eyePosition[3]; GetClientEyePosition(client, eyePosition); //PlayerBody::GetEyePosition
+	float viewVector[3]; BasePlayer_EyeVectors(client, viewVector); //PlayerBody::GetViewVector
 	
-	float eyePosition[3]; GetClientEyePosition(client, eyePosition);
-	float viewVector[3]; BasePlayer_EyeVectors(client, viewVector);
+	bool bCheck = PointWithinViewAngle(eyePosition, pos, viewVector, m_cosHalfFOV);
 	
-	return PointWithinViewAngle(eyePosition, pos, viewVector, m_cosHalfFOV);
-}
+	float to[3]; SubtractVectors(pos, eyePosition, to);
+	NormalizeVector(to, to);
+	
+	float cosDiff = GetVectorDotProduct(viewVector, to);
+	
+	if ((cosDiff > m_cosHalfFOV) != bCheck)
+		bool bCheck2 = PointWithinViewAngle(eyePosition, pos, viewVector, m_cosHalfFOV);
+	
+	return cosDiff > m_cosHalfFOV;
+} */
 
 bool Player_IsVisibleInFOVNow(int client, int entity)
 {
 	//TODO: do a trace, this only checks if they're within our FOV
 	//but not if they're currently visible to us
-	return IsInFieldOfView(client, entity);
+	float eyePosition[3]; GetClientEyePosition(client, eyePosition);
+	float eyeAngles[3]; GetClientEyeAngles(client, eyeAngles);
+	float center[3]; center = GetAbsOrigin(entity);
+	
+	return ArePointsWithinFieldOfView(eyePosition, eyeAngles, center);
 }
 
 //This is based on the game's function, but it's been modified to also factor in the player's scale
@@ -339,6 +353,9 @@ int EconItemCreateNoSpawn(char[] classname, int itemDefIndex, int level, int qua
 			SetEntProp(item, Prop_Send, "m_iObjectType", 3); //Set to OBJ_ATTACHMENT_SAPPER?
 			
 			bool isSapper = IsItemDefIndexSapper(itemDefIndex);
+			
+			if (isSapper)
+				SetEntProp(item, Prop_Data, "m_iSubType", 3);
 			
 			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 0); //OBJ_DISPENSER
 			SetEntProp(item, Prop_Send, "m_aBuildableObjectTypes", isSapper ? 0 : 1, _, 1); //OBJ_TELEPORTER
@@ -647,19 +664,6 @@ void AddCond_MVMBotStunRadiowave(int client, float duration)
 		TF2_AddCondition(client, TFCond_MVMBotRadiowave, duration);
 		SetPlayerAsBot(client, false);
 	}
-}
-
-bool IsItemDefIndexSapper(int itemDefIndex)
-{
-	switch (itemDefIndex)
-	{
-		case 735, 736, 810, 831, 933, 1080, 1102:
-		{
-			return true;
-		}
-	}
-	
-	return false;
 }
 
 void DetonateObjectsOfType(int client, TFObjectType type, int ignoredObject = -1)
@@ -1160,6 +1164,19 @@ stock void StopParticleEffects(int entity)
 	AcceptEntityInput(entity, "DispatchEffect");
 }
 
+stock bool IsItemDefIndexSapper(int itemDefIndex)
+{
+	switch (itemDefIndex)
+	{
+		case 735, 736, 810, 831, 933, 1080, 1102:
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
 stock void SetTeamNumber(int entity, TFTeam team)
 {
 	SetEntProp(entity, Prop_Send, "m_iTeamNum", team);
@@ -1183,6 +1200,23 @@ stock bool RollRandomChanceFloat(float percent)
 stock bool IsProjectileArrow(int entity)
 {
 	return HasEntProp(entity, Prop_Send, "m_bArrowAlight");
+}
+
+stock void BlockAttackForDuration(int client, float duration)
+{
+	SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + duration);
+}
+
+//Taken from SourceMod Anti-Cheat
+stock bool ArePointsWithinFieldOfView(const float start[3], const float angles[3], const float end[3])
+{
+    float normal[3], plane[3];
+
+    GetAngleVectors(angles, normal, NULL_VECTOR, NULL_VECTOR);
+    SubtractVectors(end, start, plane);
+    NormalizeVector(plane, plane);
+    
+    return GetVectorDotProduct(plane, normal) > 0.0; // Cosine(Deg2Rad(179.9 / 2.0))
 }
 
 stock void ShowAnnotationToClient(int client, char[] message, int target, float duration, char[] sound = "")

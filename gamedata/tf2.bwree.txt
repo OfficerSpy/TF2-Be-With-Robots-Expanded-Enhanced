@@ -86,11 +86,6 @@
 				"windows"	"344"
 				"linux"		"350"
 			}
-			"CTFWeaponBase::GetMaxClip1"
-			{
-				"windows"	"324"
-				"linux"		"330"
-			}
 			"CBaseEntity::ShouldTransmit"		
 			{
 				"windows"	"20"
@@ -142,6 +137,11 @@
 			{
 				"windows"	"716" //build 8835751: 1548
 				"linux"		"716" //build 8835751: 1572
+			}
+			"CTFPlayer::m_bIsMissionEnemy"
+			{
+				"windows"	"8" //build 9050375: 9276
+				"linux"		"8" //build 8835751: 9280
 			}
 		}
 		"Functions"

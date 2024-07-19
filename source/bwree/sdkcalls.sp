@@ -51,7 +51,6 @@ static Handle m_hRemoveObject;
 static Handle m_hDropCurrencyPack;
 static Handle m_hGetSentryBusterDamageAndKillThreshold;
 static Handle m_hClip1;
-static Handle m_hMaxClip1;
 
 bool InitSDKCalls(GameData hGamedata)
 {
@@ -145,15 +144,6 @@ bool InitSDKCalls(GameData hGamedata)
 		failCount++;
 	}
 	
-	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CTFWeaponBase::GetMaxClip1");
-	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
-	if ((m_hMaxClip1 = EndPrepSDKCall()) == null)
-	{
-		LogError("Failed to create SDKCall for CTFWeaponBase::GetMaxClip1!");
-		failCount++;
-	}
-	
 	if (failCount > 0)
 	{
 		LogError("InitSDKCalls: GameData file has %d problems!", failCount);
@@ -211,9 +201,4 @@ void DropCurrencyPack(int client, CurrencyRewards_t nSize = TF_CURRENCY_PACK_SMA
 int Clip1(int weapon)
 {
 	return SDKCall(m_hClip1, weapon);
-}
-
-int GetMaxClip1(int weapon)
-{
-	return SDKCall(m_hMaxClip1, weapon);
 }

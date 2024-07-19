@@ -11,6 +11,7 @@ void InitOffsets(GameData hGamedata)
 	SetOffset(hGamedata, "CTFPlayer", "m_accumulatedSentryGunDamageDealt");
 	SetOffset(hGamedata, "CTFPlayer", "m_accumulatedSentryGunKillCount");
 	SetOffset(hGamedata, "CPopulationManager", "m_bSpawningPaused");
+	SetOffset(hGamedata, "CTFPlayer", "m_bIsMissionEnemy");
 	
 #if defined TESTING_ONLY
 	//Dump offsets
@@ -19,6 +20,7 @@ void InitOffsets(GameData hGamedata)
 	LogMessage("InitOffsets: CTFPlayer->m_accumulatedSentryGunDamageDealt = %d", GetOffset("CTFPlayer", "m_accumulatedSentryGunDamageDealt"));
 	LogMessage("InitOffsets: CTFPlayer->m_accumulatedSentryGunKillCount = %d", GetOffset("CTFPlayer", "m_accumulatedSentryGunKillCount"));
 	LogMessage("InitOffsets: CPopulationManager->m_bSpawningPaused = %d", GetOffset("CPopulationManager", "m_bSpawningPaused"));
+	LogMessage("InitOffsets: CTFPlayer->m_bIsMissionEnemy = %d", GetOffset("CTFPlayer", "m_bIsMissionEnemy"));
 #endif
 }
 
@@ -97,4 +99,9 @@ int GetAccumulatedSentryGunKillCount(int client)
 bool IsBotSpawningPaused(int populator)
 {
 	return view_as<bool>(GetEntData(populator, GetOffset("CPopulationManager", "m_bSpawningPaused"), 1));
+}
+
+void SetAsMissionEnemy(int client, bool bVal)
+{
+	SetEntData(client, GetOffset("CTFPlayer", "m_bIsMissionEnemy"), bVal, 1);
 }

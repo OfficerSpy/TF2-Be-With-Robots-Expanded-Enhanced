@@ -179,7 +179,14 @@ static MRESReturn DHookCallback_ShouldTransmit_Pre(int pThis, DHookReturn hRetur
 
 static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 {
-	//Stops the player from dropping ammo and reanimators
+	/* This does several things for when the player dies, but most notably
+	- player doesn't drop ammo pack
+	- player doesn't drop reanimator
+	- decrements the wavebar based on the player's class icon
+	- scout never spawns a client-side bird when gibbed
+	- stunned player fires event "mvm_adv_wave_killed_stun_radio"
+	- sends TE particle effect "bot_death"
+	- blue flag carrier fires event "mvm_bomb_carrier_killed" */
 	if (IsPlayingAsRobot(pThis))
 		SetPlayerAsBot(pThis, true);
 	

@@ -678,6 +678,9 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	}
 	else if (nMission == CTFBot_MISSION_SNIPER)
 	{
+		//Since we increment the icon in the wavebar, set them as the mission enemy so it decrements the icon with MVM_CLASS_FLAG_MISSION when they die
+		SetAsMissionEnemy(client, true);
+		
 		if (IsValidEntity(g_iObjectiveResource))
 		{
 			int iFlags = MVM_CLASS_FLAG_MISSION;
@@ -1624,12 +1627,17 @@ bool UpdateSentryBusterSpawningCriteria()
 				
 				if (GetBotMissionFromString(botMissionName) == CTFBot_MISSION_DESTROY_SENTRIES)
 				{
-					int beginAtWaveNumber = kv.GetNum("BeginAtWave");
+					int beginAtWaveNumber = kv.GetNum("BeginAtWave", 1);
 					
 					if (currentWaveNumber >= beginAtWaveNumber)
 					{
-						int waveDuration = kv.GetNum("RunForThisManyWaves");
-						int stopAtWaveNumber = beginAtWaveNumber + waveDuration - 1; //Subtract 1 to exclude the first wave
+						int waveDuration = kv.GetNum("RunForThisManyWaves", -1);
+						
+						if (waveDuration == -1)
+							waveDuration = 99999;
+						
+						//NOTE: since we use the actual wave number instead of the internal index, we subtract 1 from beginAtWaveNumber
+						int stopAtWaveNumber = (beginAtWaveNumber - 1) + waveDuration;
 						
 						if (currentWaveNumber <= stopAtWaveNumber)
 						{

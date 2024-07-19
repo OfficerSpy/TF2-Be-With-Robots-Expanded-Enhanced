@@ -382,7 +382,7 @@ methodmap MvMRobotPlayer
 				if (bwr3_cosmetic_mode.IntValue == COSMETIC_MODE_NONE)
 					RemoveCosmetics(this.index);
 				
-				/* We're really just reinventing the wheel here you fucking idiot...
+				/* We're really just reinventing the wheel here at this point
 				This is literally the same as ParseEventChangeAttributesForPlayer
 				Why can' we just make one function so this shit isn't as redundant? */
 				char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
@@ -838,6 +838,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (buttons & IN_ATTACK)
 		{
 			//Sentry buster never attacks
+			BlockAttackForDuration(client, 0.5);
 			buttons &= ~IN_ATTACK;
 		}
 		
@@ -868,6 +869,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (buttons & IN_ATTACK && !tf_mvm_bot_allow_flag_carrier_to_fight.BoolValue)
 		{
 			//Not allowed to attack if carrying the bomb
+			BlockAttackForDuration(client, 0.5);
 			buttons &= ~IN_ATTACK;
 		}
 	}
@@ -894,6 +896,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (roboPlayer.HasAttribute(CTFBot_SUPPRESS_FIRE) || roboPlayer.HasAttribute(CTFBot_IGNORE_ENEMIES) || !tf_bot_fire_weapon_allowed.BoolValue)
 		{
 			//Never allowed to attack
+			BlockAttackForDuration(client, 0.5);
 			buttons &= ~IN_ATTACK;
 		}
 		else if (myWeapon != -1)
@@ -905,9 +908,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				
 				if (m_bIsWaitingForReload[client])
 				{
-					if (Clip1(myWeapon) < GetMaxClip1(myWeapon))
+					if (Clip1(myWeapon) < TF2Util_GetWeaponMaxClip(myWeapon))
 					{
 						//Our clip has not refiled yet, so don't attack right now
+						BlockAttackForDuration(client, 0.5);
 						buttons &= ~IN_ATTACK;
 					}
 					else
@@ -942,38 +946,52 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			}
 		}
 		
-		if (myWeapon != -1 && TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_MEDIGUN)
+		if (myWeapon != -1)
 		{
-			bool bUseUber = true; //TODO: change this
-			
-			//These human players don't have a variable their patient, but this will be treated as theirs
-			//TODO: realistically, i think we should make our own variable and allow the player to switch their patient by healing someone else
-			int myPatient = GetEntPropEnt(myWeapon, Prop_Send, "m_hHealingTarget");
-			
-			if (myPatient != -1 && BaseEntity_IsPlayer(myPatient))
+			switch (TF2Util_GetWeaponID(myWeapon))
 			{
-				//Use uber if the patient is getting low
-				/* const float healthyRatio = 0.5;
-				bUseUber = GetClientHealth(myPatient) / TF2Util_GetEntityMaxHealth(myPatient) < healthyRatio; */
-				
-				//The patient is already ubered
-				if (TF2_IsPlayerInCondition(myPatient, TFCond_Ubercharged) || TF2_IsPlayerInCondition(myPatient, TFCond_MegaHeal))
-					bUseUber = false;
-				
-				//TODO: uber health threshold?
-				
-				//We're about to die
-				/* if (player.GetHealth() < 25)
-					bUseUber = true; */
-				
-				//Special MvM case, we're both in spawn
-				if (TF2_IsPlayerInCondition(myPatient, TFCond_UberchargedHidden) && player.InCond(TFCond_UberchargedHidden))
-					bUseUber = false;
-				
-				if (!bUseUber)
+				case TF_WEAPON_FLAMETHROWER:
 				{
-					//Not allowed to uber
-					buttons &= ~IN_ATTACK2;
+					if (roboPlayer.HasAttribute(CTFBot_ALWAYS_FIRE_WEAPON))
+					{
+						//Always fire can never airblast
+						buttons &= ~IN_ATTACK2;
+					}
+				}
+				case TF_WEAPON_MEDIGUN:
+				{
+					bool bUseUber = true; //TODO: change this
+					
+					//These human players don't have a variable their patient, but this will be treated as theirs
+					//TODO: realistically, i think we should make our own variable and allow the player to switch their patient by healing someone else
+					int myPatient = GetEntPropEnt(myWeapon, Prop_Send, "m_hHealingTarget");
+					
+					if (myPatient != -1 && BaseEntity_IsPlayer(myPatient))
+					{
+						//Use uber if the patient is getting low
+						/* const float healthyRatio = 0.5;
+						bUseUber = GetClientHealth(myPatient) / TF2Util_GetEntityMaxHealth(myPatient) < healthyRatio; */
+						
+						//The patient is already ubered
+						if (TF2_IsPlayerInCondition(myPatient, TFCond_Ubercharged) || TF2_IsPlayerInCondition(myPatient, TFCond_MegaHeal))
+							bUseUber = false;
+						
+						//TODO: uber health threshold?
+						
+						//We're about to die
+						/* if (player.GetHealth() < 25)
+							bUseUber = true; */
+						
+						//Special MvM case, we're both in spawn
+						if (TF2_IsPlayerInCondition(myPatient, TFCond_UberchargedHidden) && player.InCond(TFCond_UberchargedHidden))
+							bUseUber = false;
+						
+						if (!bUseUber)
+						{
+							//Not allowed to uber
+							buttons &= ~IN_ATTACK2;
+						}
+					}
 				}
 			}
 		}
@@ -1032,6 +1050,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				{
 					if (myWeapon != -1 && !CanWeaponFireInRobotSpawn(myWeapon, IN_ATTACK))
 					{
+						BlockAttackForDuration(client, 0.5);
 						buttons &= ~IN_ATTACK;
 					}
 				}
