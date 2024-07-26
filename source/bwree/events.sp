@@ -215,14 +215,14 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	if (objectType == TFObject_Sentry)
 	{
 		//Destroy the previous building we have built
-		DetonateObjectsOfType(client, TFObject_Sentry, entity);
+		DetonateObjectsOfType(client, TFObject_Sentry, _, entity);
 		
 		//Start the sentry at level 3
 		SetEntProp(entity, Prop_Data, "m_nDefaultUpgradeLevel", 2);
 	}
 	else if (objectType == TFObject_Teleporter)
 	{
-		DetonateObjectsOfType(client, TFObject_Teleporter, entity);
+		DetonateObjectsOfType(client, TFObject_Teleporter, TFObjectMode_Exit, entity);
 		
 		int iHealth = BaseEntity_GetMaxHealth(entity) * tf_bot_engineer_building_health_multiplier.IntValue;
 		BaseEntity_SetMaxHealth(entity, iHealth);

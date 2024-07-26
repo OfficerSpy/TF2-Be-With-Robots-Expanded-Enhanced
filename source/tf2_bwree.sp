@@ -35,6 +35,7 @@ int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
+bool g_bCanRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
@@ -597,7 +598,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.3",
+	version = "1.0.4",
 	url = ""
 };
 
@@ -709,6 +710,7 @@ public void OnMapStart()
 public void OnClientPutInServer(int client)
 {
 	g_iForcedButtonInput[client] = 0;
+	g_bCanRespawn[client] = true;
 	
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
@@ -792,6 +794,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
 	{
+		g_bCanRespawn[client] = true;
+		
 		//No attacking allowed during pre-round
 		/* if (buttons & IN_ATTACK)
 		{
@@ -816,6 +820,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (!IsPlayerAlive(client))
 	{
+		//Player is always allowed to respawn when they're dead
+		g_bCanRespawn[client] = true;
+		
 		//Spawn the player in the next respawn wave
 		if (roboPlayer.NextSpawnTime <= GetGameTime() && !IsBotSpawningPaused(g_iPopulationManager))
 		{
@@ -825,6 +832,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		
 		return Plugin_Continue;
 	}
+	
+	//We have spawned in as one of the robots, so we are currently not allowed to respawn ourselves
+	g_bCanRespawn[client] = false;
 	
 	//Force any input if specified elsewhere
 	if (g_iForcedButtonInput[client] != 0)
@@ -1234,6 +1244,7 @@ public Action Command_PlayAsRobotType(int client, int args)
 	
 	char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 	
+	g_bCanRespawn[client] = true;
 	TurnPlayerIntoRandomRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)));
 	
 	return Plugin_Handled;
@@ -1573,9 +1584,9 @@ void ChangePlayerToTeamInvaders(int client)
 {
 	//CTFPlayer::ChangeTeam calls CTFGameRules::GetTeamAssignmentOverride which always returns TF_TEAM_PVE_DEFENDERS for human players
 	//Bypass CBasePlayer::IsBot check
-	SetPlayerAsBot(client, true);
+	SetClientAsBot(client, true);
 	TF2_ChangeClientTeam(client, TFTeam_Blue);
-	SetPlayerAsBot(client, false);
+	SetClientAsBot(client, false);
 	
 	//TODO: verify the player is actually on blue team after change
 	SetRobotPlayer(client, true);
@@ -1592,6 +1603,7 @@ void SetRobotPlayer(int client, bool enabled)
 	}
 	else
 	{
+		g_bCanRespawn[client] = true;
 		m_bIsRobot[client] = false;
 		
 		MvMRobotPlayer(client).Reset();

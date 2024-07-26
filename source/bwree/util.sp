@@ -660,13 +660,13 @@ void AddCond_MVMBotStunRadiowave(int client, float duration)
 	}
 	else
 	{
-		SetPlayerAsBot(client, true);
+		SetClientAsBot(client, true);
 		TF2_AddCondition(client, TFCond_MVMBotRadiowave, duration);
-		SetPlayerAsBot(client, false);
+		SetClientAsBot(client, false);
 	}
 }
 
-void DetonateObjectsOfType(int client, TFObjectType type, int ignoredObject = -1)
+void DetonateObjectsOfType(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None, int ignoredObject = -1)
 {
 	int ent = -1;
 	
@@ -675,8 +675,16 @@ void DetonateObjectsOfType(int client, TFObjectType type, int ignoredObject = -1
 		if (ignoredObject > 0 && ent == ignoredObject)
 			continue;
 		
-		if (TF2_GetBuilder(ent) == client && TF2_GetObjectType(ent) == type)
-			TF2_DetonateObject(ent);
+		if (TF2_GetBuilder(ent) != client)
+			continue;
+		
+		if (TF2_GetObjectType(ent) != type)
+			continue;
+		
+		if (mode > TFObjectMode_None && TF2_GetObjectMode(ent) != mode)
+			continue;
+		
+		TF2_DetonateObject(ent);
 	}
 }
 
@@ -1152,7 +1160,7 @@ stock float NormalizeAngle(float fAngle)
 	return fAngle;
 }
 
-stock void SetPlayerAsBot(int client, bool bValue)
+stock void SetClientAsBot(int client, bool bValue)
 {
 	int flags = GetEntityFlags(client);
 	SetEntityFlags(client, bValue ? flags | FL_FAKECLIENT : flags & ~FL_FAKECLIENT);
@@ -1219,6 +1227,11 @@ stock bool ArePointsWithinFieldOfView(const float start[3], const float angles[3
     return GetVectorDotProduct(plane, normal) > 0.0; // Cosine(Deg2Rad(179.9 / 2.0))
 }
 
+stock void SendBuildCommand(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None)
+{
+	FakeClientCommand(client, "build %d %d", type, mode);
+}
+
 stock void ShowAnnotationToClient(int client, char[] message, int target, float duration, char[] sound = "")
 {
 	Event event = CreateEvent("show_annotation");
@@ -1229,4 +1242,22 @@ stock void ShowAnnotationToClient(int client, char[] message, int target, float 
 	event.SetString("play_sound", sound);
 	event.FireToClient(client);
 	event.Cancel();
+}
+
+stock int GetPlayerBuilding(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None)
+{
+	for (int i = 0; i < TF2Util_GetPlayerObjectCount(client); i++)
+	{
+		int building = TF2Util_GetPlayerObject(client, i);
+		
+		if (TF2_GetObjectType(building) != type)
+			continue;
+		
+		if (mode > TFObjectMode_None && TF2_GetObjectMode(building) != mode)
+			continue;
+		
+		return building;
+	}
+	
+	return -1;
 }

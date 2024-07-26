@@ -1090,7 +1090,7 @@ void ModifyMaxHealth(int client, int nNewMaxHealth, bool bSetCurrentHealth = tru
 {
 	OSTFPlayer player = OSTFPlayer(client);
 	
-	int maxHealth = player.GetMaxHealth();
+	int maxHealth = TF2Util_GetEntityMaxHealth(client);
 	
 	if (maxHealth != nNewMaxHealth)
 		TF2Attrib_SetByName(client, "hidden maxhealth non buffed", float(nNewMaxHealth - maxHealth));

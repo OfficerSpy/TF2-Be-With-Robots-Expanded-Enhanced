@@ -3,6 +3,7 @@ static DynamicHook m_hEventKilled;
 static DynamicHook m_hPassesFilterImp1;
 static DynamicHook m_hShouldGib;
 static DynamicHook m_hAcceptInput;
+static DynamicHook m_hForceRespawn;
 
 bool InitDHooks(GameData hGamedata)
 {
@@ -35,6 +36,9 @@ bool InitDHooks(GameData hGamedata)
 	if (!RegisterHook(hGamedata, m_hAcceptInput, "CBaseEntity::AcceptInput"))
 		failCount++;
 	
+	if (!RegisterHook(hGamedata, m_hForceRespawn, "CBasePlayer::ForceRespawn"))
+		failCount++;
+	
 	if (failCount > 0)
 	{
 		LogError("InitDHooks: found %d problems with gamedata!", failCount);
@@ -61,6 +65,7 @@ public void DHooks_OnClientPutInServer(int client)
 	m_hEventKilled.HookEntity(Hook_Pre, client, DHookCallback_EventKilled_Pre);
 	m_hEventKilled.HookEntity(Hook_Post, client, DHookCallback_EventKilled_Post);
 	m_hShouldGib.HookEntity(Hook_Pre, client, DHookCallback_ShouldGib_Pre);
+	m_hForceRespawn.HookEntity(Hook_Pre, client, DHookCallback_ForceRespawn_Pre);
 }
 
 static MRESReturn DHookCallback_GetEventChangeAttributes_Pre(int pThis, DHookReturn hReturn, DHookParam hParams)
@@ -97,7 +102,7 @@ static MRESReturn DHookCallback_FindSnapToBuildPos_Pre(int pThis, DHookReturn hR
 	//Allow robot players to be sapped
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i) && IsPlayerAlive(i))
-			SetPlayerAsBot(i, true);
+			SetClientAsBot(i, true);
 	
 	return MRES_Ignored;
 }
@@ -106,7 +111,7 @@ static MRESReturn DHookCallback_FindSnapToBuildPos_Post(int pThis, DHookReturn h
 {
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i) && IsPlayerAlive(i))
-			SetPlayerAsBot(i, false);
+			SetClientAsBot(i, false);
 	
 	return MRES_Ignored;
 }
@@ -139,7 +144,7 @@ static MRESReturn DHookCallback_CanBuild_Pre(int pThis, DHookReturn hReturn, DHo
 			}
 		}
 		
-		SetPlayerAsBot(pThis, true);
+		SetClientAsBot(pThis, true);
 	}
 	
 	return MRES_Ignored;
@@ -148,7 +153,7 @@ static MRESReturn DHookCallback_CanBuild_Pre(int pThis, DHookReturn hReturn, DHo
 static MRESReturn DHookCallback_CanBuild_Post(int pThis, DHookReturn hReturn, DHookParam hParams)
 {
 	if (IsPlayingAsRobot(pThis))
-		SetPlayerAsBot(pThis, false);
+		SetClientAsBot(pThis, false);
 	
 	return MRES_Ignored;
 }
@@ -188,7 +193,7 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 	- sends TE particle effect "bot_death"
 	- blue flag carrier fires event "mvm_bomb_carrier_killed" */
 	if (IsPlayingAsRobot(pThis))
-		SetPlayerAsBot(pThis, true);
+		SetClientAsBot(pThis, true);
 	
 	return MRES_Ignored;
 }
@@ -196,7 +201,7 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 {
 	if (IsPlayingAsRobot(pThis))
-		SetPlayerAsBot(pThis, false);
+		SetClientAsBot(pThis, false);
 	
 	return MRES_Ignored;
 }
@@ -265,6 +270,15 @@ static MRESReturn DHookCallback_AcceptInput_Post(int pThis, DHookReturn hReturn,
 		if (StrEqual(inputName, "Disable", false))
 			DisableAllTeamObjectsByClassname(TFTeam_Blue, "obj_sentrygun");
 	}
+	
+	return MRES_Ignored;
+}
+
+static MRESReturn DHookCallback_ForceRespawn_Pre(int pThis)
+{
+	//Somewhere, we said this player is not allowed to respawn at this time
+	if (g_bCanRespawn[pThis] == false)
+		return MRES_Supercede;
 	
 	return MRES_Ignored;
 }

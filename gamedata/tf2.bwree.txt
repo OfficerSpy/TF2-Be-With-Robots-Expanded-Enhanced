@@ -111,6 +111,11 @@
 				"windows"	"38"
 				"linux"		"39"
 			}
+			"CBasePlayer::ForceRespawn"
+			{
+				"windows"	"336"
+				"linux"		"337"
+			}
 			//These numbers are used to calculate the actual offset based on the base netprop offset in the Keys section
 			//The calculation formula is base offset + this number
 			"CTFPlayer::m_nDeployingBombState"
@@ -295,6 +300,13 @@
 						"type"	"int"
 					}
 				}
+			}
+			"CBasePlayer::ForceRespawn"
+			{
+				"offset"	"CBasePlayer::ForceRespawn"
+				"hooktype"	"entity"
+				"return"	"void"
+				"this"		"entity"
 			}
 		}
 	}
