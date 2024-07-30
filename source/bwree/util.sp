@@ -885,12 +885,12 @@ bool TeleportNearVictim(int client, int victim, int attempt)
 	if (!IsValidEntity(victim))
 		return false;
 	
-	ArrayList ambushVector = new ArrayList();
-	
 	CNavArea lastKnownArea = CBaseCombatCharacter(victim).GetLastKnownArea();
 	
 	if (lastKnownArea == NULL_AREA)
 		return false;
+	
+	ArrayList ambushVector = new ArrayList();
 	
 	const float maxSurroundTravelRange = 6000.0;
 	
@@ -913,6 +913,8 @@ bool TeleportNearVictim(int client, int victim, int attempt)
 		
 		ambushVector.Push(area);
 	}
+	
+	delete areaVector;
 	
 	if (ambushVector.Length == 0)
 	{
@@ -938,6 +940,8 @@ bool TeleportNearVictim(int client, int victim, int attempt)
 			return true;
 		}
 	}
+	
+	delete ambushVector;
 	
 	return false;
 }

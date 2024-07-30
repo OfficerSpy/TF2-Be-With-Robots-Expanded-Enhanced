@@ -598,7 +598,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.4",
+	version = "1.0.5",
 	url = ""
 };
 
@@ -1582,8 +1582,8 @@ int GetRobotPlayerCount()
 
 void ChangePlayerToTeamInvaders(int client)
 {
-	//CTFPlayer::ChangeTeam calls CTFGameRules::GetTeamAssignmentOverride which always returns TF_TEAM_PVE_DEFENDERS for human players
-	//Bypass CBasePlayer::IsBot check
+	/* CTFPlayer::ChangeTeam calls CTFGameRules::GetTeamAssignmentOverride which always returns TF_TEAM_PVE_DEFENDERS for human players
+	Bypass CBasePlayer::IsBot check */
 	SetClientAsBot(client, true);
 	TF2_ChangeClientTeam(client, TFTeam_Blue);
 	SetClientAsBot(client, false);
