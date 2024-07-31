@@ -2,6 +2,10 @@
 //https://github.com/Mikusch/MannVsMann/blob/571737b5ae0aadc1e743360e94311ca64e693bd9/addons/sourcemod/gamedata/mannvsmann.txt
 static StringMap m_adtOffsets;
 
+static int m_iOffsetSentryBustersSpawned;
+static int m_iOffsetNumEngineersTeleportSpawned;
+static int m_iOffsetNumSentryBustersKilled;
+
 void InitOffsets(GameData hGamedata)
 {
 	m_adtOffsets = new StringMap();
@@ -13,6 +17,11 @@ void InitOffsets(GameData hGamedata)
 	SetOffset(hGamedata, "CPopulationManager", "m_bSpawningPaused");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsMissionEnemy");
 	
+	//These are raw offset values and are not calculated
+	m_iOffsetSentryBustersSpawned = hGamedata.GetOffset("CWave::m_nSentryBustersSpawned");
+	m_iOffsetNumEngineersTeleportSpawned = hGamedata.GetOffset("CWave::m_nNumEngineersTeleportSpawned");
+	m_iOffsetNumSentryBustersKilled = hGamedata.GetOffset("CWave::m_nNumSentryBustersKilled");
+	
 #if defined TESTING_ONLY
 	//Dump offsets
 	LogMessage("InitOffsets: CTFPlayer->m_nDeployingBombState = %d", GetOffset("CTFPlayer", "m_nDeployingBombState"));
@@ -21,6 +30,9 @@ void InitOffsets(GameData hGamedata)
 	LogMessage("InitOffsets: CTFPlayer->m_accumulatedSentryGunKillCount = %d", GetOffset("CTFPlayer", "m_accumulatedSentryGunKillCount"));
 	LogMessage("InitOffsets: CPopulationManager->m_bSpawningPaused = %d", GetOffset("CPopulationManager", "m_bSpawningPaused"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsMissionEnemy = %d", GetOffset("CTFPlayer", "m_bIsMissionEnemy"));
+	LogMessage("InitOffsets: CWave->m_nSentryBustersSpawned = %d", m_iOffsetSentryBustersSpawned);
+	LogMessage("InitOffsets: CWave->m_nNumEngineersTeleportSpawned = %d", m_iOffsetNumEngineersTeleportSpawned);
+	LogMessage("InitOffsets: CWave->m_nNumSentryBustersKilled = %d", m_iOffsetNumSentryBustersKilled);
 #endif
 }
 
@@ -104,4 +116,34 @@ bool IsBotSpawningPaused(int populator)
 void SetAsMissionEnemy(int client, bool bVal)
 {
 	SetEntData(client, GetOffset("CTFPlayer", "m_bIsMissionEnemy"), bVal, 1);
+}
+
+int GetNumSentryBustersSpawned(Address wave)
+{
+	return LoadFromAddress(wave + view_as<Address>(m_iOffsetSentryBustersSpawned), NumberType_Int32);
+}
+
+void SetNumSentryBustersSpawned(Address wave, int iValue)
+{
+	StoreToAddress(wave + view_as<Address>(m_iOffsetSentryBustersSpawned), iValue, NumberType_Int32);
+}
+
+int GetNumEngineersTeleportSpawned(Address wave)
+{
+	return LoadFromAddress(wave + view_as<Address>(m_iOffsetNumEngineersTeleportSpawned), NumberType_Int32);
+}
+
+void SetNumEngineersTeleportSpawned(Address wave, int iValue)
+{
+	StoreToAddress(wave + view_as<Address>(m_iOffsetNumEngineersTeleportSpawned), iValue, NumberType_Int32);
+}
+
+int GetNumSentryBustersKilled(Address wave)
+{
+	return LoadFromAddress(wave + view_as<Address>(m_iOffsetNumSentryBustersKilled), NumberType_Int32);
+}
+
+void SetNumSentryBustersKilled(Address wave, int iValue)
+{
+	StoreToAddress(wave + view_as<Address>(m_iOffsetNumSentryBustersKilled), iValue, NumberType_Int32);
 }

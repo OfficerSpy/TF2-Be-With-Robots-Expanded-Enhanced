@@ -638,6 +638,7 @@ public void OnPluginStart()
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_debug_wavedata", Command_DebugWaveData, ADMFLAG_GENERIC);
 	
 #if defined TESTING_ONLY	
 	RegConsoleCmd("sm_johnblue", Command_JoinBlue, "Join the blue team and become a robot!");
@@ -1280,6 +1281,23 @@ public Action Command_DebugSentryBuster(int client, int args)
 			}
 		}
 	}
+	
+	return Plugin_Handled;
+}
+
+public Action Command_DebugWaveData(int client, int args)
+{
+	Address pWave = GetCurrentWave(g_iPopulationManager);
+	
+	if (pWave == Address_Null)
+	{
+		ReplyToCommand(client, "CWave is NULL");
+		return Plugin_Handled;
+	}
+	
+	PrintToChat(client, "Sentry Busters spawned: %d", GetNumSentryBustersSpawned(pWave));
+	PrintToChat(client, "Engineers teleport spawned: %d", GetNumEngineersTeleportSpawned(pWave));
+	PrintToChat(client, "Sentry Busters killed: %d", GetNumSentryBustersKilled(pWave));
 	
 	return Plugin_Handled;
 }

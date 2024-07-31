@@ -184,7 +184,16 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		
 		if (m_bWasKilled[this.index])
 		{
-			//TODO: CWave -> IncrementSentryBustersKilled
+			if (IsValidEntity(g_iPopulationManager))
+			{
+				Address pWave = GetCurrentWave(g_iPopulationManager);
+				
+				if (pWave)
+				{
+					//Our death counts towards the wave's sentry busters killed count
+					SetNumSentryBustersKilled(pWave, GetNumSentryBustersKilled(pWave) + 1);
+				}
+			}
 		}
 	}
 }
@@ -296,6 +305,17 @@ static Action Timer_MvMEngineerTeleportSpawn(Handle timer, DataPack pack)
 	if (IsValidEntity(g_iPopulationManager))
 	{
 		//TODO: CWave engineer stuff
+		Address pWave = GetCurrentWave(g_iPopulationManager);
+		
+		if (pWave)
+		{
+			if (GetNumEngineersTeleportSpawned(pWave) == 0)
+				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_First_Engineer_Teleport_Spawned");
+			else
+				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_Another_Engineer_Teleport_Spawned");
+			
+			SetNumEngineersTeleportSpawned(pWave, GetNumEngineersTeleportSpawned(pWave) + 1);
+		}
 	}
 	
 	return Plugin_Stop;
@@ -675,6 +695,26 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 		
 		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SENTRY_BUSTER, view_as<int>(TFTeam_Red));
+		
+		/* TODO: replace this as this is a jank way of letting the player phase through other players
+		They will only phase through if the colliding entity is actually moving, otherwise the player will still be blocked */
+		SetEntityCollisionGroup(client, COLLISION_GROUP_PROJECTILE);
+		
+		Address pWave = GetCurrentWave(g_iPopulationManager);
+		
+		if (pWave)
+		{
+			SetNumSentryBustersSpawned(pWave, GetNumSentryBustersSpawned(pWave) + 1);
+			
+			if (GetNumSentryBustersSpawned(pWave) > 1)
+				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_Sentry_Buster_Alert_Another");
+			else
+				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_Sentry_Buster_Alert");
+			
+			/* NOTE: doing this will likely make actual mission sentry busters spawn faster
+			This actual value gets checked in CMissionPopulator::UpdateMissionDestroySentries */
+			// SetNumSentryBustersKilled(pWave, 0);
+		}
 	}
 	else if (nMission == CTFBot_MISSION_SNIPER)
 	{
@@ -1511,6 +1551,7 @@ void ResetRobotSpawnerData()
 
 void StartSentryBusterCooldown()
 {
+	//TODO: factor in NumSentryBustersKilled?
 	m_flSentryBusterCooldown = GetGameTime() + m_flDestroySentryCooldownDuration;
 }
 

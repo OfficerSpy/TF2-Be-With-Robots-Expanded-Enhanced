@@ -52,6 +52,11 @@
 				"windows"	"\x55\x8B\xEC\x56\x57\x8B\xF9\x8B\xB7\x2A\x2A\x2A\x2A\x83\xEE\x01"
 				"linux"		"@_ZN9CTFPlayer12RemoveObjectEP11CBaseObject"
 			}
+			"CPopulationManager::GetCurrentWave"
+			{
+				"windows"	"\x80\xB9\x2A\x2A\x2A\x2A\x00\x56\x74"
+				"linux"		"@_ZN18CPopulationManager14GetCurrentWaveEv"
+			}
 			"CTFPlayer::DropCurrencyPack"
 			{
 				"windows"	"\x55\x8B\xEC\x83\xEC\x18\x57\x8B\xF9\x8B\x07"
@@ -147,6 +152,22 @@
 			{
 				"windows"	"8" //build 9050375: 9276
 				"linux"		"8" //build 8835751: 9280
+			}
+			//These are raw offset values and are not used for any calculations
+			"CWave::m_nSentryBustersSpawned"
+			{
+				"windows"	"44"
+				"linux"		"44"
+			}
+			"CWave::m_nNumEngineersTeleportSpawned"
+			{
+				"windows"	"48"
+				"linux"		"48"
+			}
+			"CWave::m_nNumSentryBustersKilled"
+			{
+				"windows"	"52"
+				"linux"		"52"
 			}
 		}
 		"Functions"

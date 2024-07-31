@@ -48,6 +48,7 @@ static Handle m_hCapture;
 static Handle m_hPlayThrottledAlert;
 static Handle m_hPostInventoryApplication;
 static Handle m_hRemoveObject;
+static Handle m_hGetCurrentWave;
 static Handle m_hDropCurrencyPack;
 static Handle m_hGetSentryBusterDamageAndKillThreshold;
 static Handle m_hClip1;
@@ -123,6 +124,15 @@ bool InitSDKCalls(GameData hGamedata)
 		failCount++;
 	}
 	
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CPopulationManager::GetCurrentWave");
+	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+	if ((m_hGetCurrentWave = EndPrepSDKCall()) == null)
+	{
+		LogError("Failed To create SDKCall for CPopulationManager::GetCurrentWave!");
+		failCount++;
+	}
+	
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CTFPlayer::DropCurrencyPack");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByValue);
@@ -191,6 +201,11 @@ void GetSentryBusterDamageAndKillThreshold(int populator, int &nDamage, int &nKi
 void RemoveObject(int client, int pObject)
 {
 	SDKCall(m_hRemoveObject, client, pObject);
+}
+
+Address GetCurrentWave(int populator)
+{
+	return SDKCall(m_hGetCurrentWave, populator);
 }
 
 void DropCurrencyPack(int client, CurrencyRewards_t nSize = TF_CURRENCY_PACK_SMALL, int nAmount = 0, bool bForceDistribute = false, int pMoneyMaker = -1)
