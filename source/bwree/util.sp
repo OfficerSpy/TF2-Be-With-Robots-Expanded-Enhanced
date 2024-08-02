@@ -848,6 +848,11 @@ bool DoSpecialSetFromStringValue(int entity, const char[] attributeName, const c
 	return false;
 }
 
+void SetRandomEconItemID(int item)
+{
+	EconItemView_SetItemID(item, GetRandomInt(1, 2048));
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {

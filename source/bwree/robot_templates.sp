@@ -1,7 +1,3 @@
-#define MAX_ROBOT_CLASS_TEMPLATES	40
-#define ROBOT_CLASS_COUNT	view_as<int>(TFClass_Engineer)
-#define MAXLEN_STRING_TEMPLATE	256
-#define STRING_TEMPLATE_VALUE_NOT_FOUND	"KEYVALUE_NO_SEX_FOUND"
 #define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree"
 #define ROBOT_NAME_UNDEFINED	"TFBot"
 
@@ -304,17 +300,18 @@ static Action Timer_MvMEngineerTeleportSpawn(Handle timer, DataPack pack)
 	
 	if (IsValidEntity(g_iPopulationManager))
 	{
-		//TODO: CWave engineer stuff
 		Address pWave = GetCurrentWave(g_iPopulationManager);
 		
 		if (pWave)
 		{
-			if (GetNumEngineersTeleportSpawned(pWave) == 0)
+			int numSpawned = GetNumEngineersTeleportSpawned(pWave);
+			
+			if (numSpawned == 0)
 				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_First_Engineer_Teleport_Spawned");
 			else
 				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_Another_Engineer_Teleport_Spawned");
 			
-			SetNumEngineersTeleportSpawned(pWave, GetNumEngineersTeleportSpawned(pWave) + 1);
+			SetNumEngineersTeleportSpawned(pWave, numSpawned + 1);
 		}
 	}
 	
@@ -594,8 +591,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 	}
 	
-	//Announce incoming spies
-	//This will update the count for every spy on blue that is currently active
+	/* This is the part that tells the client game to announce incoming spies
+	It will update the count for every spy on blue that is currently active */
 	if (iClass == TFClass_Spy)
 	{
 		Event hEvent = CreateEvent("mvm_mission_update");
@@ -623,8 +620,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	StartIdleSound(client, iClass);
 	
 	//NOTE: romevision is added later
-	
-	//TODO: EventChangeAttributes
 	
 	if (roboPlayer.HasAttribute(CTFBot_SPAWN_WITH_FULL_CHARGE))
 	{
@@ -681,6 +676,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	{
 		MvMSuicideBomber(client).InitializeSuicideBomber(GetMostThreateningSentry());
 		
+		// SetAsMissionEnemy(client, true);
+		
 		if (IsValidEntity(g_iObjectiveResource))
 		{
 			int iFlags = MVM_CLASS_FLAG_MISSION;
@@ -718,6 +715,20 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	}
 	else if (nMission == CTFBot_MISSION_SNIPER)
 	{
+		//Don't update this as the loop done earlier already counts ourselves as we;ve already changed classes by now
+		// nSniperCount++;
+		
+		//Only the first sniper is announced by the defenders
+		if (nSniperCount == 1)
+			MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SNIPER_CALLOUT, view_as<int>(TFTeam_Red));
+	}
+	else if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+	{
+		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_GIANT_CALLOUT, view_as<int>(TFTeam_Red));
+	}
+	
+	if (nMission == CTFBot_MISSION_SNIPER || nMission == CTFBot_MISSION_ENGINEER)
+	{
 		//Since we increment the icon in the wavebar, set them as the mission enemy so it decrements the icon with MVM_CLASS_FLAG_MISSION when they die
 		SetAsMissionEnemy(client, true);
 		
@@ -733,17 +744,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 			
 			TF2_IncrementMannVsMachineWaveClassCount(g_iObjectiveResource, strClassIcon, iFlags);
 		}
-		
-		//Don't update this as the loop done earlier already counts ourselves as we;ve already changed classes by now
-		// nSniperCount++;
-		
-		//Only the first sniper is announced by the defenders
-		if (nSniperCount == 1)
-			MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SNIPER_CALLOUT, view_as<int>(TFTeam_Red));
-	}
-	else if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
-	{
-		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_GIANT_CALLOUT, view_as<int>(TFTeam_Red));
 	}
 	
 	float rawHere[3];
@@ -1236,7 +1236,7 @@ int AddItemToPlayer(int client, const char[] szItemName)
 		
 		if (newItem != -1)
 		{
-			EconItemView_SetItemID(newItem, 1);
+			SetRandomEconItemID(newItem);
 			EconItemSpawnGiveTo(newItem, client);
 		}
 		
@@ -1269,7 +1269,7 @@ static void AddRomevisionCosmetics(int client)
 			
 			if (item != -1)
 			{
-				EconItemView_SetItemID(item, 1);
+				SetRandomEconItemID(item);
 				EconItemSpawnGiveTo(item, client);
 			}
 		}
@@ -1286,7 +1286,7 @@ static void AddRomevisionCosmetics(int client)
 			
 			if (item != -1)
 			{
-				EconItemView_SetItemID(item, 1);
+				SetRandomEconItemID(item);
 				EconItemSpawnGiveTo(item, client);
 			}
 		}
@@ -1297,7 +1297,7 @@ static void AddRomevisionCosmetics(int client)
 			
 			if (item != -1)
 			{
-				EconItemView_SetItemID(item, 1);
+				SetRandomEconItemID(item);
 				EconItemSpawnGiveTo(item, client);
 			}
 		}
