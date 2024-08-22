@@ -39,9 +39,11 @@ bool g_bCanRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
-static float m_flCaptureZoneLastTouch[MAXPLAYERS + 1];
+// static float m_flCaptureZoneLastTouch[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
 static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
+static int m_nNextRobotTemplateID[MAXPLAYERS + 1];
+static eRobotTemplateType m_nNextRobotTemplateType[MAXPLAYERS + 1];
 static float m_flNextRobotSpawnTime[MAXPLAYERS + 1];
 static float m_flAutoJumpTime[MAXPLAYERS + 1];
 static int m_nDeployingBombState[MAXPLAYERS + 1]; //The state our deploying is currently in
@@ -122,6 +124,18 @@ methodmap MvMRobotPlayer
 		public set(eRobotTemplateType value)	{ m_nRobotVariantType[this.index] = value; }
 	}
 	
+	property int MyNextRobotTemplateID
+	{
+		public get()	{ return m_nNextRobotTemplateID[this.index]; }
+		public set(int value)	{ m_nNextRobotTemplateID[this.index] = value; }
+	}
+	
+	property eRobotTemplateType MyNextRobotTemplateType
+	{
+		public get()	{ return m_nNextRobotTemplateType[this.index]; }
+		public set(eRobotTemplateType value)	{ m_nNextRobotTemplateType[this.index] = value; }
+	}
+	
 	property float NextSpawnTime
 	{
 		public get()	{ return m_flNextRobotSpawnTime[this.index]; }
@@ -155,6 +169,8 @@ methodmap MvMRobotPlayer
 	
 	public void Reset()
 	{
+		this.MyNextRobotTemplateID = ROBOT_TEMPLATE_ID_INVALID;
+		this.MyNextRobotTemplateType = ROBOT_STANDARD;
 		this.NextSpawnTime = 0.0;
 		this.DeployBombState = TF_BOMB_DEPLOYING_NONE;
 		this.DeployBombTime = -1.0;
@@ -598,7 +614,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.5",
+	version = "1.0.6",
 	url = ""
 };
 
@@ -635,6 +651,8 @@ public void OnPluginStart()
 	
 	RegConsoleCmd("sm_bwr", Command_JoinBlue, "Join the blue team and become a robot!");
 	RegConsoleCmd("sm_joinblu", Command_JoinBlue, "Join the blue team and become a robot!");
+	RegConsoleCmd("sm_viewnextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
+	RegConsoleCmd("sm_nextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
@@ -715,7 +733,7 @@ public void OnClientPutInServer(int client)
 	
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
-	m_flCaptureZoneLastTouch[client] = 0.0;
+	// m_flCaptureZoneLastTouch[client] = 0.0;
 	m_bIsWaitingForReload[client] = false;
 	
 	MvMRobotPlayer(client).Reset();
@@ -1238,6 +1256,16 @@ public Action Command_JoinBlue(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_ViewNextRobotTemplate(int client, int args)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
+	//TODO: display panel to show player's next robot in a separate function
+	
+	return Plugin_Handled;
+}
+
 public Action Command_PlayAsRobotType(int client, int args)
 {
 	if (!IsPlayingAsRobot(client))
@@ -1516,7 +1544,7 @@ public void PlayerRobot_TouchPost(int entity, int other)
 					MvMDeployBomb_OnStart(entity);
 				
 				//Actively increment to indicate we are currently touching the capture zone
-				m_flCaptureZoneLastTouch[entity] = GetGameTime() + 0.1;
+				// m_flCaptureZoneLastTouch[entity] = GetGameTime() + 0.1;
 			}
 		}
 		
@@ -1649,6 +1677,9 @@ bool MvMDeployBomb_OnStart(int client)
 	SetPlayerToMove(client, false);
 	SetAbsVelocity(client, {0.0, 0.0, 0.0});
 	
+	//Reinforce the deploy position so we don't overshoot it
+	SetAbsOrigin(client, m_vecDeployPos[client]);
+	
 	if (TF2_IsMiniBoss(client))
 	{
 		//NOTE: normally a check is done to see if the attribute exists in the item schema
@@ -1680,7 +1711,7 @@ bool MvMDeployBomb_Update(int client)
 		
 		const float movedRange = 20.0;
 		
-		if (Player_IsRangeGreaterThanVec(client, m_vecDeployPos[client], movedRange) && !IsTouchingCaptureZone(client))
+		if (Player_IsRangeGreaterThanVec(client, m_vecDeployPos[client], movedRange) /* && !IsTouchingCaptureZone(client) */)
 		{
 			//TODO: whoever pushed us away, fire an event for them
 			
@@ -1916,10 +1947,10 @@ bool ShouldAutoJump(int client)
 	return false;
 }
 
-bool IsTouchingCaptureZone(int client)
+/* bool IsTouchingCaptureZone(int client)
 {
 	return m_flCaptureZoneLastTouch[client] > GetGameTime();
-}
+} */
 
 void RemoveAllRobotPlayerObjects(const char[] objectType = "obj_*")
 {

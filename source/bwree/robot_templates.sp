@@ -12,6 +12,9 @@ enum eRobotTemplateType
 	ROBOT_TEMPLATE_TYPE_COUNT
 };
 
+int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
+char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_NAME_LENGTH];
+
 static Handle m_hDetonateTimer[MAXPLAYERS + 1];
 static bool m_bHasDetonated[MAXPLAYERS + 1];
 static bool m_bWasSuccessful[MAXPLAYERS + 1];
@@ -197,8 +200,8 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 int g_iRefLastTeleporter = INVALID_ENT_REFERENCE;
 float g_flLastTeleportTime = -1.0;
 
-static float m_flDestroySentryCooldownDuration;
-static float m_flSentryBusterCooldown;
+static float m_flDestroySentryCooldownDuration; //Cooldown amount specified by the population file
+static float m_flSentryBusterCooldown; //How long our active cooldown is right now
 
 static char m_sIdleSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
 static int m_nIdleSoundChannel[MAXPLAYERS + 1];
@@ -352,7 +355,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotStandardTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRobotTemplateOntoPlayer(kv, client);
+			ParseRandomRobotTemplateOntoPlayer(kv, client);
 			delete kv;
 		}
 		case ROBOT_GIANT:
@@ -366,7 +369,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotGiantTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRobotTemplateOntoPlayer(kv, client);
+			ParseRandomRobotTemplateOntoPlayer(kv, client);
 			delete kv;
 		}
 		case ROBOT_GATEBOT:
@@ -380,7 +383,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotGatebotTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRobotTemplateOntoPlayer(kv, client);
+			ParseRandomRobotTemplateOntoPlayer(kv, client);
 			delete kv;
 		}
 		case ROBOT_GATEBOT_GIANT:
@@ -394,7 +397,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotGatebotGiantTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRobotTemplateOntoPlayer(kv, client);
+			ParseRandomRobotTemplateOntoPlayer(kv, client);
 			delete kv;
 		}
 		case ROBOT_SENTRYBUSTER:
@@ -408,7 +411,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotSentryBusterTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRobotTemplateOntoPlayer(kv, client);
+			ParseRandomRobotTemplateOntoPlayer(kv, client);
 			delete kv;
 		}
 		case ROBOT_BOSS:
@@ -422,14 +425,14 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotBossTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRobotTemplateOntoPlayer(kv, client);
+			ParseRandomRobotTemplateOntoPlayer(kv, client);
 			delete kv;
 		}
 		default:	LogError("TurnPlayerIntoRandomRobot: Unknown robot template type %d", type);
 	}
 }
 
-static void ParseRobotTemplateOntoPlayer(KeyValues kv, int client)
+static void ParseRandomRobotTemplateOntoPlayer(KeyValues kv, int client)
 {
 	if (kv.JumpToKey("Templates"))
 	{
@@ -1576,6 +1579,105 @@ void SelectSpawnRobotTypeForPlayer(int client)
 	}
 	
 	TurnPlayerIntoRandomRobot(client, bShouldBeGatebot ? ROBOT_GATEBOT : ROBOT_STANDARD);
+}
+
+void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
+{
+	char fileName[PLATFORM_MAX_PATH];
+	char filePath[PLATFORM_MAX_PATH];
+	KeyValues kv = null;
+	
+	switch (type)
+	{
+		case ROBOT_STANDARD:
+		{
+			bwr3_robot_template_file.GetString(fileName, sizeof(fileName));
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
+			
+			if (!FileExists(filePath))
+				ThrowError("Could not find standard robot config file: %s", filePath);
+			
+			kv = new KeyValues("RobotStandardTemplates");
+		}
+		case ROBOT_GIANT:
+		{
+			bwr3_robot_giant_template_file.GetString(fileName, sizeof(fileName));
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
+			
+			if (!FileExists(filePath))
+				ThrowError("Could not find giant robot config file: %s", filePath);
+			
+			kv = new KeyValues("RobotGiantTemplates");
+		}
+		case ROBOT_GATEBOT:
+		{
+			bwr3_robot_gatebot_template_file.GetString(fileName, sizeof(fileName));
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
+			
+			if (!FileExists(filePath))
+				ThrowError("Could not find gatebot robot config file: %s", filePath);
+			
+			kv = new KeyValues("RobotGatebotTemplates");
+		}
+		case ROBOT_GATEBOT_GIANT:
+		{
+			bwr3_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
+			
+			if (!FileExists(filePath))
+				ThrowError("Could not find giant gatebot robot config file: %s", filePath);
+			
+			kv = new KeyValues("RobotGatebotGiantTemplates");
+		}
+		case ROBOT_SENTRYBUSTER:
+		{
+			bwr3_robot_sentrybuster_template_file.GetString(fileName, sizeof(fileName));
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
+			
+			if (!FileExists(filePath))
+				ThrowError("Could not find sentry buster robot config file: %s", filePath);
+			
+			kv = new KeyValues("RobotSentryBusterTemplates");
+		}
+		case ROBOT_BOSS:
+		{
+			bwr3_robot_boss_template_file.GetString(fileName, sizeof(fileName));
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
+			
+			if (!FileExists(filePath))
+				ThrowError("Could not find boss robot config file: %s", filePath);
+			
+			kv = new KeyValues("RobotBossTemplates");
+		}
+		default:	LogError("UpdateRobotTemplateDataForType: Unknown robot template type %d", type);
+	}
+	
+	if (kv && kv.ImportFromFile(filePath))
+	{
+		if (kv.JumpToKey("Templates"))
+		{
+			kv.GotoFirstSubKey(false);
+			
+			g_iTotalRobotTemplates[type] = 0;
+			
+			do
+			{
+				g_iTotalRobotTemplates[type]++;
+				
+				//Remember these details for later
+				kv.GetString("Name", g_sRobotTemplateName[type], sizeof(g_sRobotTemplateName[]), ROBOT_NAME_UNDEFINED);
+				
+			} while (kv.GotoNextKey(false))
+			
+			LogMessage("UpdateRobotTemplateDataForType: Found %d robot templates for robot template type %d", g_iTotalRobotTemplates[type], type);
+		}
+	}
+	else
+	{
+		ThrowError("Could not import KeyValues from file %s", filePath);
+	}
+	
+	delete kv;
 }
 
 void StopIdleSound(int client)
