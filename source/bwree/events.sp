@@ -179,8 +179,13 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	
 	//The round started, now we turn into one of our robots
 	for (int i = 1; i <= MaxClients; i++)
+	{
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
-			SelectSpawnRobotTypeForPlayer(i);
+		{
+			TurnPlayerIntoHisNextRobot(i);
+			SelectPlayerNextRobot(i);
+		}
+	}
 	
 	//In case the player built objects pre-round, remove them when the game starts
 	RemoveAllRobotPlayerObjects();

@@ -13,7 +13,6 @@ enum eRobotTemplateType
 };
 
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
-char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_NAME_LENGTH];
 
 static Handle m_hDetonateTimer[MAXPLAYERS + 1];
 static bool m_bHasDetonated[MAXPLAYERS + 1];
@@ -337,7 +336,7 @@ static float SentryBuster_GetDamageForVictim(int victim, float baseDamage)
 	return baseDamage * 4;
 }
 
-void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STANDARD)
+void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int templateID)
 {
 	char fileName[PLATFORM_MAX_PATH];
 	char filePath[PLATFORM_MAX_PATH];
@@ -355,7 +354,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotStandardTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRandomRobotTemplateOntoPlayer(kv, client);
+			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
 		case ROBOT_GIANT:
@@ -369,7 +368,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotGiantTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRandomRobotTemplateOntoPlayer(kv, client);
+			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
 		case ROBOT_GATEBOT:
@@ -383,7 +382,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotGatebotTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRandomRobotTemplateOntoPlayer(kv, client);
+			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
 		case ROBOT_GATEBOT_GIANT:
@@ -397,7 +396,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotGatebotGiantTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRandomRobotTemplateOntoPlayer(kv, client);
+			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
 		case ROBOT_SENTRYBUSTER:
@@ -411,7 +410,7 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotSentryBusterTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRandomRobotTemplateOntoPlayer(kv, client);
+			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
 		case ROBOT_BOSS:
@@ -425,38 +424,27 @@ void TurnPlayerIntoRandomRobot(int client, eRobotTemplateType type = ROBOT_STAND
 			KeyValues kv = new KeyValues("RobotBossTemplates");
 			kv.ImportFromFile(filePath);
 			
-			ParseRandomRobotTemplateOntoPlayer(kv, client);
+			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
-		default:	LogError("TurnPlayerIntoRandomRobot: Unknown robot template type %d", type);
+		default:	LogError("TurnPlayerIntoRobot: Unknown robot template type %d", type);
 	}
 }
 
-static void ParseRandomRobotTemplateOntoPlayer(KeyValues kv, int client)
+static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const int templateID)
 {
 	if (kv.JumpToKey("Templates"))
 	{
 		kv.GotoFirstSubKey(false);
 		
-		int totalTemplates = 0;
-		
-		do
-		{
-			totalTemplates++;
-		} while (kv.GotoNextKey(false))
-		
-		kv.GoBack();
-		kv.GotoFirstSubKey(false);
-		
-		int chosenTemplate = GetRandomInt(1, totalTemplates);
 		int count = 0;
 		
-		//This was already bad was it was, but doing another loop is just ridiculous
 		do
 		{
+			//Template IDs start from 1 since we count the total from 0
 			count++;
 			
-			if (count == chosenTemplate)
+			if (count == templateID)
 			{
 				TF2Attrib_RemoveAll(client);
 				
@@ -677,6 +665,9 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (nMission == CTFBot_MISSION_DESTROY_SENTRIES)
 	{
+		if (GameRules_GetRoundState() == RoundState_RoundRunning)
+			StartSentryBusterCooldown();
+		
 		MvMSuicideBomber(client).InitializeSuicideBomber(GetMostThreateningSentry());
 		
 		// SetAsMissionEnemy(client, true);
@@ -1316,6 +1307,7 @@ static bool ShouldDispatchSentryBuster()
 		return false;
 	
 	//TODO: we should actually check if other sentries can be targeted, not just single out one
+	//Also factor in players whose next robot are sentry busters and what sentry they're gonna target
 	int sentry = GetMostThreateningSentry();
 	
 	if (sentry == -1)
@@ -1558,12 +1550,15 @@ void StartSentryBusterCooldown()
 	m_flSentryBusterCooldown = GetGameTime() + m_flDestroySentryCooldownDuration;
 }
 
-void SelectSpawnRobotTypeForPlayer(int client)
+// Determine the next robot template the player should use on their next spawn
+void SelectPlayerNextRobot(int client)
 {
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
 	if (ShouldDispatchSentryBuster())
 	{
-		StartSentryBusterCooldown();
-		TurnPlayerIntoRandomRobot(client, ROBOT_SENTRYBUSTER);
+		roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_SENTRYBUSTER]);
+		roboPlayer.MyNextRobotTemplateType = ROBOT_SENTRYBUSTER;
 		return;
 	}
 	
@@ -1573,12 +1568,39 @@ void SelectSpawnRobotTypeForPlayer(int client)
 	{
 		if (RollRandomChanceFloat(bwr3_robot_giant_chance.FloatValue))
 		{
-			TurnPlayerIntoRandomRobot(client, bShouldBeGatebot ? ROBOT_GATEBOT_GIANT : ROBOT_GIANT);
+			if (bShouldBeGatebot)
+			{
+				roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT_GIANT]);
+				roboPlayer.MyNextRobotTemplateType = ROBOT_GATEBOT_GIANT;
+			}
+			else
+			{
+				roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GIANT]);
+				roboPlayer.MyNextRobotTemplateType = ROBOT_GIANT;
+			}
+			
 			return;
 		}
 	}
 	
-	TurnPlayerIntoRandomRobot(client, bShouldBeGatebot ? ROBOT_GATEBOT : ROBOT_STANDARD);
+	if (bShouldBeGatebot)
+	{
+		roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT]);
+		roboPlayer.MyNextRobotTemplateType = ROBOT_GATEBOT;
+	}
+	else
+	{
+		roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_STANDARD]);
+		roboPlayer.MyNextRobotTemplateType = ROBOT_STANDARD;
+	}
+}
+
+void TurnPlayerIntoHisNextRobot(int client)
+{
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
+	g_bCanRespawn[client] = true;
+	TurnPlayerIntoRobot(client, roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 }
 
 void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
@@ -1663,10 +1685,6 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			do
 			{
 				g_iTotalRobotTemplates[type]++;
-				
-				//Remember these details for later
-				kv.GetString("Name", g_sRobotTemplateName[type], sizeof(g_sRobotTemplateName[]), ROBOT_NAME_UNDEFINED);
-				
 			} while (kv.GotoNextKey(false))
 			
 			LogMessage("UpdateRobotTemplateDataForType: Found %d robot templates for robot template type %d", g_iTotalRobotTemplates[type], type);

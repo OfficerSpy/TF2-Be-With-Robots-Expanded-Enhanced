@@ -39,7 +39,7 @@ bool g_bCanRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
-// static float m_flCaptureZoneLastTouch[MAXPLAYERS + 1];
+static float m_flNextActionTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
 static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
 static int m_nNextRobotTemplateID[MAXPLAYERS + 1];
@@ -85,6 +85,7 @@ ConVar bwr3_robot_giant_chance;
 ConVar bwr3_robot_boss_chance;
 ConVar bwr3_robot_gatebot_chance;
 
+ConVar nb_update_frequency;
 ConVar tf_deploying_bomb_delay_time;
 ConVar tf_deploying_bomb_time;
 ConVar tf_mvm_bot_allow_flag_carrier_to_fight;
@@ -733,7 +734,7 @@ public void OnClientPutInServer(int client)
 	
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
-	// m_flCaptureZoneLastTouch[client] = 0.0;
+	m_flNextActionTime[client] = 0.0;
 	m_bIsWaitingForReload[client] = false;
 	
 	MvMRobotPlayer(client).Reset();
@@ -754,6 +755,7 @@ public void OnClientDisconnect(int client)
 
 public void OnConfigsExecuted()
 {
+	nb_update_frequency = FindConVar("nb_update_frequency");
 	tf_deploying_bomb_delay_time = FindConVar("tf_deploying_bomb_delay_time");
 	tf_deploying_bomb_time = FindConVar("tf_deploying_bomb_time");
 	tf_mvm_bot_allow_flag_carrier_to_fight = FindConVar("tf_mvm_bot_allow_flag_carrier_to_fight");
@@ -776,6 +778,9 @@ public void OnConfigsExecuted()
 	// HookConVarChange(tf_mvm_miniboss_scale, ConVarChanged_MinibossScale);
 	
 	BaseServer_AddTag("bwree");
+	
+	for (eRobotTemplateType i = ROBOT_STANDARD; i < ROBOT_TEMPLATE_TYPE_COUNT; i++)
+		UpdateRobotTemplateDataForType(i);
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -846,7 +851,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (roboPlayer.NextSpawnTime <= GetGameTime() && !IsBotSpawningPaused(g_iPopulationManager))
 		{
 			roboPlayer.NextSpawnTime = GetGameTime() + 1.0;
-			SelectSpawnRobotTypeForPlayer(client);
+			TurnPlayerIntoHisNextRobot(client);
+			SelectPlayerNextRobot(client);
 		}
 		
 		return Plugin_Continue;
@@ -1201,7 +1207,12 @@ public void TF2_OnConditionRemoved(int client, TFCond condition)
 	if (!IsPlayingAsRobot(client))
 		return;
 	
-	if (condition == TFCond_MVMBotRadiowave)
+	if (condition == TFCond_Taunting)
+	{
+		//Taunting is considered an action
+		SetNextBehaviorActionTime(client, nb_update_frequency.FloatValue);
+	}
+	else if (condition == TFCond_MVMBotRadiowave)
 	{
 		//Stop the particle we may have added earlier in TF2_OnConditionAdded
 		StopParticleEffects(client);
@@ -1222,7 +1233,23 @@ public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue
 			convar.SetString(oldValue);
 		else
 			LogError("Old template file (%s) does not exist!", filePath);
+		
+		return;
 	}
+	
+	//If changed for a specific template file, re-read it
+	if (convar == bwr3_robot_template_file)
+		UpdateRobotTemplateDataForType(ROBOT_STANDARD);
+	else if (convar == bwr3_robot_giant_template_file)
+		UpdateRobotTemplateDataForType(ROBOT_GIANT);
+	else if (convar == bwr3_robot_gatebot_template_file)
+		UpdateRobotTemplateDataForType(ROBOT_GATEBOT);
+	else if (convar == bwr3_robot_gatebot_giant_template_file)
+		UpdateRobotTemplateDataForType(ROBOT_GATEBOT_GIANT);
+	else if (convar == bwr3_robot_sentrybuster_template_file)
+		UpdateRobotTemplateDataForType(ROBOT_SENTRYBUSTER);
+	else if (convar == bwr3_robot_boss_template_file)
+		UpdateRobotTemplateDataForType(ROBOT_BOSS);
 }
 
 /* public void ConVarChanged_MinibossScale(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -1272,9 +1299,10 @@ public Action Command_PlayAsRobotType(int client, int args)
 		return Plugin_Handled;
 	
 	char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
+	char arg2[3]; GetCmdArg(2, arg2, sizeof(arg2));
 	
 	g_bCanRespawn[client] = true;
-	TurnPlayerIntoRandomRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)));
+	TurnPlayerIntoRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)), StringToInt(arg2));
 	
 	return Plugin_Handled;
 }
@@ -1540,11 +1568,8 @@ public void PlayerRobot_TouchPost(int entity, int other)
 			if (StrEqual(classname, "func_capturezone"))
 			{
 				//Start deploying the bomb
-				if (!MvMRobotPlayer(entity).IsDeployingTheBomb() && player.HasTheFlag())
+				if (!MvMRobotPlayer(entity).IsDeployingTheBomb() && CanPerformNewBehaviorAction(entity) && player.HasTheFlag())
 					MvMDeployBomb_OnStart(entity);
-				
-				//Actively increment to indicate we are currently touching the capture zone
-				// m_flCaptureZoneLastTouch[entity] = GetGameTime() + 0.1;
 			}
 		}
 		
@@ -1636,6 +1661,7 @@ void ChangePlayerToTeamInvaders(int client)
 	
 	//TODO: verify the player is actually on blue team after change
 	SetRobotPlayer(client, true);
+	SelectPlayerNextRobot(client);
 }
 
 void SetRobotPlayer(int client, bool enabled)
@@ -1677,9 +1703,6 @@ bool MvMDeployBomb_OnStart(int client)
 	SetPlayerToMove(client, false);
 	SetAbsVelocity(client, {0.0, 0.0, 0.0});
 	
-	//Reinforce the deploy position so we don't overshoot it
-	SetAbsOrigin(client, m_vecDeployPos[client]);
-	
 	if (TF2_IsMiniBoss(client))
 	{
 		//NOTE: normally a check is done to see if the attribute exists in the item schema
@@ -1711,7 +1734,7 @@ bool MvMDeployBomb_Update(int client)
 		
 		const float movedRange = 20.0;
 		
-		if (Player_IsRangeGreaterThanVec(client, m_vecDeployPos[client], movedRange) /* && !IsTouchingCaptureZone(client) */)
+		if (Player_IsRangeGreaterThanVec(client, m_vecDeployPos[client], movedRange))
 		{
 			//TODO: whoever pushed us away, fire an event for them
 			
@@ -1797,6 +1820,9 @@ void MvMDeployBomb_OnEnd(int client)
 		//Giants can be pushed again
 		TF2Attrib_RemoveByName(client, "airblast vertical vulnerability multiplier");
 	}
+	
+	//Delay here so we don't just instantly start deploying again
+	SetNextBehaviorActionTime(client, nb_update_frequency.FloatValue);
 	
 	roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_NONE;
 	
@@ -1947,10 +1973,15 @@ bool ShouldAutoJump(int client)
 	return false;
 }
 
-/* bool IsTouchingCaptureZone(int client)
+bool CanPerformNewBehaviorAction(int client)
 {
-	return m_flCaptureZoneLastTouch[client] > GetGameTime();
-} */
+	return m_flNextActionTime[client] <= GetEngineTime();
+}
+
+void SetNextBehaviorActionTime(int client, float value)
+{
+	m_flNextActionTime[client] = GetEngineTime() + value;
+}
 
 void RemoveAllRobotPlayerObjects(const char[] objectType = "obj_*")
 {

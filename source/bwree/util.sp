@@ -189,7 +189,7 @@ void SetAbsOrigin(int entity, float origin[3])
 #endif
 }
 
-void SetAbsVelocity(int entity, float velocity[3])
+void SetAbsVelocity(int entity, const float velocity[3])
 {
 #if defined MOD_EXT_CBASENPC
 	CBaseEntity(entity).SetAbsVelocity(velocity);
