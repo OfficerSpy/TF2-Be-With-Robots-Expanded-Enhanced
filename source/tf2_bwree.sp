@@ -20,7 +20,7 @@ Author: ★ Officer Spy ★
 #pragma semicolon 1
 #pragma newdecls required
 
-#define PLUGIN_NAME	"[TF2] Be with Robots: Expanded & Enhanced"
+#define PLUGIN_NAME	"[TF2] Be With Robots: Expanded & Enhanced"
 #define PLUGIN_PREFIX	"[BWR E&E]"
 
 // #define TESTING_ONLY
@@ -39,6 +39,7 @@ bool g_bCanRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
+static float m_flBlockMovementTime[MAXPLAYERS + 1];
 static float m_flNextActionTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
 static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
@@ -615,7 +616,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.6",
+	version = "1.0.7",
 	url = ""
 };
 
@@ -734,6 +735,7 @@ public void OnClientPutInServer(int client)
 	
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
+	m_flBlockMovementTime[client] = 0.0;
 	m_flNextActionTime[client] = 0.0;
 	m_bIsWaitingForReload[client] = false;
 	
@@ -866,6 +868,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		buttons |= g_iForcedButtonInput[client];
 		g_iForcedButtonInput[client] = 0;
+	}
+	
+	if (m_flBlockMovementTime[client] > GetGameTime())
+	{
+		//Block all movement inputs
+		vel = NULL_VECTOR;
 	}
 	
 	if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
@@ -1693,6 +1701,7 @@ void ResetPlayerProperties(int client)
 	TF2Attrib_RemoveAll(client);
 }
 
+// Called when the player begins to deploy the bomb
 bool MvMDeployBomb_OnStart(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
@@ -1701,6 +1710,7 @@ bool MvMDeployBomb_OnStart(int client)
 	
 	GetClientAbsOrigin(client, m_vecDeployPos[client]);
 	SetPlayerToMove(client, false);
+	SetBlockMovementTime(client, 0.1);
 	SetAbsVelocity(client, {0.0, 0.0, 0.0});
 	
 	if (TF2_IsMiniBoss(client))
@@ -1713,7 +1723,8 @@ bool MvMDeployBomb_OnStart(int client)
 	return true;
 }
 
-/* This part mainly controls the bomb deploying states
+/* Called while the player is deploying the bomb
+This mainly controls the bomb deploying states
 Return false if we should stop deploying the bomb
 Return true to continue deploying the bomb */
 bool MvMDeployBomb_Update(int client)
@@ -1805,6 +1816,7 @@ bool MvMDeployBomb_Update(int client)
 	return true;
 }
 
+// Called when the player stops deploying the bomb
 void MvMDeployBomb_OnEnd(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
@@ -1827,6 +1839,7 @@ void MvMDeployBomb_OnEnd(int client)
 	roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_NONE;
 	
 	SetPlayerToMove(client, true);
+	SetBlockMovementTime(client, 0.0);
 }
 
 void SetPlayerToMove(int client, bool enabled)
@@ -1971,6 +1984,11 @@ bool ShouldAutoJump(int client)
 	}
 	
 	return false;
+}
+
+void SetBlockMovementTime(int client, float value)
+{
+	m_flBlockMovementTime[client] = GetGameTime() + value;
 }
 
 bool CanPerformNewBehaviorAction(int client)
