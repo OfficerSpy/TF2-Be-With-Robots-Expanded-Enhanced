@@ -17,6 +17,11 @@
 		"#format"	"{1:s}"
 		"en"	"You have spawned as {1}."
 	}
+	"Player_Next_Robot_Spawn"
+	{
+		"#format"	"{1:s}"
+		"en"	"You will next spawn as {1}. Type !viewnextrobot for more information."
+	}
 	"Player_Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"

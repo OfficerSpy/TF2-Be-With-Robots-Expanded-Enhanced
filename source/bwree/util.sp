@@ -16,12 +16,6 @@
 
 #define IsEmptyString(%1) (%1[0] == 0)
 
-#define MAX_BOT_TAG_CHECKS	10 //Maximum amount of tags we will look for
-#define BOT_TAGS_BUFFER_MAX_LENGTH	PLATFORM_MAX_PATH //How long the whole string list of tags can be
-#define BOT_TAG_EACH_MAX_LENGTH	16 //How long each named tag can be
-
-#define ROBOT_TEMPLATE_ID_INVALID	-1
-
 //CTFBotDeliverFlag
 #define DONT_UPGRADE	-1
 

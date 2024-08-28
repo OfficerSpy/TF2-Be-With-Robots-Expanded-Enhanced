@@ -1,5 +1,6 @@
 #define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree"
 #define ROBOT_NAME_UNDEFINED	"TFBot"
+#define MAX_ROBOT_TEMPLATES	50
 
 enum eRobotTemplateType
 {
@@ -13,6 +14,7 @@ enum eRobotTemplateType
 };
 
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
+char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
 
 static Handle m_hDetonateTimer[MAXPLAYERS + 1];
 static bool m_bHasDetonated[MAXPLAYERS + 1];
@@ -1557,8 +1559,7 @@ void SelectPlayerNextRobot(int client)
 	
 	if (ShouldDispatchSentryBuster())
 	{
-		roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_SENTRYBUSTER]);
-		roboPlayer.MyNextRobotTemplateType = ROBOT_SENTRYBUSTER;
+		roboPlayer.SetMyNextRobot(ROBOT_SENTRYBUSTER, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_SENTRYBUSTER]));
 		return;
 	}
 	
@@ -1570,13 +1571,11 @@ void SelectPlayerNextRobot(int client)
 		{
 			if (bShouldBeGatebot)
 			{
-				roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT_GIANT]);
-				roboPlayer.MyNextRobotTemplateType = ROBOT_GATEBOT_GIANT;
+				roboPlayer.SetMyNextRobot(ROBOT_GATEBOT_GIANT, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT_GIANT]));
 			}
 			else
 			{
-				roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GIANT]);
-				roboPlayer.MyNextRobotTemplateType = ROBOT_GIANT;
+				roboPlayer.SetMyNextRobot(ROBOT_GIANT, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GIANT]));
 			}
 			
 			return;
@@ -1585,13 +1584,11 @@ void SelectPlayerNextRobot(int client)
 	
 	if (bShouldBeGatebot)
 	{
-		roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT]);
-		roboPlayer.MyNextRobotTemplateType = ROBOT_GATEBOT;
+		roboPlayer.SetMyNextRobot(ROBOT_GATEBOT, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT]));
 	}
 	else
 	{
-		roboPlayer.MyNextRobotTemplateID = GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_STANDARD]);
-		roboPlayer.MyNextRobotTemplateType = ROBOT_STANDARD;
+		roboPlayer.SetMyNextRobot(ROBOT_STANDARD, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_STANDARD]));
 	}
 }
 
@@ -1685,6 +1682,9 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			do
 			{
 				g_iTotalRobotTemplates[type]++;
+				
+				//Store these details for later
+				kv.GetString("Name", g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateName[][]), ROBOT_NAME_UNDEFINED);
 			} while (kv.GotoNextKey(false))
 			
 			LogMessage("UpdateRobotTemplateDataForType: Found %d robot templates for robot template type %d", g_iTotalRobotTemplates[type], type);
@@ -1696,6 +1696,11 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 	}
 	
 	delete kv;
+}
+
+char[] GetRobotTemplateName(eRobotTemplateType type, int templateID)
+{
+	return g_sRobotTemplateName[type][templateID];
 }
 
 void StopIdleSound(int client)

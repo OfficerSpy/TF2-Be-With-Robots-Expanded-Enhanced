@@ -168,7 +168,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	/* Since we control the spawning of the player, they should never be allowed to respawn themselves
 	This should be set to a very high number so that the player can't spawn in whenever bot spawning gets disabled
 	Generally I'd like to think of this value as time it takes to cap (mannhattan 12) + current respawn wave time (usually 22) */
-	TF2Util_SetPlayerRespawnTimeOverride(client, 34.0);
+	TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + 34.0);
 }
 
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)

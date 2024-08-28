@@ -43,8 +43,8 @@ static float m_flBlockMovementTime[MAXPLAYERS + 1];
 static float m_flNextActionTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
 static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
-static int m_nNextRobotTemplateID[MAXPLAYERS + 1];
 static eRobotTemplateType m_nNextRobotTemplateType[MAXPLAYERS + 1];
+static int m_nNextRobotTemplateID[MAXPLAYERS + 1];
 static float m_flNextRobotSpawnTime[MAXPLAYERS + 1];
 static float m_flAutoJumpTime[MAXPLAYERS + 1];
 static int m_nDeployingBombState[MAXPLAYERS + 1]; //The state our deploying is currently in
@@ -106,7 +106,12 @@ ConVar phys_pushscale;
 ConVar tf_bot_suicide_bomb_friendly_fire;
 #endif
 
-#include "bwree/util.sp"
+//I wish i could put these somewhere else
+#define MAX_BOT_TAG_CHECKS	10 //Maximum amount of tags we will look for
+#define BOT_TAGS_BUFFER_MAX_LENGTH	PLATFORM_MAX_PATH //How long the whole string list of tags can be
+#define BOT_TAG_EACH_MAX_LENGTH	16 //How long each named tag can be
+
+#define ROBOT_TEMPLATE_ID_INVALID	-1
 
 methodmap MvMRobotPlayer
 {
@@ -126,16 +131,16 @@ methodmap MvMRobotPlayer
 		public set(eRobotTemplateType value)	{ m_nRobotVariantType[this.index] = value; }
 	}
 	
-	property int MyNextRobotTemplateID
-	{
-		public get()	{ return m_nNextRobotTemplateID[this.index]; }
-		public set(int value)	{ m_nNextRobotTemplateID[this.index] = value; }
-	}
-	
 	property eRobotTemplateType MyNextRobotTemplateType
 	{
 		public get()	{ return m_nNextRobotTemplateType[this.index]; }
 		public set(eRobotTemplateType value)	{ m_nNextRobotTemplateType[this.index] = value; }
+	}
+	
+	property int MyNextRobotTemplateID
+	{
+		public get()	{ return m_nNextRobotTemplateID[this.index]; }
+		public set(int value)	{ m_nNextRobotTemplateID[this.index] = value; }
 	}
 	
 	property float NextSpawnTime
@@ -171,8 +176,8 @@ methodmap MvMRobotPlayer
 	
 	public void Reset()
 	{
-		this.MyNextRobotTemplateID = ROBOT_TEMPLATE_ID_INVALID;
 		this.MyNextRobotTemplateType = ROBOT_STANDARD;
+		this.MyNextRobotTemplateID = ROBOT_TEMPLATE_ID_INVALID;
 		this.NextSpawnTime = 0.0;
 		this.DeployBombState = TF_BOMB_DEPLOYING_NONE;
 		this.DeployBombTime = -1.0;
@@ -193,6 +198,14 @@ methodmap MvMRobotPlayer
 		this.ClearTeleportWhere();
 		this.SetAutoJump(0.0, 0.0);
 		this.ClearEventChangeAttributes();
+	}
+	
+	public void SetMyNextRobot(eRobotTemplateType type, int templateID)
+	{
+		this.MyNextRobotTemplateType = type;
+		this.MyNextRobotTemplateID = templateID;
+		
+		PrintToChat(this.index, "%s %t", PLUGIN_PREFIX, "Player_Next_Robot_Spawn", GetRobotTemplateName(type, templateID));
 	}
 	
 	public bool IsDeployingTheBomb()
@@ -605,6 +618,7 @@ methodmap MvMRobotPlayer
 	}
 }
 
+#include "bwree/util.sp"
 #include "bwree/offsets.sp"
 #include "bwree/sdkcalls.sp"
 #include "bwree/events.sp"
@@ -628,8 +642,8 @@ public void OnPluginStart()
 	
 	LoadTranslations("bwree.phrases");
 	
-	bwr3_robot_spawn_time_min = CreateConVar("sm_bwr3_robot_spawn_time_min", "3", _, FCVAR_NOTIFY);
-	bwr3_robot_spawn_time_max = CreateConVar("sm_bwr3_robot_spawn_time_max", "5", _, FCVAR_NOTIFY);
+	bwr3_robot_spawn_time_min = CreateConVar("sm_bwr3_robot_spawn_time_min", "12", _, FCVAR_NOTIFY);
+	bwr3_robot_spawn_time_max = CreateConVar("sm_bwr3_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
 	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "1", _, FCVAR_NOTIFY);
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
@@ -1710,7 +1724,7 @@ bool MvMDeployBomb_OnStart(int client)
 	
 	GetClientAbsOrigin(client, m_vecDeployPos[client]);
 	SetPlayerToMove(client, false);
-	SetBlockMovementTime(client, 0.1);
+	SetBlockPlayerMovementTime(client, 0.1);
 	SetAbsVelocity(client, {0.0, 0.0, 0.0});
 	
 	if (TF2_IsMiniBoss(client))
@@ -1839,7 +1853,7 @@ void MvMDeployBomb_OnEnd(int client)
 	roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_NONE;
 	
 	SetPlayerToMove(client, true);
-	SetBlockMovementTime(client, 0.0);
+	SetBlockPlayerMovementTime(client, 0.0);
 }
 
 void SetPlayerToMove(int client, bool enabled)
@@ -1986,7 +2000,7 @@ bool ShouldAutoJump(int client)
 	return false;
 }
 
-void SetBlockMovementTime(int client, float value)
+void SetBlockPlayerMovementTime(int client, float value)
 {
 	m_flBlockMovementTime[client] = GetGameTime() + value;
 }
