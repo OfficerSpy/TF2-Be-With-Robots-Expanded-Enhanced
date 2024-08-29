@@ -1,6 +1,6 @@
 "Phrases"
 {
-	"RobotPlayer_Notify_Upgrade_Bomb"
+	"Notify_Upgrade_Bomb"
 	{
 		"en"			"You can upgrade me!"
 	}
@@ -17,12 +17,57 @@
 		"#format"	"{1:s}"
 		"en"	"You have spawned as {1}."
 	}
-	"Player_Next_Robot_Spawn"
+	"Next_Robot_Spawn"
 	{
 		"#format"	"{1:s}"
 		"en"	"You will next spawn as {1}. Type !viewnextrobot for more information."
 	}
-	"Player_Changed_Heal_Target"
+	"Menu_ViewNextRobot"
+	{
+		"#format"	"{1:s}"
+		"en"	"You next robot is {1}"
+	}
+	"Menu_EngineerTeleport"
+	{
+		"en"	"Choose teleport location type"
+	}
+	"Menu_EngineerTeleport_NearBomb"
+	{
+		"en"	"Near Bomb"
+	}
+	"Menu_EngineerTeleport_Random"
+	{
+		"en"	"Random"
+	}
+	"Menu_EngineerTeleport_NearTeammate"
+	{
+		"en"	"Near Teammate"
+	}
+	"Menu_SpyTeleport"
+	{
+		"en"	"Choose a teleport type"
+	}
+	"Menu_SpyTeleport_Default"
+	{
+		"en"	"Default"
+	}
+	"Menu_SpyTeleport_Player"
+	{
+		"en"	"Player"
+	}
+	"Menu_SpyTeleportPlayer"
+	{
+		"en"	"Choose a player"
+	}
+	"Menu_SpawnAsNextRobotNow"
+	{
+		"en"	"Spawn as this robot now"
+	}
+	"Menu_ChangeRobot"
+	{
+		"en"	"Change robot"
+	}
+	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"
 		"en"	"You changed your healing target to {1}."

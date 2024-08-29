@@ -28,6 +28,12 @@ Author: ★ Officer Spy ★
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
 
+enum
+{
+	ENGINEER_TELEPORT_METHOD_NONE = 0,
+	ENGINEER_TELEPORT_METHOD_MENU
+};
+
 bool g_bLateLoad;
 bool g_bCanBotsAttackInSpawn;
 
@@ -42,7 +48,7 @@ static bool m_bBypassBotCheck[MAXPLAYERS + 1];
 static float m_flBlockMovementTime[MAXPLAYERS + 1];
 static float m_flNextActionTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
-static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
+// static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
 static eRobotTemplateType m_nNextRobotTemplateType[MAXPLAYERS + 1];
 static int m_nNextRobotTemplateID[MAXPLAYERS + 1];
 static float m_flNextRobotSpawnTime[MAXPLAYERS + 1];
@@ -85,6 +91,7 @@ ConVar bwr3_robot_boss_template_file;
 ConVar bwr3_robot_giant_chance;
 ConVar bwr3_robot_boss_chance;
 ConVar bwr3_robot_gatebot_chance;
+ConVar bwr3_engineer_teleport_method;
 
 ConVar nb_update_frequency;
 ConVar tf_deploying_bomb_delay_time;
@@ -125,11 +132,11 @@ methodmap MvMRobotPlayer
 		public get()	{ return view_as<int>(this); }
 	}
 	
-	property eRobotTemplateType RobotVariantType
+	/* property eRobotTemplateType RobotVariantType
 	{
 		public get()	{ return m_nRobotVariantType[this.index]; }
 		public set(eRobotTemplateType value)	{ m_nRobotVariantType[this.index] = value; }
-	}
+	} */
 	
 	property eRobotTemplateType MyNextRobotTemplateType
 	{
@@ -205,7 +212,7 @@ methodmap MvMRobotPlayer
 		this.MyNextRobotTemplateType = type;
 		this.MyNextRobotTemplateID = templateID;
 		
-		PrintToChat(this.index, "%s %t", PLUGIN_PREFIX, "Player_Next_Robot_Spawn", GetRobotTemplateName(type, templateID));
+		PrintToChat(this.index, "%s %t", PLUGIN_PREFIX, "Next_Robot_Spawn", GetRobotTemplateName(type, templateID));
 	}
 	
 	public bool IsDeployingTheBomb()
@@ -624,6 +631,7 @@ methodmap MvMRobotPlayer
 #include "bwree/events.sp"
 #include "bwree/dhooks.sp"
 #include "bwree/robot_templates.sp"
+#include "bwree/menu.sp"
 
 public Plugin myinfo =
 {
@@ -657,6 +665,7 @@ public void OnPluginStart()
 	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
+	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "1", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
@@ -1162,7 +1171,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						case BOMB_UPGRADE_MANUAL:
 						{
 							//Advise the player the ycan upgrade the bomb now
-							PrintCenterText(client, "%t", "RobotPlayer_Notify_Upgrade_Bomb");
+							PrintCenterText(client, "%t", "Notify_Upgrade_Bomb");
 						}
 						case BOMB_UPGRADE_AUTO:
 						{
@@ -1310,7 +1319,7 @@ public Action Command_ViewNextRobotTemplate(int client, int args)
 	if (!IsPlayingAsRobot(client))
 		return Plugin_Handled;
 	
-	//TODO: display panel to show player's next robot in a separate function
+	ShowPlayerNextRobotMenu(client);
 	
 	return Plugin_Handled;
 }
@@ -1655,6 +1664,16 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 	}
 	
 	return Plugin_Continue;
+}
+
+void RobotPlayer_SpawnNow(int client)
+{
+	TurnPlayerIntoHisNextRobot(client);
+}
+
+void RobotPlayer_ChangeRobot(int client)
+{
+	ShowRobotVariantTypeMenu(client);
 }
 
 bool IsPlayingAsRobot(int client)

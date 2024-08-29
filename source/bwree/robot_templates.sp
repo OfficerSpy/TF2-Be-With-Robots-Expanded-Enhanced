@@ -1,6 +1,7 @@
 #define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree"
 #define ROBOT_NAME_UNDEFINED	"TFBot"
 #define MAX_ROBOT_TEMPLATES	50
+#define MAX_ENGINEER_NEST_HINT_LOCATIONS	10
 
 enum eRobotTemplateType
 {
@@ -13,8 +14,17 @@ enum eRobotTemplateType
 	ROBOT_TEMPLATE_TYPE_COUNT
 };
 
+enum eEngineerTeleportType
+{
+	ENGINEER_TELEPORT_NEAR_BOMB,
+	ENGINEER_TELEPORT_RANDOM,
+	ENGINEER_TELEPORT_NEAR_TEAMMATE
+};
+
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
+
+float g_vecEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
 
 static Handle m_hDetonateTimer[MAXPLAYERS + 1];
 static bool m_bHasDetonated[MAXPLAYERS + 1];
@@ -278,18 +288,20 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, any data)
 static Action Timer_MvMEngineerTeleportSpawn(Handle timer, DataPack pack)
 {
 	pack.Reset();
+	
 	int client = pack.ReadCell();
 	
 	if (!IsClientInGame(client) || !IsPlayerAlive(client) || !TF2_IsClass(client, TFClass_Engineer))
 		return Plugin_Stop;
 	
-	int hintEntity = pack.ReadCell();
+	float nestOrigin[3]; pack.ReadFloatArray(nestOrigin, sizeof(nestOrigin));
 	
-	if (!IsValidEntity(hintEntity))
+	//This should never happen
+	if (IsZeroVector(nestOrigin))
 		return Plugin_Stop;
 	
-	float angles[3]; angles = GetAbsAngles(hintEntity);
-	float origin[3]; origin = GetAbsOrigin(hintEntity);
+	float angles[3]; //angles = GetAbsAngles(hintEntity);
+	float origin[3]; origin = nestOrigin;
 	origin[2] += 10.0;
 	
 	TeleportEntity(client, origin, angles, NULL_VECTOR);
@@ -300,7 +312,7 @@ static Action Timer_MvMEngineerTeleportSpawn(Handle timer, DataPack pack)
 	//TODO: what exactly determines m_bFirstTeleportSpawn?
 	TE_TFParticleEffectComplex(0.0, "teleported_mvm_bot", origin, NULL_VECTOR);
 	EmitGameSoundToAll("Engineer.MVM_BattleCry07", client);
-	EmitGameSoundToAll("MVM.Robot_Engineer_Spawn", hintEntity);
+	EmitGameSoundToAll("MVM.Robot_Engineer_Spawn", _, _, _, nestOrigin);
 	
 	if (IsValidEntity(g_iPopulationManager))
 	{
@@ -783,7 +795,17 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	}
 	else if (iClass == TFClass_Engineer && roboPlayer.HasAttribute(CTFBot_TELEPORT_TO_HINT))
 	{
-		MvMEngineerTeleportSpawn(client);
+		if (bwr3_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU)
+		{
+			//Let him choose how he teleports
+			ShowEngineerTeleportMenu(client);
+			SetPlayerToMove(client, false);
+		}
+		else
+		{
+			//Default teleporting
+			MvMEngineerTeleportSpawn(client);
+		}
 	}
 	
 	//For TFBots this is actually checked in CTFBot::PhysicsSimulate
@@ -1703,6 +1725,30 @@ char[] GetRobotTemplateName(eRobotTemplateType type, int templateID)
 	return g_sRobotTemplateName[type][templateID];
 }
 
+void UpdateEngineerHintLocations()
+{
+	//Reset currently stored data
+	for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
+		g_vecEngineerHintOrigin[i] = NULL_VECTOR;
+	
+	int ent = -1;
+	int index = 0;
+	
+	while ((ent = FindEntityByClassname(ent, "bot_hint_engineer_nest")) != -1)
+	{
+		if (index >= sizeof(g_vecEngineerHintOrigin))
+		{
+			LogError("UpdateEngineerHintLocations: reached the limit for engineer hint locations");
+			return;
+		}
+		
+		if (GetEntProp(ent, Prop_Data, "m_isDisabled") == 1)
+			continue;
+		
+		g_vecEngineerHintOrigin[index++] = GetAbsOrigin(ent);
+	}
+}
+
 void StopIdleSound(int client)
 {
 	if (strlen(m_sIdleSound[client]) > 0)
@@ -1740,22 +1786,78 @@ void SpyLeaveSpawnRoom_OnStart(int client)
 	// PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spy_Teleporting");
 }
 
-void MvMEngineerTeleportSpawn(int client)
+void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_TELEPORT_NEAR_BOMB)
 {
-	int hintEntity = GetEngineerHint();
+	float hintTeleportPos[3];
 	
-	if (hintEntity == -1)
+	switch (type)
 	{
-		LogError("MvMEngineerTeleportSpawn: No hint entities found within the map!");
+		case ENGINEER_TELEPORT_NEAR_BOMB:
+		{
+			int flag = FindBombNearestToHatch();
+			
+			if (flag != -1)
+			{
+				float bestDistance = 999999.0;
+				float flagPos[3];
+				
+				flagPos = WorldSpaceCenter(flag);
+				
+				//Cycle through all the stored hint positions
+				for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
+				{
+					//Stop right here, cause the rest are probably empty as well
+					if (IsZeroVector(g_vecEngineerHintOrigin[i]))
+						break;
+					
+					float distance = GetVectorDistance(flagPos, g_vecEngineerHintOrigin[i]);
+					
+					if (distance <= bestDistance)
+					{
+						bestDistance = distance;
+						hintTeleportPos = g_vecEngineerHintOrigin[i];
+					}
+				}
+			}
+			else
+			{
+				//TODO: find the engineer hint closest to the robot spawn then
+			}
+		}
+		case ENGINEER_TELEPORT_RANDOM:
+		{
+			int validCount = 0;
+			
+			for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
+			{
+				//Not valid, the rest won't be either
+				if (IsZeroVector(g_vecEngineerHintOrigin[i]))
+					break;
+				
+				validCount++;
+			}
+			
+			if (validCount > 0)
+				hintTeleportPos = g_vecEngineerHintOrigin[GetRandomInt(0, validCount - 1)];
+		}
+		case ENGINEER_TELEPORT_NEAR_TEAMMATE:
+		{
+			//TODO
+		}
+	}
+	
+	if (IsZeroVector(hintTeleportPos))
+	{
+		LogError("MvMEngineerTeleportSpawn: no hint origins could be found for this specific map!");
 		return;
 	}
 	
 	DataPack pack;
 	CreateDataTimer(0.1, Timer_MvMEngineerTeleportSpawn, pack, TIMER_FLAG_NO_MAPCHANGE);
 	pack.WriteCell(client);
-	pack.WriteCell(hintEntity);
+	pack.WriteFloatArray(hintTeleportPos, sizeof(hintTeleportPos));
 	
-	TF2_PushAllPlayersAway(GetAbsOrigin(hintEntity), 400.0, 500.0, TFTeam_Red);
+	TF2_PushAllPlayersAway(hintTeleportPos, 400.0, 500.0, TFTeam_Red);
 }
 
 bool UpdateSentryBusterSpawningCriteria()
