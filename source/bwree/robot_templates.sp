@@ -21,6 +21,7 @@ enum eEngineerTeleportType
 	ENGINEER_TELEPORT_NEAR_TEAMMATE
 };
 
+// Robot template property arrays
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
 
@@ -214,6 +215,8 @@ float g_flLastTeleportTime = -1.0;
 static float m_flDestroySentryCooldownDuration; //Cooldown amount specified by the population file
 static float m_flSentryBusterCooldown; //How long our active cooldown is right now
 
+int g_iOverrideTeleportVictim[MAXPLAYERS + 1] = {-1, ...};
+
 static char m_sIdleSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
 static int m_nIdleSoundChannel[MAXPLAYERS + 1];
 static int m_iSpyTeleportAttempt[MAXPLAYERS + 1];
@@ -243,33 +246,53 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, any data)
 	
 	int victim = -1;
 	
-	ArrayList adtEnemy = new ArrayList();
-	CollectPlayers(adtEnemy, view_as<int>(TFTeam_Red), true);
-	
-	ArrayList adtShuffle = adtEnemy.Clone();
-	delete adtEnemy;
-	int n = adtShuffle.Length;
-	
-	while (n > 1)
+	if (g_iOverrideTeleportVictim[data] != -1)
 	{
-		int k = GetRandomInt(0, n - 1);
-		n--;
-		
-		int tmp = adtShuffle.Get(n);
-		adtShuffle.Set(n, adtShuffle.Get(k));
-		adtShuffle.Set(k, tmp);
-	}
-	
-	for (int i = 0; i < adtShuffle.Length; i++)
-	{
-		if (TeleportNearVictim(data, adtShuffle.Get(i), m_iSpyTeleportAttempt[data]))
+		//Player overrided their own victim to teleport to
+		if (IsValidSpyTeleportVictim(g_iOverrideTeleportVictim[data]))
 		{
-			victim = adtShuffle.Get(i);
-			break;
+			if (TeleportNearVictim(data, g_iOverrideTeleportVictim[data], m_iSpyTeleportAttempt[data]))
+				victim = g_iOverrideTeleportVictim[data];
+		}
+		else
+		{
+			//Our desired victim is not valid anymore, resort to backup plan
+			g_iOverrideTeleportVictim[data] = -1;
+			PrintToChat(data, "%s %t", PLUGIN_PREFIX, "Spy_Teleport_Custom_Failed");
 		}
 	}
-	
-	delete adtShuffle;
+	else
+	{
+		ArrayList adtEnemy = new ArrayList();
+		CollectPlayers(adtEnemy, view_as<int>(TFTeam_Red), true);
+		
+		ArrayList adtShuffle = adtEnemy.Clone();
+		
+		delete adtEnemy;
+		
+		int n = adtShuffle.Length;
+		
+		while (n > 1)
+		{
+			int k = GetRandomInt(0, n - 1);
+			n--;
+			
+			int tmp = adtShuffle.Get(n);
+			adtShuffle.Set(n, adtShuffle.Get(k));
+			adtShuffle.Set(k, tmp);
+		}
+		
+		for (int i = 0; i < adtShuffle.Length; i++)
+		{
+			if (TeleportNearVictim(data, adtShuffle.Get(i), m_iSpyTeleportAttempt[data]))
+			{
+				victim = adtShuffle.Get(i);
+				break;
+			}
+		}
+		
+		delete adtShuffle;
+	}
 	
 	if (victim == -1)
 	{
@@ -451,14 +474,13 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 	{
 		kv.GotoFirstSubKey(false);
 		
-		int count = 0;
+		//Template IDs start from 0
+		//This corresponds with the property arrays
+		int keyIndex = 0;
 		
 		do
 		{
-			//Template IDs start from 1 since we count the total from 0
-			count++;
-			
-			if (count == templateID)
+			if (keyIndex == templateID)
 			{
 				TF2Attrib_RemoveAll(client);
 				
@@ -522,6 +544,8 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				
 				break;
 			}
+			
+			keyIndex++;
 		} while (kv.GotoNextKey(false))
 	}
 }
@@ -791,7 +815,17 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (iClass == TFClass_Spy)
 	{
-		SpyLeaveSpawnRoom_OnStart(client);
+		if (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)
+		{
+			//Let him choose how he teleports
+			ShowSpyTeleportMenu(client);
+			SetPlayerToMove(client, false);
+		}
+		else
+		{
+			//Default teleporting
+			SpyLeaveSpawnRoom_OnStart(client);
+		}
 	}
 	else if (iClass == TFClass_Engineer && roboPlayer.HasAttribute(CTFBot_TELEPORT_TO_HINT))
 	{
@@ -1499,39 +1533,6 @@ void OnBotTeleported(int client)
 	}
 }
 
-static int GetEngineerHint()
-{
-	float bestDistance = 999999.0;
-	int bestEnt = -1;
-	int ent = -1;
-	int flag = FindBombNearestToHatch();
-	
-	if (flag != -1)
-	{
-		float origin[3]; origin = WorldSpaceCenter(flag);
-		
-		while ((ent = FindEntityByClassname(ent, "bot_hint_engineer_nest")) != -1)
-		{
-			if (GetEntProp(ent, Prop_Data, "m_isDisabled") == 1)
-				continue;
-			
-			float distance = GetVectorDistance(origin, GetAbsOrigin(ent));
-			
-			if (distance <= bestDistance)
-			{
-				bestDistance = distance;
-				bestEnt = ent;
-			}
-		}
-	}
-	else
-	{
-		//TODO: find the engineer hint closest to the robot spawn then
-	}
-	
-	return bestEnt;
-}
-
 static int GetActiveSentryBusterCount()
 {
 	int count = 0;
@@ -1561,11 +1562,11 @@ static bool AreGatebotsAvailable()
 
 void ResetRobotSpawnerData()
 {
-	m_flDestroySentryCooldownDuration = 0.0;
-	m_flSentryBusterCooldown = 0.0;
-	
 	g_iRefLastTeleporter = INVALID_ENT_REFERENCE;
 	g_flLastTeleportTime = 0.0;
+	
+	m_flDestroySentryCooldownDuration = 0.0;
+	m_flSentryBusterCooldown = 0.0;
 }
 
 void StartSentryBusterCooldown()
@@ -1703,10 +1704,10 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			
 			do
 			{
-				g_iTotalRobotTemplates[type]++;
-				
 				//Store these details for later
 				kv.GetString("Name", g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateName[][]), ROBOT_NAME_UNDEFINED);
+				
+				g_iTotalRobotTemplates[type]++;
 			} while (kv.GotoNextKey(false))
 			
 			LogMessage("UpdateRobotTemplateDataForType: Found %d robot templates for robot template type %d", g_iTotalRobotTemplates[type], type);
@@ -1739,14 +1740,38 @@ void UpdateEngineerHintLocations()
 		if (index >= sizeof(g_vecEngineerHintOrigin))
 		{
 			LogError("UpdateEngineerHintLocations: reached the limit for engineer hint locations");
-			return;
+			break;
 		}
 		
-		if (GetEntProp(ent, Prop_Data, "m_isDisabled") == 1)
-			continue;
+		/* if (GetEntProp(ent, Prop_Data, "m_isDisabled") == 1)
+			continue; */
 		
 		g_vecEngineerHintOrigin[index++] = GetAbsOrigin(ent);
 	}
+}
+
+// Finds an origin nearest to the specified position vector
+static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3])
+{
+	float bestDistance = 999999.0;
+	
+	//Cycle through all the stored hint positions
+	for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
+	{
+		//Stop right here, cause the rest are probably empty as well
+		if (IsZeroVector(g_vecEngineerHintOrigin[i]))
+			break;
+		
+		float distance = GetVectorDistance(vec, g_vecEngineerHintOrigin[i]);
+		
+		if (distance <= bestDistance)
+		{
+			bestDistance = distance;
+			outputOrigin = g_vecEngineerHintOrigin[i];
+		}
+	}
+	
+	//TODO: angles
 }
 
 void StopIdleSound(int client)
@@ -1783,7 +1808,12 @@ void SpyLeaveSpawnRoom_OnStart(int client)
 	
 	SetPlayerToMove(client, false);
 	
-	// PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spy_Teleporting");
+	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Spy_Teleporting");
+}
+
+bool IsValidSpyTeleportVictim(int victim)
+{
+	return IsClientInGame(victim) && IsPlayerAlive(victim);
 }
 
 void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_TELEPORT_NEAR_BOMB)
@@ -1798,26 +1828,7 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 			
 			if (flag != -1)
 			{
-				float bestDistance = 999999.0;
-				float flagPos[3];
-				
-				flagPos = WorldSpaceCenter(flag);
-				
-				//Cycle through all the stored hint positions
-				for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
-				{
-					//Stop right here, cause the rest are probably empty as well
-					if (IsZeroVector(g_vecEngineerHintOrigin[i]))
-						break;
-					
-					float distance = GetVectorDistance(flagPos, g_vecEngineerHintOrigin[i]);
-					
-					if (distance <= bestDistance)
-					{
-						bestDistance = distance;
-						hintTeleportPos = g_vecEngineerHintOrigin[i];
-					}
-				}
+				GetNearestEngineerHintPosition(WorldSpaceCenter(flag), hintTeleportPos);
 			}
 			else
 			{
@@ -1842,9 +1853,18 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 		}
 		case ENGINEER_TELEPORT_NEAR_TEAMMATE:
 		{
-			//TODO
+			int ally = GetRandomLivingPlayerFromTeam(TFTeam_Blue, client);
+			
+			if (ally != -1)
+			{
+				float allyPos[3]; GetClientAbsOrigin(ally, allyPos);
+				GetNearestEngineerHintPosition(allyPos, hintTeleportPos);
+			}
 		}
 	}
+	
+	//When using the menu we disable movement, re-enable it before we teleport
+	SetPlayerToMove(client, true);
 	
 	if (IsZeroVector(hintTeleportPos))
 	{

@@ -34,6 +34,12 @@ enum
 	ENGINEER_TELEPORT_METHOD_MENU
 };
 
+enum
+{
+	SPY_TELEPORT_METHOD_NONE = 0,
+	SPY_TELEPORT_METHOD_MENU
+};
+
 bool g_bLateLoad;
 bool g_bCanBotsAttackInSpawn;
 
@@ -91,7 +97,9 @@ ConVar bwr3_robot_boss_template_file;
 ConVar bwr3_robot_giant_chance;
 ConVar bwr3_robot_boss_chance;
 ConVar bwr3_robot_gatebot_chance;
+ConVar bwr3_robot_menu_allowed;
 ConVar bwr3_engineer_teleport_method;
+ConVar bwr3_spy_teleport_method;
 
 ConVar nb_update_frequency;
 ConVar tf_deploying_bomb_delay_time;
@@ -665,7 +673,9 @@ public void OnPluginStart()
 	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
+	bwr3_robot_menu_allowed = CreateConVar("sm_bwr3_robot_menu_allowed", "1", _, FCVAR_NOTIFY);
 	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "1", _, FCVAR_NOTIFY);
+	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "1", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
@@ -678,6 +688,11 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_joinblu", Command_JoinBlue, "Join the blue team and become a robot!");
 	RegConsoleCmd("sm_viewnextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
 	RegConsoleCmd("sm_nextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
+	RegConsoleCmd("sm_robotmenu", Command_RobotTemplateMenu);
+	// RegConsoleCmd("sm_rm", Command_RobotTemplateMenu);
+	RegConsoleCmd("sm_nextrobotmenu", Command_RobotTemplateMenu);
+	RegConsoleCmd("sm_newrobot", Command_ReselectRobot);
+	// RegConsoleCmd("sm_nr", Command_ReselectRobot);
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
@@ -806,6 +821,8 @@ public void OnConfigsExecuted()
 	
 	for (eRobotTemplateType i = ROBOT_STANDARD; i < ROBOT_TEMPLATE_TYPE_COUNT; i++)
 		UpdateRobotTemplateDataForType(i);
+	
+	UpdateEngineerHintLocations();
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -1324,10 +1341,42 @@ public Action Command_ViewNextRobotTemplate(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_RobotTemplateMenu(int client, int args)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
+	if (!bwr3_robot_menu_allowed.BoolValue)
+	{
+		ReplyToCommand(client, "Robot_Menu_Not_Allowed");
+		return Plugin_Handled;
+	}
+	
+	ShowRobotVariantTypeMenu(client);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_ReselectRobot(int client, int args)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
+	SelectPlayerNextRobot(client);
+	
+	return Plugin_Handled;
+}
+
 public Action Command_PlayAsRobotType(int client, int args)
 {
 	if (!IsPlayingAsRobot(client))
 		return Plugin_Handled;
+	
+	if (args < 2)
+	{
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Admin_PlayAsRobot_BadArg");
+		return Plugin_Handled;
+	}
 	
 	char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 	char arg2[3]; GetCmdArg(2, arg2, sizeof(arg2));

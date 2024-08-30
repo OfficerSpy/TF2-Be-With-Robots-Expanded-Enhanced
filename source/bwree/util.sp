@@ -516,7 +516,7 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 		TF2_RemoveWeaponSlot(client, i);
 }
 
-//Taken from [TF2] Chaos Mod
+// Taken from [TF2] Chaos Mod
 int GetItemDefinitionIndexByName(const char[] szItemName)
 {
 	if (!szItemName[0])
@@ -998,6 +998,7 @@ bool CTFNavArea_IsValidForWanderingPopulation(CTFNavArea area)
 }
 #endif
 
+// Taken from [TF2] Chaos Mod
 static bool ItemFilterCriteria_FilterByName(int iItemDefIndex, DataPack hDataPack)
 {
 	hDataPack.Reset();
@@ -1230,6 +1231,65 @@ stock bool ArePointsWithinFieldOfView(const float start[3], const float angles[3
     NormalizeVector(plane, plane);
     
     return GetVectorDotProduct(plane, normal) > 0.0; // Cosine(Deg2Rad(179.9 / 2.0))
+}
+
+stock int GetRandomLivingPlayerFromTeam(TFTeam team, int excludePlayer = -1)
+{
+	int total = 0;
+	int[] arrPlayers = new int[MaxClients];
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (i == excludePlayer)
+			continue;
+		
+		if (!IsClientInGame(i))
+			continue;
+		
+		if (TF2_GetClientTeam(i) != team)
+			continue;
+		
+		if (!IsPlayerAlive(i))
+			continue;
+		
+		arrPlayers[total++] = i;
+	}
+	
+	if (total > 0)
+		return arrPlayers[GetRandomInt(0, total - 1)];
+	
+	return -1;
+}
+
+stock int GetLivingClientCountOnTeam(TFTeam team)
+{
+	int count = 0;
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+		
+		if (TF2_GetClientTeam(i) != team)
+			continue;
+		
+		if (!IsPlayerAlive(i))
+			continue;
+		
+		count++;
+	}
+	
+	return count;
+}
+
+stock bool IsLeftForInvasionMode()
+{
+	ConVar cvar = FindConVar("sm_bar3_gamemode");
+	bool isEnabled = cvar ? cvar.IntValue == 1 : false;
+	
+	delete cvar;
+	
+	return isEnabled;
 }
 
 stock void SendBuildCommand(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None)

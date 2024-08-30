@@ -2,6 +2,27 @@
 
 eRobotTemplateType g_nSelectedRobotType[MAXPLAYERS + 1];
 
+void ShowPlayerNextRobotMenu(int client)
+{
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
+	if (roboPlayer.MyNextRobotTemplateID == ROBOT_TEMPLATE_ID_INVALID)
+		ThrowError("Client %N (%d) does not have a valid robot template selected!", client, client);
+	
+	Menu hMenu = new Menu(MenuHandler_ViewNextRobot, MENU_ACTIONS_ALL);
+	hMenu.SetTitle("%t", "Menu_ViewNextRobot", GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID));
+	
+	char textFormatBuffer[32];
+	
+	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_SpawnAsNextRobotNow");
+	hMenu.AddItem("0", textFormatBuffer);
+	
+	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_ChangeRobot");
+	hMenu.AddItem("1", textFormatBuffer);
+	
+	hMenu.Display(client, DISPLAY_MENU_DURATION);
+}
+
 void ShowRobotVariantTypeMenu(int client, bool bAdmin = false)
 {
 	Menu hMenu = new Menu(MenuHandler_RobotVariantType, MENU_ACTIONS_ALL);
@@ -34,34 +55,13 @@ void ShowRobotTemplatesMenu(int client, eRobotTemplateType type)
 	
 	Menu hMenu = new Menu(MenuHandler_RobotTemplates, MENU_ACTIONS_ALL);
 	
-	for (int i = 1; i <= g_iTotalRobotTemplates[type]; i++)
+	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
 		hMenu.AddItem("", GetRobotTemplateName(type, i));
 	
 	hMenu.ExitBackButton = true;
 	hMenu.Display(client, MENU_TIME_FOREVER);
 	
 	g_nSelectedRobotType[client] = type;
-}
-
-void ShowPlayerNextRobotMenu(int client)
-{
-	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
-	
-	if (roboPlayer.MyNextRobotTemplateID == ROBOT_TEMPLATE_ID_INVALID)
-		ThrowError("Client %N (%d) does not have a valid robot template selected!", client, client);
-	
-	Menu hMenu = new Menu(MenuHandler_ViewNextRobot, MENU_ACTIONS_ALL);
-	hMenu.SetTitle("%t", "Menu_ViewNextRobot", GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID));
-	
-	char textFormatBuffer[32];
-	
-	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_SpawnAsNextRobotNow");
-	hMenu.AddItem("0", textFormatBuffer);
-	
-	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_ChangeRobot");
-	hMenu.AddItem("1", textFormatBuffer);
-	
-	hMenu.Display(client, DISPLAY_MENU_DURATION);
 }
 
 void ShowEngineerTeleportMenu(int client)
@@ -85,7 +85,7 @@ void ShowEngineerTeleportMenu(int client)
 
 void ShowSpyTeleportMenu(int client)
 {
-	Menu hMenu = new Menu(MenuHandler_SpyTeleport, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_SpyTeleporting, MENU_ACTIONS_ALL);
 	hMenu.SetTitle("%t", "Menu_SpyTeleport");
 	
 	char textFormatBuffer[32];
@@ -93,8 +93,12 @@ void ShowSpyTeleportMenu(int client)
 	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_SpyTeleport_Default");
 	hMenu.AddItem("0", textFormatBuffer);
 	
-	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_SpyTeleport_Player");
-	hMenu.AddItem("1", textFormatBuffer);
+	//Needs at least one player to pick from
+	if (GetLivingClientCountOnTeam(TFTeam_Red) > 0)
+	{
+		FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_SpyTeleport_Player");
+		hMenu.AddItem("1", textFormatBuffer);
+	}
 	
 	hMenu.Display(client, DISPLAY_MENU_DURATION);
 }
@@ -126,6 +130,27 @@ void ShowSpyTeleportPlayerMenu(int client)
 	}
 	
 	hMenu.Display(client, DISPLAY_MENU_DURATION);
+}
+
+static int MenuHandler_ViewNextRobot(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			switch (param2)
+			{
+				case 0:	RobotPlayer_SpawnNow(param1);
+				case 1:	RobotPlayer_ChangeRobot(param1);
+			}
+		}
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+	}
+	
+	return 0;
 }
 
 static int MenuHandler_RobotVariantType(Menu menu, MenuAction action, int param1, int param2)
@@ -165,26 +190,10 @@ static int MenuHandler_RobotTemplates(Menu menu, MenuAction action, int param1, 
 		{
 			delete menu;
 		}
-	}
-	
-	return 0;
-}
-
-static int MenuHandler_ViewNextRobot(Menu menu, MenuAction action, int param1, int param2)
-{
-	switch (action)
-	{
-		case MenuAction_Select:
+		case MenuAction_Cancel:
 		{
-			switch (param2)
-			{
-				case 0:	RobotPlayer_SpawnNow(param1);
-				case 1:	RobotPlayer_ChangeRobot(param1);
-			}
-		}
-		case MenuAction_End:
-		{
-			delete menu;
+			if (param2 == MenuCancel_ExitBack)
+				ShowRobotVariantTypeMenu(param1);
 		}
 	}
 	
@@ -204,24 +213,78 @@ static int MenuHandler_EngineerTeleport(Menu menu, MenuAction action, int param1
 				case 2:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_NEAR_TEAMMATE);
 			}
 		}
+		case MenuAction_Cancel:
+		{
+			//They didn't pick anything, resort to default
+			MvMEngineerTeleportSpawn(param1);
+		}
 		case MenuAction_End:
 		{
 			delete menu;
-			
-			//When using the menu we disable movement, so re-enable it when we're done
-			SetPlayerToMove(param1, true);
 		}
 	}
 	
 	return 0;
 }
 
-static int MenuHandler_SpyTeleport(Menu menu, MenuAction action, int param1, int param2)
+static int MenuHandler_SpyTeleporting(Menu menu, MenuAction action, int param1, int param2)
 {
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			switch (param2)
+			{
+				case 0:	SpyLeaveSpawnRoom_OnStart(param1);
+				case 1:	ShowSpyTeleportPlayerMenu(param1);
+			}
+		}
+		case MenuAction_Cancel:
+		{
+			//Default teleporting
+			SpyLeaveSpawnRoom_OnStart(param1);
+		}
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+	}
 	
+	return 0;
 }
 
 static int MenuHandler_SpyTeleportPlayer(Menu menu, MenuAction action, int param1, int param2)
 {
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			//Item info should be storing a client's userid as a string
+			char info[16]; menu.GetItem(param2, info, sizeof(info));
+			int victim = GetClientOfUserId(StringToInt(info));
+			
+			if (victim != 0 && IsValidSpyTeleportVictim(victim))
+			{
+				g_iOverrideTeleportVictim[param1] = victim;
+				SpyLeaveSpawnRoom_OnStart(param1);
+			}
+			else
+			{
+				PrintToChat(param1, "%s %t", PLUGIN_PREFIX, "Spy_Teleport_Victm_Not_Found_Retry");
+				ShowSpyTeleportMenu(param1);
+			}
+		}
+		case MenuAction_Cancel:
+		{
+			//Default teleporting
+			g_iOverrideTeleportVictim[param1] = -1;
+			SpyLeaveSpawnRoom_OnStart(param1);
+		}
+		case MenuAction_End:
+		{
+			delete menu;
+		}
+	}
 	
+	return 0;
 }
