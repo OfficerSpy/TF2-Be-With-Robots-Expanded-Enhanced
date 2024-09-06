@@ -1,6 +1,6 @@
 #define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree"
 #define ROBOT_NAME_UNDEFINED	"TFBot"
-#define MAX_ROBOT_TEMPLATES	50
+#define MAX_ROBOT_TEMPLATES	51
 #define MAX_ENGINEER_NEST_HINT_LOCATIONS	10
 
 enum eRobotTemplateType
@@ -1554,7 +1554,7 @@ static bool IsSentryAlreadyTargeted(int sentry)
 	return false;
 }
 
-static bool AreGatebotsAvailable()
+bool AreGatebotsAvailable()
 {
 	//If there's a point RED can defend, then it's a point BLUE can capture
 	return GetDefendablePointTrigger(TFTeam_Red) != -1;
@@ -1704,6 +1704,12 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			
 			do
 			{
+				if (g_iTotalRobotTemplates[type] >= MAX_ROBOT_TEMPLATES)
+				{
+					LogError("UpdateRobotTemplateDataForType: Type %d reached the max robot template limit!", type);
+					break;
+				}
+				
 				//Store these details for later
 				kv.GetString("Name", g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateName[][]), ROBOT_NAME_UNDEFINED);
 				

@@ -29,8 +29,12 @@ void ShowRobotVariantTypeMenu(int client, bool bAdmin = false)
 	
 	hMenu.AddItem("0", "Standard");
 	hMenu.AddItem("1", "Giant");
-	hMenu.AddItem("2", "Gatebot");
-	hMenu.AddItem("3", "Gatebot Giant");
+	
+	if (bAdmin || AreGatebotsAvailable())
+	{
+		hMenu.AddItem("2", "Gatebot");
+		hMenu.AddItem("3", "Gatebot Giant");
+	}
 	
 	if (bAdmin)
 	{

@@ -10,11 +10,17 @@ Author: ★ Officer Spy ★
 #include <tf2attributes>
 #include <tf2utils>
 #include <tf_econ_data>
-#include <cbasenpc>
 
-#if defined _CBASENPC_EXTENSION_INC_
-#include <cbasenpc/tf/nav>
 #define MOD_EXT_CBASENPC
+// #define MOD_EXT_TF2_ECON_DYNAMIC
+
+#if defined MOD_EXT_CBASENPC
+#include <cbasenpc>
+#include <cbasenpc/tf/nav>
+#endif
+
+#if defined MOD_EXT_TF2_ECON_DYNAMIC
+#include <tf_econ_dynamic>
 #endif
 
 #pragma semicolon 1
@@ -646,8 +652,8 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.7",
-	url = ""
+	version = "1.0.8",
+	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
 public void OnPluginStart()
@@ -750,6 +756,18 @@ public void OnPluginStart()
 		g_iObjectiveResource = FindEntityByClassname(MaxClients + 1, "tf_objective_resource");
 		g_iPopulationManager = FindEntityByClassname(MaxClients + 1, "info_populator");
 	}
+
+#if defined MOD_EXT_TF2_ECON_DYNAMIC
+	TF2EconDynAttribute hAttr = new TF2EconDynAttribute();
+	hAttr.SetClass("appear_as_mvm_robot");
+	hAttr.SetName("appear as mvm robot");
+	hAttr.SetDescriptionFormat("value_is_additive");
+	hAttr.SetCustom("hidden", "1");
+	hAttr.SetCustom("effect_type", "positive");
+	hAttr.Register();
+	
+	delete hAttr;
+#endif
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -1717,6 +1735,9 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 
 void RobotPlayer_SpawnNow(int client)
 {
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return;
+	
 	TurnPlayerIntoHisNextRobot(client);
 }
 
@@ -1762,6 +1783,10 @@ void SetRobotPlayer(int client, bool enabled)
 		
 		SDKHook(client, SDKHook_TouchPost, PlayerRobot_TouchPost);
 		SDKHook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
+		
+#if defined MOD_EXT_TF2_ECON_DYNAMIC
+		TF2Attrib_SetByName(client, "appear as mvm robot", 1.0);
+#endif
 	}
 	else
 	{
@@ -1774,6 +1799,10 @@ void SetRobotPlayer(int client, bool enabled)
 		SDKUnhook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
 		
 		ResetPlayerProperties(client);
+		
+#if defined MOD_EXT_TF2_ECON_DYNAMIC
+		TF2Attrib_RemoveByName(client, "appear as mvm robot");
+#endif
 	}
 }
 
