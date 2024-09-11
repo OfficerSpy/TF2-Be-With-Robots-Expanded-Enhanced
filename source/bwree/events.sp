@@ -176,6 +176,8 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	g_bCanBotsAttackInSpawn = CanBotsAttackWhileInSpawnRoom(g_iPopulationManager);
 	
 	StartSentryBusterCooldown();
+	BossRobotSystem_UpdateData();
+	BossRobotSystem_StartSpawnCooldown();
 	
 	//The round started, now we turn into one of our robots
 	for (int i = 1; i <= MaxClients; i++)

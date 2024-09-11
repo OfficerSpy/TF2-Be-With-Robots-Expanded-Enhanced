@@ -53,6 +53,7 @@ int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
+bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
 bool g_bCanRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
@@ -652,7 +653,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.8",
+	version = "1.0.9",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -787,6 +788,7 @@ public void OnMapStart()
 public void OnClientPutInServer(int client)
 {
 	g_iForcedButtonInput[client] = 0;
+	g_bSpawningAsBossRobot[client] = false;
 	g_bCanRespawn[client] = true;
 	
 	m_bIsRobot[client] = false;
@@ -806,6 +808,13 @@ public void OnClientDisconnect(int client)
 {
 	if (IsPlayingAsRobot(client))
 	{
+		//The player that left was going to be a boss, so give it to someone else
+		if (g_bSpawningAsBossRobot[client])
+		{
+			g_bRobotBossesAvailable = true;
+			ForceRandomPlayerToReselectRobot();
+		}
+		
 		//When we leave, the sound might still persist, so stop it
 		StopIdleSound(client);
 	}
@@ -1592,7 +1601,7 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 	{
 		if (IsPlayingAsRobot(attacker))
 		{
-			if (BaseEntity_IsPlayer(victim) && GameRules_GetRoundState() == RoundState_BetweenRounds)
+			if (BaseEntity_IsPlayer(victim) && GameRules_GetRoundState() == RoundState_BetweenRounds && GetClientTeam(victim) != GetClientTeam(attacker))
 			{
 				//Can't damage anyone between rounds
 				damage = 0.0;
@@ -2126,4 +2135,32 @@ void RemoveAllRobotPlayerObjects(const char[] objectType = "obj_*")
 		if (IsPlayingAsRobot(builder))
 			RemoveEntity(ent);
 	}
+}
+
+int GetRandomRobotPlayer(int excludePlayer = -1)
+{
+	int total = 0;
+	int[] arrPlayers = new int[MaxClients];
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (i == excludePlayer)
+			continue;
+		
+		if (!IsClientInGame(i))
+			continue;
+		
+		if (!IsPlayingAsRobot(i))
+			continue;
+		
+		if (!IsPlayerAlive(i))
+			continue;
+		
+		arrPlayers[total++] = i;
+	}
+	
+	if (total > 0)
+		return arrPlayers[GetRandomInt(0, total - 1)];
+	
+	return -1;
 }

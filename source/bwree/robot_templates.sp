@@ -212,6 +212,12 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 int g_iRefLastTeleporter = INVALID_ENT_REFERENCE;
 float g_flLastTeleportTime = -1.0;
 
+bool g_bRobotBossesAvailable;
+float g_flBossDelayDuration;
+float g_flBossRespawnDelayDuration;
+bool g_bBossProportionalHealth;
+float g_flNextBossSpawnTime;
+
 static float m_flDestroySentryCooldownDuration; //Cooldown amount specified by the population file
 static float m_flSentryBusterCooldown; //How long our active cooldown is right now
 
@@ -1580,9 +1586,17 @@ void SelectPlayerNextRobot(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
+	if (g_bRobotBossesAvailable && g_flNextBossSpawnTime <= GetGameTime())
+	{
+		roboPlayer.SetMyNextRobot(ROBOT_BOSS, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_BOSS] - 1));
+		g_bSpawningAsBossRobot[client] = true;
+		g_bRobotBossesAvailable = false;
+		return;
+	}
+	
 	if (ShouldDispatchSentryBuster())
 	{
-		roboPlayer.SetMyNextRobot(ROBOT_SENTRYBUSTER, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_SENTRYBUSTER]));
+		roboPlayer.SetMyNextRobot(ROBOT_SENTRYBUSTER, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_SENTRYBUSTER] - 1));
 		return;
 	}
 	
@@ -1594,11 +1608,11 @@ void SelectPlayerNextRobot(int client)
 		{
 			if (bShouldBeGatebot)
 			{
-				roboPlayer.SetMyNextRobot(ROBOT_GATEBOT_GIANT, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT_GIANT]));
+				roboPlayer.SetMyNextRobot(ROBOT_GATEBOT_GIANT, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GATEBOT_GIANT] - 1));
 			}
 			else
 			{
-				roboPlayer.SetMyNextRobot(ROBOT_GIANT, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GIANT]));
+				roboPlayer.SetMyNextRobot(ROBOT_GIANT, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GIANT] - 1));
 			}
 			
 			return;
@@ -1607,11 +1621,35 @@ void SelectPlayerNextRobot(int client)
 	
 	if (bShouldBeGatebot)
 	{
-		roboPlayer.SetMyNextRobot(ROBOT_GATEBOT, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_GATEBOT]));
+		roboPlayer.SetMyNextRobot(ROBOT_GATEBOT, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GATEBOT] - 1));
 	}
 	else
 	{
-		roboPlayer.SetMyNextRobot(ROBOT_STANDARD, GetRandomInt(1, g_iTotalRobotTemplates[ROBOT_STANDARD]));
+		roboPlayer.SetMyNextRobot(ROBOT_STANDARD, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_STANDARD] - 1));
+	}
+}
+
+bool ForceRandomPlayerToReselectRobot()
+{
+	int newPlayer = GetRandomRobotPlayer();
+	
+	if (newPlayer != -1)
+	{
+		SelectPlayerNextRobot(newPlayer);
+		return true;
+	}
+	
+	return false;
+}
+
+void ForceAllPlayersToReselectRobot(int excludePlayer = -1)
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (i != excludePlayer && IsClientInGame(i) && IsPlayingAsRobot(i))
+		{
+			SelectPlayerNextRobot(i);
+		}
 	}
 }
 
@@ -1621,6 +1659,9 @@ void TurnPlayerIntoHisNextRobot(int client)
 	
 	g_bCanRespawn[client] = true;
 	TurnPlayerIntoRobot(client, roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+	
+	if (roboPlayer.MyNextRobotTemplateType == ROBOT_BOSS)
+		g_bSpawningAsBossRobot[client] = false;
 }
 
 void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
@@ -1952,4 +1993,89 @@ bool UpdateSentryBusterSpawningCriteria()
 #endif
 	
 	return bUpdated;
+}
+
+bool BossRobotSystem_UpdateData()
+{
+	g_bRobotBossesAvailable = false;
+	g_flBossDelayDuration = 60.0;
+	g_flBossRespawnDelayDuration = 0.0;
+	g_bBossProportionalHealth = true;
+	
+	char mapName[PLATFORM_MAX_PATH]; GetCurrentMap(mapName, sizeof(mapName));
+	
+	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "configs/bwree/bosswave/%s.cfg", mapName);
+	
+	if (!FileExists(filePath))
+	{
+		LogError("LoadBossWaveConfig: File %s not found.", filePath);
+		return false;
+	}
+	
+	KeyValues kv = new KeyValues("BossWaveConfig");
+	
+	kv.ImportFromFile(filePath);
+	
+	int waveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
+	int maxWaveNumber = TF2_GetMannVsMachineMaxWaveCount(g_iObjectiveResource);
+	
+	char missionName[PLATFORM_MAX_PATH]; TF2_GetMvMPopfileName(g_iObjectiveResource, missionName, sizeof(missionName));
+	char sectionWaveNum[16];
+	
+	//Remove these things
+	ReplaceString(missionName, sizeof(missionName), "scripts/population/", "");
+	ReplaceString(missionName, sizeof(missionName), ".pop", "");
+	
+	if (kv.JumpToKey(missionName))
+	{
+		FormatEx(sectionWaveNum, sizeof(sectionWaveNum), "wave%d", waveNumber);
+		
+		if (kv.JumpToKey(sectionWaveNum))
+		{
+			g_bRobotBossesAvailable = true;
+			g_flBossDelayDuration = kv.GetFloat("delay", 60.0);
+			g_flBossRespawnDelayDuration = kv.GetFloat("respawn_delay", 0.0);
+			g_bBossProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", 1));
+		}
+		else
+		{
+			delete kv;
+			LogError("LoadBossWaveConfig: Could not find config for wave %d of mission %s", waveNumber, missionName);
+			return false;
+		}
+	}
+	else if (kv.JumpToKey("default"))
+	{
+		//Allow the boss robot on the final wave
+		if (waveNumber == maxWaveNumber)
+		{
+			g_bRobotBossesAvailable = true;
+			g_flBossDelayDuration = kv.GetFloat("delay", 60.0);
+			g_flBossRespawnDelayDuration = kv.GetFloat("respawn_delay", 0.0);
+		}
+		else
+		{
+			delete kv;
+			return false;
+		}
+	}
+	else
+	{
+		delete kv;
+		LogError("LoadBossWaveConfig: Could not find default section");
+		return false;
+	}
+	
+	delete kv;
+	
+#if defined TESTING_ONLY
+	LogMessage("BOSS SYSTEM: available = %d, delay = %f, respawn delay = %f", g_bRobotBossesAvailable ? 1 : 0, g_flBossDelayDuration, g_flBossRespawnDelayDuration);
+#endif
+	
+	return true;
+}
+
+void BossRobotSystem_StartSpawnCooldown()
+{
+	g_flNextBossSpawnTime = GetGameTime() + g_flBossDelayDuration;
 }
