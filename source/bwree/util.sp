@@ -110,6 +110,22 @@ public const float TF_VEC_HULL_MAX[3] =	{24.0, 24.0, 82.0};
 public int g_iRomePromoItems_Hat[] = {TF_ITEMDEF_DEFAULT, 30154, 30156, 30158, 30144, 30150, 30148, 30152, 30160, 30146};
 public int g_iRomePromoItems_Misc[] = {TF_ITEMDEF_DEFAULT, 30153, 30155, 30157, 30143, 30149, 30147, 30151, 30159, 30145};
 
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+public char g_strModelHumans[][] = 
+{
+	"",
+	"models/player/scout.mdl",
+	"models/player/sniper.mdl",
+	"models/player/soldier.mdl",
+	"models/player/demo.mdl",
+	"models/player/medic.mdl",
+	"models/player/heavy.mdl",
+	"models/player/pyro.mdl",
+	"models/player/spy.mdl",
+	"models/player/engineer.mdl"
+};
+#endif
+
 public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 {
 	//NOTE: CTraceFilterSimple::ShouldHitEntity does a bit more than this, but this should be fine for now
@@ -848,6 +864,11 @@ void SetRandomEconItemID(int item)
 {
 	EconItemView_SetItemID(item, GetRandomInt(1, 2048));
 }
+
+/* float Player_GetRangeTo(int client, int subject)
+{
+	return GetVectorDistance(WorldSpaceCenter(subject), WorldSpaceCenter(client));
+} */
 
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)

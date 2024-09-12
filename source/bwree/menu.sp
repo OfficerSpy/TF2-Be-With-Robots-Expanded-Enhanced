@@ -28,12 +28,16 @@ void ShowRobotVariantTypeMenu(int client, bool bAdmin = false)
 	Menu hMenu = new Menu(MenuHandler_RobotVariantType, MENU_ACTIONS_ALL);
 	
 	hMenu.AddItem("0", "Standard");
-	hMenu.AddItem("1", "Giant");
+	
+	if (bAdmin || AreGiantRobotsAvailable())
+		hMenu.AddItem("1", "Giant");
 	
 	if (bAdmin || AreGatebotsAvailable())
 	{
 		hMenu.AddItem("2", "Gatebot");
-		hMenu.AddItem("3", "Gatebot Giant");
+		
+		if (bAdmin || AreGiantRobotsAvailable())
+			hMenu.AddItem("3", "Gatebot Giant");
 	}
 	
 	if (bAdmin)
@@ -163,7 +167,10 @@ static int MenuHandler_RobotVariantType(Menu menu, MenuAction action, int param1
 	{
 		case MenuAction_Select:
 		{
-			switch (param2)
+			//Info just stores a number correlating to these types
+			char info[2]; menu.GetItem(param2, info, sizeof(info));
+			
+			switch (StringToInt(info))
 			{
 				case 0:	ShowRobotTemplatesMenu(param1, ROBOT_STANDARD);
 				case 1:	ShowRobotTemplatesMenu(param1, ROBOT_GIANT);

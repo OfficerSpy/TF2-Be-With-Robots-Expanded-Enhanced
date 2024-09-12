@@ -29,10 +29,13 @@ Author: ★ Officer Spy ★
 #define PLUGIN_NAME	"[TF2] Be With Robots: Expanded & Enhanced"
 #define PLUGIN_PREFIX	"[BWR E&E]"
 
+#define MAP_CONFIG_DIRECTORY	"configs/bwree/map"
+
 // #define TESTING_ONLY
 
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
+#define SPY_DISGUISE_VISION_OVERRIDE
 
 enum
 {
@@ -45,6 +48,16 @@ enum
 	SPY_TELEPORT_METHOD_NONE = 0,
 	SPY_TELEPORT_METHOD_MENU
 };
+
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+enum struct eDisguisedStruct
+{
+	int g_iDisguisedTeam; // The spy's disguised team
+	int g_iDisguisedClass; // The spy's disguised class
+}
+
+eDisguisedStruct g_nDisguised[MAXPLAYERS + 1];
+#endif
 
 bool g_bLateLoad;
 bool g_bCanBotsAttackInSpawn;
@@ -94,7 +107,7 @@ ConVar bwr3_robot_spawn_time_max;
 ConVar bwr3_bomb_upgrade_mode;
 ConVar bwr3_cosmetic_mode;
 ConVar bwr3_max_invaders;
-ConVar bwr3_minmimum_players_for_giants;
+ConVar bwr3_min_players_for_giants;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
 ConVar bwr3_robot_gatebot_template_file;
@@ -648,6 +661,11 @@ methodmap MvMRobotPlayer
 #include "bwree/robot_templates.sp"
 #include "bwree/menu.sp"
 
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+int g_iModelIndexRobots[sizeof(g_sBotModels)];
+int g_iModelIndexHumans[sizeof(g_strModelHumans)];
+#endif
+
 public Plugin myinfo =
 {
 	name = PLUGIN_NAME,
@@ -670,7 +688,7 @@ public void OnPluginStart()
 	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "1", _, FCVAR_NOTIFY);
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
-	bwr3_minmimum_players_for_giants = CreateConVar("sm_bwr3_minmimum_players_for_giants", "6", _, FCVAR_NOTIFY);
+	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_template_file = CreateConVar("sm_bwr3_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
@@ -748,14 +766,24 @@ public void OnPluginStart()
 	
 	if (g_bLateLoad)
 	{
-		//Rehook all players
-		for (int i = 1; i <= MaxClients; i++)
-			if (IsClientInGame(i))
-				OnClientPutInServer(i);
+		int maxEntCount = GetMaxEntities();
+		char classname[PLATFORM_MAX_PATH];
 		
-		//Find the remembered entities
-		g_iObjectiveResource = FindEntityByClassname(MaxClients + 1, "tf_objective_resource");
-		g_iPopulationManager = FindEntityByClassname(MaxClients + 1, "info_populator");
+		for (int i = 1; i <= maxEntCount; i++)
+		{
+			if (i <= MaxClients)
+			{
+				//Rehook all players
+				if (IsClientInGame(i))
+					OnClientPutInServer(i);
+				
+				continue;
+			}
+			
+			//Rehook all other entities
+			if (IsValidEntity(i) && GetEntityClassname(i, classname, sizeof(classname)))
+				OnEntityCreated(i, classname);
+		}
 	}
 
 #if defined MOD_EXT_TF2_ECON_DYNAMIC
@@ -783,6 +811,11 @@ public void OnMapStart()
 	g_bCanBotsAttackInSpawn = false;
 	
 	ResetRobotSpawnerData();
+	
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+	for (int x = 1; x < sizeof(g_iModelIndexHumans); x++) { g_iModelIndexHumans[x] = PrecacheModel(g_strModelHumans[x]); }
+	for (int x = 1; x < sizeof(g_iModelIndexRobots); x++) { g_iModelIndexRobots[x] = PrecacheModel(g_sBotModels[x]); }
+#endif
 }
 
 public void OnClientPutInServer(int client)
@@ -878,10 +911,44 @@ public void OnEntityCreated(int entity, const char[] classname)
 	DHooks_OnEntityCreated(entity, classname);
 }
 
+//TODO: implement a MainAction onto the player
+//Basically track every player's next action update instead of relying solely on this
 public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3], float angles[3], int &weapon, int &subtype, int &cmdnum, int &tickcount, int &seed, int mouse[2])
 {
 	if (!IsPlayingAsRobot(client))
+	{
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+		if (IsPlayerAlive(client))
+		{
+			if (TF2_GetPlayerClass(client) == TFClass_Spy)
+			{
+				int iDisguisedClass = view_as<int>(TF2_GetDisguiseClass(client));
+				int iDisguisedTeam = GetEntProp(client, Prop_Send, "m_nDisguiseTeam");
+				
+				if (g_nDisguised[client].g_iDisguisedClass != iDisguisedClass || g_nDisguised[client].g_iDisguisedTeam != iDisguisedTeam)
+				{
+					if (iDisguisedClass == 0 && iDisguisedTeam == 0)
+					{
+						SpyDisguiseClear(client);
+					}
+					else 
+					{
+						SpyDisguiseThink(client, iDisguisedClass, iDisguisedTeam);
+
+						g_nDisguised[client].g_iDisguisedClass = iDisguisedClass;
+						g_nDisguised[client].g_iDisguisedTeam = iDisguisedTeam;
+					}
+				}
+			}
+			else
+			{
+				SpyDisguiseClear(client);
+			}
+		}
+#endif
+		
 		return Plugin_Continue;
+	}
 	
 	OSTFPlayer player = OSTFPlayer(client);
 	
@@ -1715,6 +1782,19 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 	MvMSuicideBomber roboVictim = MvMSuicideBomber(victim);
 	OSTFPlayer cbpVictim = OSTFPlayer(victim);
 	
+	if (damagecustom == TF_CUSTOM_BACKSTAB)
+	{
+		//Backstabs that don't kill me make me angry
+		if (cbpVictim.GetHealth() - damage > 0)
+			PrintCenterText(victim, "%t", "Player_Backstabbed");
+	}
+	/* else if (IsValidEntity(attacker) && damagetype & DMG_CRIT && damagetype & DMG_BURN)
+	{
+		//O\, neomg nirmed frp, nehomd
+		if (Player_GetRangeTo(victim, attacker) < tf_bot_notice_backstab_max_range.FloatValue)
+			PrintCenterText(victim, "%t", "Player_Backstabbed");
+	} */
+	
 	if (roboVictim.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 	{
 		//We're about to die, detonate!
@@ -1741,6 +1821,65 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 	
 	return Plugin_Continue;
 }
+
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+void SpyDisguiseClear(int client)
+{
+	for (int i=0; i<4; i++)
+		SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", 0, _, i);
+	
+	g_nDisguised[client].g_iDisguisedClass = 0;
+	g_nDisguised[client].g_iDisguisedTeam = 0;
+}
+
+void SpyDisguiseThink(int client, int disguiseclass, int disguiseteam)
+{
+	int team = GetClientTeam(client);
+	
+	// m_nModelIndexOverrides works differently on MvM
+	// it seems index 0 is used for both RED and BLU teams.
+	
+	switch(team)
+	{
+		case 2: // RED
+		{
+			if (disguiseteam == view_as<int>(TFTeam_Red))
+			{
+				// RED spy disguised as a RED team member, should look like a RED human
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
+			}
+			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
+			{
+				// RED spy disguised as a BLU team member, should look like a BLU human on wave 666
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
+			}
+			else
+			{
+				// RED spy disguised as a BLU team member, should look like a BLU robot
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
+			}
+		}
+		case 3: // BLU
+		{
+			if (disguiseteam == view_as<int>(TFTeam_Red))
+			{
+				// BLU spy disguised as a RED team member, should look like a RED human
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
+			}
+			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
+			{
+				// BLU spy disguised as a BLU team member, should look like a BLU human on wave 666
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);				
+			}
+			else
+			{
+				// BLU spy disguised as a BLU team member, should look like a BLU robot
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
+			}
+		}
+	}
+}
+#endif
 
 void RobotPlayer_SpawnNow(int client)
 {

@@ -1,7 +1,7 @@
-#define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree"
+#define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree/robot"
 #define ROBOT_NAME_UNDEFINED	"TFBot"
 #define MAX_ROBOT_TEMPLATES	113
-#define MAX_ENGINEER_NEST_HINT_LOCATIONS	10
+#define MAX_ENGINEER_NEST_HINT_LOCATIONS	20
 
 enum eRobotTemplateType
 {
@@ -1560,6 +1560,11 @@ static bool IsSentryAlreadyTargeted(int sentry)
 	return false;
 }
 
+bool AreGiantRobotsAvailable()
+{
+	return GetTeamClientCount(view_as<int>(TFTeam_Red)) >= bwr3_min_players_for_giants.IntValue;
+}
+
 bool AreGatebotsAvailable()
 {
 	//If there's a point RED can defend, then it's a point BLUE can capture
@@ -1602,7 +1607,7 @@ void SelectPlayerNextRobot(int client)
 	
 	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwr3_robot_gatebot_chance.FloatValue);
 	
-	if (GetTeamClientCount(view_as<int>(TFTeam_Red)) >= bwr3_minmimum_players_for_giants.IntValue)
+	if (AreGiantRobotsAvailable())
 	{
 		if (RollRandomChanceFloat(bwr3_robot_giant_chance.FloatValue))
 		{
@@ -1795,6 +1800,45 @@ void UpdateEngineerHintLocations()
 		
 		g_vecEngineerHintOrigin[index++] = GetAbsOrigin(ent);
 	}
+	
+	//If we've already hit the limit, we can't go any further
+	if (index >= sizeof(g_vecEngineerHintOrigin))
+	{
+		LogMessage("UpdateEngineerHintLocations: Found %d locations for this map", index);
+		return;
+	}
+	
+	//Check if the map's config has any extra locations specified
+	char mapName[PLATFORM_MAX_PATH]; GetCurrentMap(mapName, sizeof(mapName));
+	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s.cfg", MAP_CONFIG_DIRECTORY, mapName);
+	
+	if (FileExists(filePath))
+	{
+		KeyValues kv = new KeyValues("MapConfig");
+		
+		kv.ImportFromFile(filePath);
+		
+		if (kv.JumpToKey("EngineerHintPosition"))
+		{
+			if (kv.GotoFirstSubKey(false))
+			{
+				do
+				{
+					if (index >= sizeof(g_vecEngineerHintOrigin))
+					{
+						LogError("UpdateEngineerHintLocations: reached the limit for engineer hint locations (via config)");
+						break;
+					}
+					
+					kv.GetVector("origin", g_vecEngineerHintOrigin[index++], NULL_VECTOR);
+				} while (kv.GotoNextKey(false))
+			}
+		}
+		
+		delete kv;
+	}
+	
+	LogMessage("UpdateEngineerHintLocations: Found %d locations for this map", index);
 }
 
 // Finds an origin nearest to the specified position vector
@@ -2008,13 +2052,15 @@ bool BossRobotSystem_UpdateData()
 	
 	if (!FileExists(filePath))
 	{
-		LogError("LoadBossWaveConfig: File %s not found.", filePath);
+		LogError("BossRobotSystem_UpdateData: File %s not found.", filePath);
 		return false;
 	}
 	
-	KeyValues kv = new KeyValues("BossWaveConfig");
-	
-	kv.ImportFromFile(filePath);
+	if (!IsValidEntity(g_iObjectiveResource))
+	{
+		LogError("BossRobotSystem_UpdateData: Where is objective resource?");
+		return false;
+	}
 	
 	int waveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
 	int maxWaveNumber = TF2_GetMannVsMachineMaxWaveCount(g_iObjectiveResource);
@@ -2025,6 +2071,10 @@ bool BossRobotSystem_UpdateData()
 	//Remove these things
 	ReplaceString(missionName, sizeof(missionName), "scripts/population/", "");
 	ReplaceString(missionName, sizeof(missionName), ".pop", "");
+	
+	KeyValues kv = new KeyValues("BossWaveConfig");
+	
+	kv.ImportFromFile(filePath);
 	
 	if (kv.JumpToKey(missionName))
 	{
@@ -2039,8 +2089,13 @@ bool BossRobotSystem_UpdateData()
 		}
 		else
 		{
+			//If this section is left blank, then there just won't be any bosses for this mission
 			delete kv;
-			LogError("LoadBossWaveConfig: Could not find config for wave %d of mission %s", waveNumber, missionName);
+			
+#if defined TESTING_ONLY
+			LogMessage("BossRobotSystem_UpdateData: No data found for wave %d of mission %s", waveNumber, missionName);
+#endif
+			
 			return false;
 		}
 	}
@@ -2062,7 +2117,7 @@ bool BossRobotSystem_UpdateData()
 	else
 	{
 		delete kv;
-		LogError("LoadBossWaveConfig: Could not find default section");
+		LogError("BossRobotSystem_UpdateData: No default section found");
 		return false;
 	}
 	
