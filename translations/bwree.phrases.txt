@@ -91,6 +91,15 @@
 	{
 		"en"	"Desired victim could not be teleported to. Falling to backup plan!"
 	}
+	"Player_Backstabbed"
+	{
+		"en"	"!!!!!! YOU WERE BACKSTABBED !!!!!"
+	}
+	"Player_Robot_Denied_Cooldown"
+	{
+		"#format"	"{1:.1f}"
+		"en"	"You cannot join Blue for {1} seconds."
+	}
 	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"

@@ -33,6 +33,8 @@ Author: ★ Officer Spy ★
 
 // #define TESTING_ONLY
 
+// #define MOD_BUY_A_ROBOT_3
+
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
 #define SPY_DISGUISE_VISION_OVERRIDE
@@ -64,6 +66,8 @@ bool g_bCanBotsAttackInSpawn;
 
 int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
+
+static StringMap m_adtBWRCooldown;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
@@ -760,6 +764,8 @@ public void OnPluginStart()
 		SetFailState("Failed to load gamedata file tf2.bwree.txt");
 	}
 	
+	m_adtBWRCooldown = new StringMap();
+	
 	//Initialize the tags list
 	for (int i = 1; i <= MaxClients; i++)
 		m_adtTags[i] = new ArrayList(BOT_TAG_EACH_MAX_LENGTH);
@@ -809,6 +815,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 public void OnMapStart()
 {
 	g_bCanBotsAttackInSpawn = false;
+	m_adtBWRCooldown.Clear();
 	
 	ResetRobotSpawnerData();
 	
@@ -833,6 +840,7 @@ public void OnClientPutInServer(int client)
 	MvMRobotPlayer(client).Reset();
 	
 	SDKHook(client, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+	SDKHook(client, SDKHook_SetTransmit, Actor_SetTransmit);
 	
 	DHooks_OnClientPutInServer(client);
 }
@@ -890,23 +898,63 @@ public void OnEntityCreated(int entity, const char[] classname)
 	//TODO: verify this always works
 	//TODO: maybe change this to entity reference instead?
 	if (StrEqual(classname, "tf_objective_resource"))
+	{
 		g_iObjectiveResource = entity;
+	}
 	else if (StrEqual(classname, "info_populator"))
+	{
 		g_iPopulationManager = entity;
+	}
 	else if (StrEqual(classname, "item_teamflag"))
+	{
 		SDKHook(entity, SDKHook_Touch, CaptureFlag_Touch);
-	else if (StrEqual(classname, "headless_hatman"))
+	}
+	else if (StrEqual(classname, "obj_sentrygun"))
+	{
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
-	else if (StrEqual(classname, "merasmus"))
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
+	else if (StrEqual(classname, "obj_dispenser"))
+	{
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
-	else if (StrEqual(classname, "eyeball_boss"))
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
+	else if (StrEqual(classname, "obj_teleporter"))
+	{
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
-	else if (StrEqual(classname, "base_boss"))
-		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
-	else if (StrEqual(classname, "tank_boss"))
-		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
 	else if (StrEqual(classname, "obj_attachment_sapper"))
+	{
+		// SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+		// SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
 		SDKHook(entity, SDKHook_SpawnPost, ObjectSapper_SpawnPost);
+	}
+	else if (StrEqual(classname, "headless_hatman"))
+	{
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
+	else if (StrEqual(classname, "merasmus"))
+	{
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
+	else if (StrEqual(classname, "eyeball_boss"))
+	{
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
+	else if (StrEqual(classname, "base_boss"))
+	{
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
+	else if (StrEqual(classname, "tank_boss"))
+	{
+		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
+		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
 	
 	DHooks_OnEntityCreated(entity, classname);
 }
@@ -934,7 +982,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					else 
 					{
 						SpyDisguiseThink(client, iDisguisedClass, iDisguisedTeam);
-
+						
 						g_nDisguised[client].g_iDisguisedClass = iDisguisedClass;
 						g_nDisguised[client].g_iDisguisedTeam = iDisguisedTeam;
 					}
@@ -1415,6 +1463,14 @@ public Action Command_JoinBlue(int client, int args)
 		return Plugin_Handled;
 	}
 	
+	float cooldown = GetBWRCooldownTimeLeft(client);
+	
+	if (cooldown > 0.0)
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Denied_Cooldown", cooldown);
+		return Plugin_Handled;
+	}
+	
 	// TF2_RefundPlayer(client);
 	
 	if (GameRules_GetRoundState() == RoundState_RoundRunning)
@@ -1640,28 +1696,6 @@ public void Frame_CaptureFlagOnPickup(any data)
 	}
 }
 
-public Action ObjectTeleporter_GetMaxHealth(int entity, int &maxhealth)
-{
-	if (GetEntPropFloat(entity, Prop_Send, "m_flPercentageConstructed") == 1.0)
-	{
-		/* In MvM, the particle is actually controlled on the client's side and is emitted from the bot_hint_engineer_nest entity
-		So it isn't always visibly on top of a teleporter, but we're going to make it seem as if it's from a hint by offsetting it a bit
-		However, it shouldn't be too far from the teleporter itself */
-		float vec[3]; BaseEntity_GetLocalOrigin(entity, vec);
-		float rand = GetRandomFloat(-150.0, 150.0);
-		
-		vec[0] += rand;
-		vec[1] += rand;
-		
-		/* While we can use a temporary entity, it is a bit risky for persistent particles
-		Not only that, but unless the building always transmits, the particle won't be visible to everyone */
-		IPS_CreateParticle(entity, "teleporter_mvm_bot_persist", vec, true);
-		SDKUnhook(entity, SDKHook_GetMaxHealth, ObjectTeleporter_GetMaxHealth);
-	}
-	
-	return Plugin_Continue;
-}
-
 public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
 	if (BaseEntity_IsPlayer(attacker))
@@ -1689,6 +1723,34 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 				}
 			}
 		}
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action Actor_SetTransmit(int entity, int client)
+{
+#if defined MOD_BUY_A_ROBOT_3
+	if (IsLeftForInvasionMode())
+		return Plugin_Continue;
+#endif
+	
+	if (IsPlayingAsRobot(client))
+	{
+		/* In MvM, BLUE bots cannot see teleporters due to CTFBotVision::CollectPotentiallyVisibleEntities
+		We will however let robot players see their own team teleporters */
+		if (BaseEntity_IsBaseObject(entity) && TF2_GetObjectType(entity) == TFObject_Teleporter && BaseEntity_GetTeamNumber(entity) != view_as<int>(TFTeam_Blue))
+			return Plugin_Handled;
+		
+		float maxSightRange = MvMRobotPlayer(client).GetMaxVisionRange();
+		
+		//If not specified, use default max vision range
+		if (maxSightRange <= 0.0)
+			maxSightRange = TFBOT_MAX_VISION_RANGE;
+		
+		//If it's farther than our current vision range, then we can't actually see it
+		if (Player_IsRangeGreaterThanEntity(client, entity, maxSightRange))
+			return Plugin_Handled;
 	}
 	
 	return Plugin_Continue;
@@ -1822,64 +1884,45 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 	return Plugin_Continue;
 }
 
-#if defined SPY_DISGUISE_VISION_OVERRIDE
-void SpyDisguiseClear(int client)
+float GetBWRCooldownTimeLeft(int client)
 {
-	for (int i=0; i<4; i++)
-		SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", 0, _, i);
+	//Nobody has a cooldown
+	if (m_adtBWRCooldown.Size == 0)
+		return 0.0;
 	
-	g_nDisguised[client].g_iDisguisedClass = 0;
-	g_nDisguised[client].g_iDisguisedTeam = 0;
+	char steamID[MAX_AUTHID_LENGTH];
+	
+	//Not authorized or no steam connection
+	if (!GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID)))
+		return 0.0;
+	
+	float cooldown;
+	
+	//They don't currently have a cooldown
+	if (!m_adtBWRCooldown.GetValue(steamID, cooldown))
+		return 0.0;
+	
+	float timeLeft = cooldown - GetGameTime();
+	
+	//If their cooldown time has expired, remove it
+	if (timeLeft <= 0.0)
+		m_adtBWRCooldown.Remove(steamID);
+	
+	return timeLeft;
 }
 
-void SpyDisguiseThink(int client, int disguiseclass, int disguiseteam)
+bool SetBWRCooldownTimeLeft(int client, float duration)
 {
-	int team = GetClientTeam(client);
+	char steamID[MAX_AUTHID_LENGTH];
 	
-	// m_nModelIndexOverrides works differently on MvM
-	// it seems index 0 is used for both RED and BLU teams.
+	if (!GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID)))
+		return false;
 	
-	switch(team)
-	{
-		case 2: // RED
-		{
-			if (disguiseteam == view_as<int>(TFTeam_Red))
-			{
-				// RED spy disguised as a RED team member, should look like a RED human
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
-			}
-			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
-			{
-				// RED spy disguised as a BLU team member, should look like a BLU human on wave 666
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
-			}
-			else
-			{
-				// RED spy disguised as a BLU team member, should look like a BLU robot
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
-			}
-		}
-		case 3: // BLU
-		{
-			if (disguiseteam == view_as<int>(TFTeam_Red))
-			{
-				// BLU spy disguised as a RED team member, should look like a RED human
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
-			}
-			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
-			{
-				// BLU spy disguised as a BLU team member, should look like a BLU human on wave 666
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);				
-			}
-			else
-			{
-				// BLU spy disguised as a BLU team member, should look like a BLU robot
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
-			}
-		}
-	}
+	if (duration <= 0.0)
+		return m_adtBWRCooldown.Remove(steamID);
+	
+	return m_adtBWRCooldown.SetValue(steamID, GetGameTime() + duration);
 }
-#endif
 
 void RobotPlayer_SpawnNow(int client)
 {
@@ -2303,3 +2346,62 @@ int GetRandomRobotPlayer(int excludePlayer = -1)
 	
 	return -1;
 }
+
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+void SpyDisguiseClear(int client)
+{
+	for (int i = 0; i < 4; i++)
+		SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", 0, _, i);
+	
+	g_nDisguised[client].g_iDisguisedClass = 0;
+	g_nDisguised[client].g_iDisguisedTeam = 0;
+}
+
+void SpyDisguiseThink(int client, int disguiseclass, int disguiseteam)
+{
+	int team = GetClientTeam(client);
+	
+	// m_nModelIndexOverrides works differently on MvM
+	// it seems index 0 is used for both RED and BLU teams.
+	
+	switch (team)
+	{
+		case 2: // RED
+		{
+			if (disguiseteam == view_as<int>(TFTeam_Red))
+			{
+				// RED spy disguised as a RED team member, should look like a RED human
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
+			}
+			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
+			{
+				// RED spy disguised as a BLU team member, should look like a BLU human on wave 666
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
+			}
+			else
+			{
+				// RED spy disguised as a BLU team member, should look like a BLU robot
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
+			}
+		}
+		case 3: // BLU
+		{
+			if (disguiseteam == view_as<int>(TFTeam_Red))
+			{
+				// BLU spy disguised as a RED team member, should look like a RED human
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
+			}
+			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
+			{
+				// BLU spy disguised as a BLU team member, should look like a BLU human on wave 666
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);				
+			}
+			else
+			{
+				// BLU spy disguised as a BLU team member, should look like a BLU robot
+				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
+			}
+		}
+	}
+}
+#endif

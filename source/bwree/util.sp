@@ -25,6 +25,9 @@
 //Minibosses take reduced damage from sentry busters in CTFPlayer::OnTakeDamage
 #define SENTRYBUSTER_DMG_TO_MINIBOSS	600.0
 
+//Raw value found in CTFBotVision::GetMaxVisionRange
+#define TFBOT_MAX_VISION_RANGE	6000.0
+
 #define SOUND_GIANT_SCOUT_LOOP	"mvm/giant_scout/giant_scout_loop.wav"
 #define SOUND_GIANT_SOLDIER_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
 #define SOUND_GIANT_PYRO_LOOP	"mvm/giant_pyro/giant_pyro_loop.wav"
@@ -863,6 +866,12 @@ bool DoSpecialSetFromStringValue(int entity, const char[] attributeName, const c
 void SetRandomEconItemID(int item)
 {
 	EconItemView_SetItemID(item, GetRandomInt(1, 2048));
+}
+
+//Somewhat similar to INextBot::IsRangeGreaterThan
+bool Player_IsRangeGreaterThanEntity(int client, int subject, float range)
+{
+	return GetVectorDistance(WorldSpaceCenter(subject), WorldSpaceCenter(client)) > range;
 }
 
 /* float Player_GetRangeTo(int client, int subject)

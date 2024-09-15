@@ -44,6 +44,10 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	
 	int client = GetClientOfUserId(event.GetInt("userid"));
 	
+#if defined SPY_DISGUISE_VISION_OVERRIDE
+	SpyDisguiseClear(client);
+#endif
+	
 	if (!IsPlayingAsRobot(client))
 		return;
 	
@@ -238,7 +242,7 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 		EmitGameSoundToAll("Engineer.MVM_AutoBuildingTeleporter02", client);
 		
 		//Objects use context think, but this is apparently called while it's building so we'll just use it as a think
-		SDKHook(entity, SDKHook_GetMaxHealth, ObjectTeleporter_GetMaxHealth);
+		SDKHook(entity, SDKHook_GetMaxHealth, GetMaxHealth_TeleporterFinish);
 	}
 	
 	TF2_PushAllPlayersAway(GetAbsOrigin(entity), 400.0, 500.0, TFTeam_Red);
@@ -287,6 +291,28 @@ static void Event_VoteOptions(Event event, const char[] name, bool dontBroadcast
 	RequestFrame(FrameResetRobotPlayersTeam);
 }
 #endif
+
+public Action GetMaxHealth_TeleporterFinish(int entity, int &maxhealth)
+{
+	if (GetEntPropFloat(entity, Prop_Send, "m_flPercentageConstructed") == 1.0)
+	{
+		/* In MvM, the particle is actually controlled on the client's side and is emitted from the bot_hint_engineer_nest entity
+		So it isn't always visibly on top of a teleporter, but we're going to make it seem as if it's from a hint by offsetting it a bit
+		However, it shouldn't be too far from the teleporter itself */
+		float vec[3]; BaseEntity_GetLocalOrigin(entity, vec);
+		float rand = GetRandomFloat(-150.0, 150.0);
+		
+		vec[0] += rand;
+		vec[1] += rand;
+		
+		/* While we can use a temporary entity, it is a bit risky for persistent particles
+		Not only that, but unless the building always transmits, the particle won't be visible to everyone */
+		IPS_CreateParticle(entity, "teleporter_mvm_bot_persist", vec, true);
+		SDKUnhook(entity, SDKHook_GetMaxHealth, GetMaxHealth_TeleporterFinish);
+	}
+	
+	return Plugin_Continue;
+}
 
 #if defined TELEPORTER_METHOD_MANUAL
 static Action Timer_TFBotSpawn(Handle timer, any data)
