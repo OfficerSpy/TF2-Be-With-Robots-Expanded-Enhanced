@@ -306,8 +306,7 @@ methodmap MvMRobotPlayer
 	
 	public void ClearTags()
 	{
-		if (m_adtTags[this.index])
-			m_adtTags[this.index].Clear();
+		m_adtTags[this.index].Clear();
 	}
 	
 	public void AddTag(const char[] tag)
@@ -371,7 +370,9 @@ methodmap MvMRobotPlayer
 	
 	public void SetTeleportWhere(const ArrayList teleportWhereName)
 	{
-		m_adtTeleportWhereName[this.index] = teleportWhereName;
+		//Close the old version cause cloning will just make another one
+		CloseHandle(m_adtTeleportWhereName[this.index]);
+		m_adtTeleportWhereName[this.index] = teleportWhereName.Clone();
 	}
 	
 	public ArrayList GetTeleportWhere()
@@ -381,8 +382,7 @@ methodmap MvMRobotPlayer
 	
 	public void ClearTeleportWhere()
 	{
-		if (m_adtTeleportWhereName[this.index])
-			m_adtTeleportWhereName[this.index].Clear();
+		m_adtTeleportWhereName[this.index].Clear();
 	}
 	
 	public void SetAutoJump(float min, float max)
@@ -413,7 +413,7 @@ methodmap MvMRobotPlayer
 	{
 		if (m_kvEventChangeAttributes[this.index])
 		{
-			delete m_kvEventChangeAttributes[this.index];
+			CloseHandle(m_kvEventChangeAttributes[this.index]);
 			m_kvEventChangeAttributes[this.index] = null;
 		}
 	}
@@ -675,7 +675,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.0.9",
+	version = "1.1.0",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -768,7 +768,12 @@ public void OnPluginStart()
 	
 	//Initialize the tags list
 	for (int i = 1; i <= MaxClients; i++)
+	{
 		m_adtTags[i] = new ArrayList(BOT_TAG_EACH_MAX_LENGTH);
+		
+		//Does not matter how this is initialized as it will get replaced by a new one
+		m_adtTeleportWhereName[i] = new ArrayList(1);
+	}
 	
 	if (g_bLateLoad)
 	{
@@ -1730,13 +1735,13 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 
 public Action Actor_SetTransmit(int entity, int client)
 {
-#if defined MOD_BUY_A_ROBOT_3
-	if (IsLeftForInvasionMode())
-		return Plugin_Continue;
-#endif
-	
 	if (IsPlayingAsRobot(client))
 	{
+#if defined MOD_BUY_A_ROBOT_3
+		if (IsLeftForInvasionMode())
+			return Plugin_Continue;
+#endif
+		
 		/* In MvM, BLUE bots cannot see teleporters due to CTFBotVision::CollectPotentiallyVisibleEntities
 		We will however let robot players see their own team teleporters */
 		if (BaseEntity_IsBaseObject(entity) && TF2_GetObjectType(entity) == TFObject_Teleporter && BaseEntity_GetTeamNumber(entity) != view_as<int>(TFTeam_Blue))

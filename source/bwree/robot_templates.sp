@@ -1,5 +1,7 @@
 #define ROBOT_TEMPLATE_CONFIG_DIRECTORY	"configs/bwree/robot"
 #define ROBOT_NAME_UNDEFINED	"TFBot"
+#define MAX_TELEPORTWHERE_NAME_COUNT	2
+#define TELEPORTWHERE_NAME_EACH_MAX_LENGTH	12
 #define MAX_ROBOT_TEMPLATES	113
 #define MAX_ENGINEER_NEST_HINT_LOCATIONS	20
 
@@ -24,6 +26,7 @@ enum eEngineerTeleportType
 // Robot template property arrays
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
+TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
 float g_vecEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
 
@@ -537,6 +540,23 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 					ParseEventChangeAttributesForPlayer(client, kv);
 				}
 				
+				roboPlayer.ClearTeleportWhere();
+				
+				char teleportWhereNames[PLATFORM_MAX_PATH]; kv.GetString("TeleportWhere", teleportWhereNames, sizeof(teleportWhereNames));
+				
+				if (strlen(teleportWhereNames) > 0)
+				{
+					ArrayList adtTeleportWhere = new ArrayList(TELEPORTWHERE_NAME_EACH_MAX_LENGTH);
+					char splitNames[MAX_TELEPORTWHERE_NAME_COUNT][TELEPORTWHERE_NAME_EACH_MAX_LENGTH];
+					int splitNamesCount = ExplodeString(teleportWhereNames, ",", splitNames, sizeof(splitNames), sizeof(splitNames[]));
+					
+					for (int i = 0; i < splitNamesCount; i++)
+						adtTeleportWhere.PushString(splitNames[i]);
+					
+					roboPlayer.SetTeleportWhere(adtTeleportWhere);
+					delete adtTeleportWhere;
+				}
+				
 				//Now we do all the stuff needed for when the bot spawns
 				DataPack pack;
 				CreateDataTimer(0.1, Timer_FinishRobotPlayer, pack);
@@ -581,9 +601,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	else
 		player.GetClassIconName(strClassIcon, sizeof(strClassIcon));
 	
-	roboPlayer.ClearTeleportWhere();
-	
-	//TODO: SetTeleportWhjere
+	//NOTE: TeleportWhere is done in ParseTemplateOntoPlayerFromKeyValues
 	
 	if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
 		player.SetIsMiniBoss(true);
@@ -1748,6 +1766,8 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			
 			g_iTotalRobotTemplates[type] = 0;
 			
+			char className[13];
+			
 			do
 			{
 				if (g_iTotalRobotTemplates[type] >= MAX_ROBOT_TEMPLATES)
@@ -1758,6 +1778,12 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 				
 				//Store these details for later
 				kv.GetString("Name", g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateName[][]), ROBOT_NAME_UNDEFINED);
+				
+				kv.GetString("Class", className, sizeof(className));
+				g_nRobotTemplateClass[type][g_iTotalRobotTemplates[type]] = TF2_GetClassIndexFromString(className);
+				
+				if (g_nRobotTemplateClass[type][g_iTotalRobotTemplates[type]] <= TFClass_Unknown)
+					LogError("UpdateRobotTemplateDataForType: Template %d (%s) of type %d does not have a valid class set!", g_iTotalRobotTemplates[type], g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], type);
 				
 				g_iTotalRobotTemplates[type]++;
 			} while (kv.GotoNextKey(false))
@@ -1776,6 +1802,11 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 char[] GetRobotTemplateName(eRobotTemplateType type, int templateID)
 {
 	return g_sRobotTemplateName[type][templateID];
+}
+
+TFClassType GetRobotTemplateClass(eRobotTemplateType type, int templateID)
+{
+	return g_nRobotTemplateClass[type][templateID];
 }
 
 void UpdateEngineerHintLocations()

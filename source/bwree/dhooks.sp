@@ -133,6 +133,13 @@ static MRESReturn DHookCallback_CanBuild_Pre(int pThis, DHookReturn hReturn, DHo
 			}
 			case TFObject_Teleporter:
 			{
+				if (MvMRobotPlayer(pThis).GetTeleportWhere().Length == 0)
+				{
+					//Robot must have TeleportWhere to build teleporters
+					hReturn.Value = CB_CANNOT_BUILD;
+					return MRES_Supercede;
+				}
+				
 				TFObjectMode mode = hParams.Get(2);
 				
 				if (mode == TFObjectMode_Entrance)
