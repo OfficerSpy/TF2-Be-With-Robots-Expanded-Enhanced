@@ -98,7 +98,20 @@
 	"Player_Robot_Denied_Cooldown"
 	{
 		"#format"	"{1:.1f}"
-		"en"	"You cannot join Blue for {1} seconds."
+		"en"	"You cannot join Blue for {1} second(s)."
+	}
+	"Robot_Class_No_Templates"
+	{
+		"en"	"There are no templates for this type with this class."
+	}
+	"Player_Robot_Cannot_Spawn_Now"
+	{
+		"en"	"You cannot spawn at this time."
+	}
+	"Player_Change_Robot_Denied_Cooldown"
+	{
+		"#format"	"{1:.1f}"
+		"en"	"You cannot choose your next robot for {1} second(s)."
 	}
 	"Changed_Heal_Target"
 	{

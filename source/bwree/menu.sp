@@ -49,7 +49,7 @@ void ShowRobotVariantTypeMenu(int client, bool bAdmin = false)
 	hMenu.Display(client, bAdmin ? MENU_TIME_FOREVER : DISPLAY_MENU_DURATION);
 }
 
-void ShowRobotTemplatesMenu(int client, eRobotTemplateType type)
+void ShowRobotTemplateClassMenu(int client, eRobotTemplateType type)
 {
 	//Sanity check
 	if (type < ROBOT_STANDARD || type > ROBOT_TEMPLATE_TYPE_COUNT)
@@ -57,19 +57,55 @@ void ShowRobotTemplatesMenu(int client, eRobotTemplateType type)
 	
 	if (g_iTotalRobotTemplates[type] == 0)
 	{
-		LogError("ShowRobotTemplatesMenu: there are no robot templates for type %d", type);
+		LogError("ShowRobotTemplateClassMenu: There are no robot templates for type %d", type);
 		return;
 	}
 	
-	Menu hMenu = new Menu(MenuHandler_RobotTemplates, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_RobotTemplateClasses, MENU_ACTIONS_ALL);
 	
-	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
-		hMenu.AddItem("", GetRobotTemplateName(type, i));
-	
+	hMenu.AddItem("0", "Scout");
+	hMenu.AddItem("1", "Soldier");
+	hMenu.AddItem("2", "Pyro");
+	hMenu.AddItem("3", "Demoman");
+	hMenu.AddItem("4", "Heavy");
+	hMenu.AddItem("5", "Engineer");
+	hMenu.AddItem("6", "Medic");
+	hMenu.AddItem("7", "Sniper");
+	hMenu.AddItem("8", "Spy");
 	hMenu.ExitBackButton = true;
 	hMenu.Display(client, MENU_TIME_FOREVER);
 	
 	g_nSelectedRobotType[client] = type;
+}
+
+bool ShowRobotTemplatesForClassMenu(int client, eRobotTemplateType type, TFClassType class)
+{
+	Menu hMenu = new Menu(MenuHandler_RobotTemplatesForClass, MENU_ACTIONS_ALL);
+	char info[4];
+	int count = 0;
+	
+	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
+	{
+		if (GetRobotTemplateClass(type, i) == class)
+		{
+			//Store as template ID
+			IntToString(i, info, sizeof(info));
+			
+			hMenu.AddItem(info, GetRobotTemplateName(type, i));
+			count++;
+		}
+	}
+	
+	if (count == 0)
+	{
+		CloseHandle(hMenu);
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Robot_Class_No_Templates");
+		return false;
+	}
+	
+	hMenu.ExitBackButton = true;
+	
+	return hMenu.Display(client, MENU_TIME_FOREVER);
 }
 
 void ShowEngineerTeleportMenu(int client)
@@ -172,12 +208,12 @@ static int MenuHandler_RobotVariantType(Menu menu, MenuAction action, int param1
 			
 			switch (StringToInt(info))
 			{
-				case 0:	ShowRobotTemplatesMenu(param1, ROBOT_STANDARD);
-				case 1:	ShowRobotTemplatesMenu(param1, ROBOT_GIANT);
-				case 2:	ShowRobotTemplatesMenu(param1, ROBOT_GATEBOT);
-				case 3:	ShowRobotTemplatesMenu(param1, ROBOT_GATEBOT_GIANT);
-				case 4:	ShowRobotTemplatesMenu(param1, ROBOT_SENTRYBUSTER);
-				case 5:	ShowRobotTemplatesMenu(param1, ROBOT_BOSS);
+				case 0:	ShowRobotTemplateClassMenu(param1, ROBOT_STANDARD);
+				case 1:	ShowRobotTemplateClassMenu(param1, ROBOT_GIANT);
+				case 2:	ShowRobotTemplateClassMenu(param1, ROBOT_GATEBOT);
+				case 3:	ShowRobotTemplateClassMenu(param1, ROBOT_GATEBOT_GIANT);
+				case 4:	ShowRobotTemplateClassMenu(param1, ROBOT_SENTRYBUSTER);
+				case 5:	ShowRobotTemplateClassMenu(param1, ROBOT_BOSS);
 			}
 		}
 		case MenuAction_End:
@@ -189,22 +225,73 @@ static int MenuHandler_RobotVariantType(Menu menu, MenuAction action, int param1
 	return 0;
 }
 
-static int MenuHandler_RobotTemplates(Menu menu, MenuAction action, int param1, int param2)
+static int MenuHandler_RobotTemplateClasses(Menu menu, MenuAction action, int param1, int param2)
 {
 	switch (action)
 	{
 		case MenuAction_Select:
 		{
-			MvMRobotPlayer(param1).SetMyNextRobot(g_nSelectedRobotType[param1], param2);
+			switch (param2)
+			{
+				case 0: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Scout);
+				case 1: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Soldier);
+				case 2: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Pyro);
+				case 3: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_DemoMan);
+				case 4: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Heavy);
+				case 5: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Engineer);
+				case 6: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Medic);
+				case 7: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Sniper);
+				case 8: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Spy);
+			}
 		}
 		case MenuAction_End:
 		{
-			delete menu;
+			CloseHandle(menu);
 		}
 		case MenuAction_Cancel:
 		{
 			if (param2 == MenuCancel_ExitBack)
 				ShowRobotVariantTypeMenu(param1);
+		}
+	}
+	
+	return 0;
+}
+
+static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			//Info stores a robot template ID number
+			char info[4]; menu.GetItem(param2, info, sizeof(info));
+			int templateID = StringToInt(info);
+			
+			MvMRobotPlayer(param1).SetMyNextRobot(g_nSelectedRobotType[param1], templateID);
+			
+			switch (g_nSelectedRobotType[param1])
+			{
+				case ROBOT_STANDARD, ROBOT_GATEBOT:
+				{
+					g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue;
+				}
+				case ROBOT_GIANT, ROBOT_GATEBOT_GIANT:
+				{
+					g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue;
+				}
+			}
+			
+			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, GetRobotTemplateName(g_nSelectedRobotType[param1], templateID), g_nSelectedRobotType[param1], templateID);
+		}
+		case MenuAction_End:
+		{
+			CloseHandle(menu);
+		}
+		case MenuAction_Cancel:
+		{
+			if (param2 == MenuCancel_ExitBack)
+				ShowRobotTemplateClassMenu(param1, g_nSelectedRobotType[param1]);
 		}
 	}
 	

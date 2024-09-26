@@ -70,6 +70,7 @@ int g_iPopulationManager = -1;
 static StringMap m_adtBWRCooldown;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
+float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
 bool g_bCanRespawn[MAXPLAYERS + 1];
 
@@ -122,6 +123,8 @@ ConVar bwr3_robot_giant_chance;
 ConVar bwr3_robot_boss_chance;
 ConVar bwr3_robot_gatebot_chance;
 ConVar bwr3_robot_menu_allowed;
+ConVar bwr3_robot_menu_cooldown;
+ConVar bwr3_robot_menu_giant_cooldown;
 ConVar bwr3_engineer_teleport_method;
 ConVar bwr3_spy_teleport_method;
 
@@ -703,6 +706,8 @@ public void OnPluginStart()
 	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
 	bwr3_robot_menu_allowed = CreateConVar("sm_bwr3_robot_menu_allowed", "1", _, FCVAR_NOTIFY);
+	bwr3_robot_menu_cooldown = CreateConVar("sm_bwr3_robot_menu_cooldown", "30.0", _, FCVAR_NOTIFY);
+	bwr3_robot_menu_giant_cooldown = CreateConVar("sm_bwr3_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
 	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "1", _, FCVAR_NOTIFY);
 	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "1", _, FCVAR_NOTIFY);
 	
@@ -833,6 +838,7 @@ public void OnMapStart()
 public void OnClientPutInServer(int client)
 {
 	g_iForcedButtonInput[client] = 0;
+	g_flChangeRobotCooldown[client] = 0.0;
 	g_bSpawningAsBossRobot[client] = false;
 	g_bCanRespawn[client] = true;
 	
@@ -1932,13 +1938,30 @@ bool SetBWRCooldownTimeLeft(int client, float duration)
 void RobotPlayer_SpawnNow(int client)
 {
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Cannot_Spawn_Now");
 		return;
+	}
+	
+	if (IsBotSpawningPaused(g_iPopulationManager))
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Cannot_Spawn_Now");
+		return;
+	}
 	
 	TurnPlayerIntoHisNextRobot(client);
 }
 
 void RobotPlayer_ChangeRobot(int client)
 {
+	float timeLeft = g_flChangeRobotCooldown[client] - GetGameTime();
+	
+	if (timeLeft > 0.0)
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_Cooldown", timeLeft);
+		return;
+	}
+	
 	ShowRobotVariantTypeMenu(client);
 }
 
