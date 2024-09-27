@@ -1507,13 +1507,7 @@ public Action Command_RobotTemplateMenu(int client, int args)
 	if (!IsPlayingAsRobot(client))
 		return Plugin_Handled;
 	
-	if (!bwr3_robot_menu_allowed.BoolValue)
-	{
-		ReplyToCommand(client, "Robot_Menu_Not_Allowed");
-		return Plugin_Handled;
-	}
-	
-	ShowRobotVariantTypeMenu(client);
+	RobotPlayer_ChangeRobot(client);
 	
 	return Plugin_Handled;
 }
@@ -1954,6 +1948,12 @@ void RobotPlayer_SpawnNow(int client)
 
 void RobotPlayer_ChangeRobot(int client)
 {
+	if (!bwr3_robot_menu_allowed.BoolValue)
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Robot_Menu_Not_Allowed");
+		return;
+	}
+	
 	float timeLeft = g_flChangeRobotCooldown[client] - GetGameTime();
 	
 	if (timeLeft > 0.0)

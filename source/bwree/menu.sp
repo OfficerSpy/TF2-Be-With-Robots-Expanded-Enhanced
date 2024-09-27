@@ -270,15 +270,24 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 			
 			MvMRobotPlayer(param1).SetMyNextRobot(g_nSelectedRobotType[param1], templateID);
 			
-			switch (g_nSelectedRobotType[param1])
+			if (GameRules_GetRoundState() == RoundState_BetweenRounds)
 			{
-				case ROBOT_STANDARD, ROBOT_GATEBOT:
+				//Small cooldown between rounds
+				g_flChangeRobotCooldown[param1] = GetGameTime() + 5.0;
+			}
+			else
+			{
+				//Apply cooldown based on template
+				switch (g_nSelectedRobotType[param1])
 				{
-					g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue;
-				}
-				case ROBOT_GIANT, ROBOT_GATEBOT_GIANT:
-				{
-					g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue;
+					case ROBOT_STANDARD, ROBOT_GATEBOT:
+					{
+						g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue + GetRobotTemplateCooldown(g_nSelectedRobotType[param1], templateID);
+					}
+					case ROBOT_GIANT, ROBOT_GATEBOT_GIANT:
+					{
+						g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue + GetRobotTemplateCooldown(g_nSelectedRobotType[param1], templateID);
+					}
 				}
 			}
 			

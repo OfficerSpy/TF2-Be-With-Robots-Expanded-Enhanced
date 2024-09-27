@@ -27,6 +27,7 @@ enum eEngineerTeleportType
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
 TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
+float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
 float g_vecEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
 
@@ -1785,6 +1786,8 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 				if (g_nRobotTemplateClass[type][g_iTotalRobotTemplates[type]] <= TFClass_Unknown)
 					LogError("UpdateRobotTemplateDataForType: Template %d (%s) of type %d does not have a valid class set!", g_iTotalRobotTemplates[type], g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], type);
 				
+				g_flRobotTemplateCooldown[type][g_iTotalRobotTemplates[type]] = kv.GetFloat("cooldown", 0.0);
+				
 				g_iTotalRobotTemplates[type]++;
 			} while (kv.GotoNextKey(false))
 			
@@ -1807,6 +1810,11 @@ char[] GetRobotTemplateName(eRobotTemplateType type, int templateID)
 TFClassType GetRobotTemplateClass(eRobotTemplateType type, int templateID)
 {
 	return g_nRobotTemplateClass[type][templateID];
+}
+
+float GetRobotTemplateCooldown(eRobotTemplateType type, int templateID)
+{
+	return g_flRobotTemplateCooldown[type][templateID];
 }
 
 void UpdateEngineerHintLocations()
