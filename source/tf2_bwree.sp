@@ -38,6 +38,7 @@ Author: ★ Officer Spy ★
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
 #define SPY_DISGUISE_VISION_OVERRIDE
+#define ALLOW_BUILDING_BETWEEN_ROUNDS
 
 enum
 {
@@ -70,6 +71,7 @@ int g_iPopulationManager = -1;
 static StringMap m_adtBWRCooldown;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
+bool g_bChangeRobotPicked[MAXPLAYERS + 1];
 float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
 bool g_bCanRespawn[MAXPLAYERS + 1];
@@ -678,7 +680,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.0",
+	version = "1.1.1",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -838,6 +840,7 @@ public void OnMapStart()
 public void OnClientPutInServer(int client)
 {
 	g_iForcedButtonInput[client] = 0;
+	g_bChangeRobotPicked[client] = false;
 	g_flChangeRobotCooldown[client] = 0.0;
 	g_bSpawningAsBossRobot[client] = false;
 	g_bCanRespawn[client] = true;
@@ -966,6 +969,8 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
 	}
+	
+	//TODO: should we try to check if any other entity is a member of CBaseCombatCharacter?
 	
 	DHooks_OnEntityCreated(entity, classname);
 }
@@ -1707,7 +1712,7 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 	{
 		if (IsPlayingAsRobot(attacker))
 		{
-			if (BaseEntity_IsPlayer(victim) && GameRules_GetRoundState() == RoundState_BetweenRounds && GetClientTeam(victim) != GetClientTeam(attacker))
+			if (GameRules_GetRoundState() == RoundState_BetweenRounds && BaseEntity_GetTeamNumber(victim) != GetClientTeam(attacker))
 			{
 				//Can't damage anyone between rounds
 				damage = 0.0;
@@ -1944,6 +1949,9 @@ void RobotPlayer_SpawnNow(int client)
 	}
 	
 	TurnPlayerIntoHisNextRobot(client);
+	SelectPlayerNextRobot(client);
+	
+	LogAction(client, -1, "%L forcibly spawned as their next robot.", client);
 }
 
 void RobotPlayer_ChangeRobot(int client)
@@ -1951,6 +1959,12 @@ void RobotPlayer_ChangeRobot(int client)
 	if (!bwr3_robot_menu_allowed.BoolValue)
 	{
 		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Robot_Menu_Not_Allowed");
+		return;
+	}
+	
+	if (g_bChangeRobotPicked[client])
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Already_Chose_Robot");
 		return;
 	}
 	
@@ -2331,6 +2345,32 @@ void SetNextBehaviorActionTime(int client, float value)
 	m_flNextActionTime[client] = GetEngineTime() + value;
 }
 
+void RemoveAllRobotPlayerOwnedEntities()
+{
+	RemoveAllRobotPlayerOwnedProjectiles();
+	
+#if defined ALLOW_BUILDING_BETWEEN_ROUNDS
+	RemoveAllRobotPlayerObjects();
+#endif
+}
+
+void RemoveAllRobotPlayerOwnedProjectiles()
+{
+	int ent = -1;
+	
+	while ((ent = FindEntityByClassname(ent, "tf_projectile_*")) != -1)
+	{
+		int owner = BaseEntity_GetOwnerEntity(ent);
+		
+		if (owner == -1)
+			continue;
+		
+		if (BaseEntity_IsPlayer(owner) && IsPlayingAsRobot(owner))
+			RemoveEntity(ent);
+	}
+}
+
+#if defined ALLOW_BUILDING_BETWEEN_ROUNDS
 void RemoveAllRobotPlayerObjects(const char[] objectType = "obj_*")
 {
 	int ent = -1;
@@ -2346,6 +2386,7 @@ void RemoveAllRobotPlayerObjects(const char[] objectType = "obj_*")
 			RemoveEntity(ent);
 	}
 }
+#endif
 
 int GetRandomRobotPlayer(int excludePlayer = -1)
 {

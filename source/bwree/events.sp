@@ -193,8 +193,8 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 		}
 	}
 	
-	//In case the player built objects pre-round, remove them when the game starts
-	RemoveAllRobotPlayerObjects();
+	//Remove lingering projectiles that may exploit to hurt when the wave starts
+	RemoveAllRobotPlayerOwnedEntities();
 }
 
 static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBroadcast)
@@ -262,10 +262,18 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 
 static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
 {
-	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
-		return;
-	
 	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+	{
+		if (IsPlayingAsRobot(client))
+		{
+			//Robot players are ignored by sentries between rounds
+			SetEntityFlags(client, GetEntityFlags(client) | FL_NOTARGET);
+		}
+		
+		return;
+	}
 	
 #if defined TELEPORTER_METHOD_MANUAL
 	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))

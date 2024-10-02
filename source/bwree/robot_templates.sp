@@ -1686,6 +1686,26 @@ void TurnPlayerIntoHisNextRobot(int client)
 	
 	if (roboPlayer.MyNextRobotTemplateType == ROBOT_BOSS)
 		g_bSpawningAsBossRobot[client] = false;
+	
+	if (g_bChangeRobotPicked[client])
+	{
+		//We picked this robot ourselves, apply a cooldown based on the template
+		MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+		
+		switch (roboPlayer.MyNextRobotTemplateType)
+		{
+			case ROBOT_STANDARD, ROBOT_GATEBOT:
+			{
+				g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+			}
+			case ROBOT_GIANT, ROBOT_GATEBOT_GIANT:
+			{
+				g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+			}
+		}
+		
+		g_bChangeRobotPicked[client] = false;
+	}
 }
 
 void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)

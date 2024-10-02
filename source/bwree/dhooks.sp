@@ -123,6 +123,22 @@ static MRESReturn DHookCallback_CanBuild_Pre(int pThis, DHookReturn hReturn, DHo
 	{
 		TFObjectType type = hParams.Get(1);
 		
+		if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		{
+#if defined ALLOW_BUILDING_BETWEEN_ROUNDS
+			if (type == TFObject_Sapper)
+			{
+				//Sappers should never be allowed at this time
+				hReturn.Value = CB_CANNOT_BUILD;
+				return MRES_Supercede;
+			}
+#else
+			//Robots can't build anything at this time
+			hReturn.Value = CB_CANNOT_BUILD;
+			return MRES_Supercede;
+#endif
+		}
+		
 		switch (type)
 		{
 			case TFObject_Dispenser:

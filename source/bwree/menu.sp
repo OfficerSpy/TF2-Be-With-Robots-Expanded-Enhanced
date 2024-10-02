@@ -269,28 +269,7 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 			int templateID = StringToInt(info);
 			
 			MvMRobotPlayer(param1).SetMyNextRobot(g_nSelectedRobotType[param1], templateID);
-			
-			if (GameRules_GetRoundState() == RoundState_BetweenRounds)
-			{
-				//Small cooldown between rounds
-				g_flChangeRobotCooldown[param1] = GetGameTime() + 5.0;
-			}
-			else
-			{
-				//Apply cooldown based on template
-				switch (g_nSelectedRobotType[param1])
-				{
-					case ROBOT_STANDARD, ROBOT_GATEBOT:
-					{
-						g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue + GetRobotTemplateCooldown(g_nSelectedRobotType[param1], templateID);
-					}
-					case ROBOT_GIANT, ROBOT_GATEBOT_GIANT:
-					{
-						g_flChangeRobotCooldown[param1] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue + GetRobotTemplateCooldown(g_nSelectedRobotType[param1], templateID);
-					}
-				}
-			}
-			
+			g_bChangeRobotPicked[param1] = true;
 			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, GetRobotTemplateName(g_nSelectedRobotType[param1], templateID), g_nSelectedRobotType[param1], templateID);
 		}
 		case MenuAction_End:
