@@ -38,7 +38,8 @@ Author: ★ Officer Spy ★
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
 #define SPY_DISGUISE_VISION_OVERRIDE
-#define ALLOW_BUILDING_BETWEEN_ROUNDS
+// #define ALLOW_BUILDING_BETWEEN_ROUNDS
+#define REMOVE_DEBUFF_COND_BY_ROBOTS
 
 enum
 {
@@ -115,6 +116,7 @@ ConVar bwr3_bomb_upgrade_mode;
 ConVar bwr3_cosmetic_mode;
 ConVar bwr3_max_invaders;
 ConVar bwr3_min_players_for_giants;
+ConVar bwr3_edit_wavebar;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
 ConVar bwr3_robot_gatebot_template_file;
@@ -698,6 +700,7 @@ public void OnPluginStart()
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
+	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_template_file = CreateConVar("sm_bwr3_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
@@ -829,6 +832,7 @@ public void OnMapStart()
 	g_bCanBotsAttackInSpawn = false;
 	m_adtBWRCooldown.Clear();
 	
+	PrecacheSound(BOSS_ROBOT_SPAWN_SOUND);
 	ResetRobotSpawnerData();
 	
 #if defined SPY_DISGUISE_VISION_OVERRIDE
@@ -1948,6 +1952,22 @@ void RobotPlayer_SpawnNow(int client)
 		return;
 	}
 	
+	if (bwr3_edit_wavebar.BoolValue)
+	{
+		/* This is normally handled in CTFPlayer::Event_Killed, but since we are changing robots
+		we are going to respawn, so we decrement our icon here manually */
+		if (IsValidEntity(g_iObjectiveResource))
+		{
+			char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(client, iconName, sizeof(iconName));
+			int iFlags = MVM_CLASS_FLAG_NORMAL;
+			
+			if (TF2_IsMiniBoss(client))
+				iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+			
+			TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
+		}
+	}
+	
 	TurnPlayerIntoHisNextRobot(client);
 	SelectPlayerNextRobot(client);
 	
@@ -1964,7 +1984,7 @@ void RobotPlayer_ChangeRobot(int client)
 	
 	if (g_bChangeRobotPicked[client])
 	{
-		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Already_Chose_Robot");
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_Chosen");
 		return;
 	}
 	
@@ -1997,6 +2017,10 @@ int GetRobotPlayerCount()
 
 void ChangePlayerToTeamInvaders(int client)
 {
+	/* We commit suicide when changing teams, so make the game think we're a support bot
+	so it doesn't decrement the wavebar with our class icon in CTFPlayer::Event_Killed */
+	SetAsSupportEnemy(client, true);
+	
 	/* CTFPlayer::ChangeTeam calls CTFGameRules::GetTeamAssignmentOverride which always returns TF_TEAM_PVE_DEFENDERS for human players
 	Bypass CBasePlayer::IsBot check */
 	SetClientAsBot(client, true);
@@ -2032,6 +2056,10 @@ void SetRobotPlayer(int client, bool enabled)
 		SDKUnhook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
 		
 		ResetPlayerProperties(client);
+		
+		//In case we switched off during a game, don't let us be stuck with a long respawn time
+		if (GameRules_GetRoundState() == RoundState_RoundRunning)
+			TF2Util_SetPlayerRespawnTimeOverride(client, -1.0);
 		
 #if defined MOD_EXT_TF2_ECON_DYNAMIC
 		TF2Attrib_RemoveByName(client, "appear as mvm robot");

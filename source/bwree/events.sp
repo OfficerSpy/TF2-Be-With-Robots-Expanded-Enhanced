@@ -183,13 +183,37 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	BossRobotSystem_UpdateData();
 	BossRobotSystem_StartSpawnCooldown();
 	
-	//The round started, now we turn into one of our robots
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientInGame(i) && IsPlayingAsRobot(i))
+		if (IsClientInGame(i))
 		{
-			TurnPlayerIntoHisNextRobot(i);
-			SelectPlayerNextRobot(i);
+			if (IsPlayingAsRobot(i))
+			{
+				//The round started, now we turn into one of our robots
+				TurnPlayerIntoHisNextRobot(i);
+				SelectPlayerNextRobot(i);
+			}
+			else if (TF2_GetClientTeam(i) == TFTeam_Red)
+			{
+				if (IsPlayerAlive(i))
+				{
+					//Remove any debuff conditions that may have been applied by the robot players
+					for (int j = 0; j < sizeof(g_nTrackedConditions); j++)
+					{
+						if (TF2_IsPlayerInCondition(i, g_nTrackedConditions[i]))
+						{
+#if defined REMOVE_DEBUFF_COND_BY_ROBOTS
+							int provider = TF2Util_GetPlayerConditionProvider(i, g_nTrackedConditions[i]);
+							
+							if (provider > 0 && BaseEntity_IsPlayer(provider) && IsPlayingAsRobot(provider))
+								TF2_RemoveCondition(i, g_nTrackedConditions[i]);
+#else
+							TF2_RemoveCondition(i, g_nTrackedConditions[i]);
+#endif
+						}
+					}
+				}
+			}
 		}
 	}
 	
@@ -258,6 +282,12 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 {
 	if (!UpdateSentryBusterSpawningCriteria())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
+	
+	/* All BLUE players are killed when the wave is complete, so we need to reset the respawn time on robot players because we override it when they die
+	Though they could actually get around this by changing classes as this will instantly respawn them between waves */
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i) && IsPlayingAsRobot(i))
+			TF2Util_SetPlayerRespawnTimeOverride(i, -1.0);
 }
 
 static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)

@@ -113,6 +113,15 @@
 		"#format"	"{1:.1f}"
 		"en"	"You cannot choose your next robot for {1} second(s)."
 	}
+	"Player_Change_Robot_Denied_Chosen"
+	{
+		"en"	"You have already chosen your next robot."
+	}
+	"Player_Spawned_As_Boss_Robot"
+	{
+		"#format"	"{1:s},{2:s},{3:d}"
+		"en"	"Player {1} spawned as boss robot {2} with {3} health."
+	}
 	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"

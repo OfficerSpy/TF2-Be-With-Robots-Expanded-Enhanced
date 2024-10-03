@@ -1,5 +1,5 @@
-//Used for offset calculations
-//https://github.com/Mikusch/MannVsMann/blob/571737b5ae0aadc1e743360e94311ca64e693bd9/addons/sourcemod/gamedata/mannvsmann.txt
+/* Used for offset calculations
+https://github.com/Mikusch/MannVsMann/blob/571737b5ae0aadc1e743360e94311ca64e693bd9/addons/sourcemod/gamedata/mannvsmann.txt */
 static StringMap m_adtOffsets;
 
 static int m_iOffsetSentryBustersSpawned;
@@ -16,6 +16,7 @@ void InitOffsets(GameData hGamedata)
 	SetOffset(hGamedata, "CTFPlayer", "m_accumulatedSentryGunKillCount");
 	SetOffset(hGamedata, "CPopulationManager", "m_bSpawningPaused");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsMissionEnemy");
+	SetOffset(hGamedata, "CTFPlayer", "m_bIsSupportEnemy");
 	
 	//These are raw offset values and are not calculated
 	m_iOffsetSentryBustersSpawned = hGamedata.GetOffset("CWave::m_nSentryBustersSpawned");
@@ -30,6 +31,7 @@ void InitOffsets(GameData hGamedata)
 	LogMessage("InitOffsets: CTFPlayer->m_accumulatedSentryGunKillCount = %d", GetOffset("CTFPlayer", "m_accumulatedSentryGunKillCount"));
 	LogMessage("InitOffsets: CPopulationManager->m_bSpawningPaused = %d", GetOffset("CPopulationManager", "m_bSpawningPaused"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsMissionEnemy = %d", GetOffset("CTFPlayer", "m_bIsMissionEnemy"));
+	LogMessage("InitOffsets: CTFPlayer->m_bIsSupportEnemy = %d", GetOffset("CTFPlayer", "m_bIsSupportEnemy"));
 	LogMessage("InitOffsets: CWave->m_nSentryBustersSpawned = %d", m_iOffsetSentryBustersSpawned);
 	LogMessage("InitOffsets: CWave->m_nNumEngineersTeleportSpawned = %d", m_iOffsetNumEngineersTeleportSpawned);
 	LogMessage("InitOffsets: CWave->m_nNumSentryBustersKilled = %d", m_iOffsetNumSentryBustersKilled);
@@ -116,6 +118,11 @@ bool IsBotSpawningPaused(int populator)
 void SetAsMissionEnemy(int client, bool bVal)
 {
 	SetEntData(client, GetOffset("CTFPlayer", "m_bIsMissionEnemy"), bVal, 1);
+}
+
+void SetAsSupportEnemy(int client, bool bVal)
+{
+	SetEntData(client, GetOffset("CTFPlayer", "m_bIsSupportEnemy"), bVal, 1);
 }
 
 int GetNumSentryBustersSpawned(Address wave)

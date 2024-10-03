@@ -153,6 +153,11 @@
 				"windows"	"8" //build 9050375: 9276
 				"linux"		"8" //build 8835751: 9280
 			}
+			"CTFPlayer::m_bIsSupportEnemy"
+			{
+				"windows"	"9" //build 9050375: 9277
+				"linux"		"9" //build 8835751: 9281
+			}
 			//These are raw offset values and are not used for any calculations
 			"CWave::m_nSentryBustersSpawned"
 			{

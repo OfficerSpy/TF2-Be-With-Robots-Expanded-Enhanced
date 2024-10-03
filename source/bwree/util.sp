@@ -108,10 +108,17 @@ public char g_sBotSentryBusterModel[] = "models/bots/demo/bot_sentry_buster.mdl"
 public const float TF_VEC_HULL_MIN[3] =	{-24.0, -24.0, 0.0};
 public const float TF_VEC_HULL_MAX[3] =	{24.0, 24.0, 82.0};
 
-//Array size if bsaed on class count
-//0 is class undefined
+//Array size if bsaed on class count, 0 is class undefined
 public int g_iRomePromoItems_Hat[] = {TF_ITEMDEF_DEFAULT, 30154, 30156, 30158, 30144, 30150, 30148, 30152, 30160, 30146};
 public int g_iRomePromoItems_Misc[] = {TF_ITEMDEF_DEFAULT, 30153, 30155, 30157, 30143, 30149, 30147, 30151, 30159, 30145};
+
+public TFCond g_nTrackedConditions[] =
+{
+	TFCond_Dazed,
+	TFCond_Jarated,
+	TFCond_Milked,
+	TFCond_Gas
+};
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 public char g_strModelHumans[][] = 

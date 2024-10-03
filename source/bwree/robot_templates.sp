@@ -5,6 +5,8 @@
 #define MAX_ROBOT_TEMPLATES	113
 #define MAX_ENGINEER_NEST_HINT_LOCATIONS	20
 
+#define BOSS_ROBOT_SPAWN_SOUND	")mvm/giant_heavy/giant_heavy_entrance.wav"
+
 enum eRobotTemplateType
 {
 	ROBOT_STANDARD,
@@ -363,6 +365,24 @@ static Action Timer_MvMEngineerTeleportSpawn(Handle timer, DataPack pack)
 			SetNumEngineersTeleportSpawned(pWave, numSpawned + 1);
 		}
 	}
+	
+	return Plugin_Stop;
+}
+
+static Action Timer_BossRobotAlert(Handle timer, DataPack pack)
+{
+	pack.Reset();
+	
+	int client = pack.ReadCell();
+	
+	if (!IsClientInGame(client) || !IsPlayerAlive(client))
+		return Plugin_Stop;
+	
+	char robotName[PLATFORM_MAX_PATH]; pack.ReadString(robotName, sizeof(robotName));
+	char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
+	
+	PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Spawned_As_Boss_Robot", playerName, robotName, TF2Util_GetEntityMaxHealth(client));
+	EmitSoundToAll(BOSS_ROBOT_SPAWN_SOUND);
 	
 	return Plugin_Stop;
 }
@@ -726,6 +746,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	//Standard shit i guess
 	PostInventoryApplication(client);
 	
+	bool bAddedClassIconToWavebar = false;
+	
 	if (nMission == CTFBot_MISSION_DESTROY_SENTRIES)
 	{
 		if (GameRules_GetRoundState() == RoundState_RoundRunning)
@@ -733,19 +755,23 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		
 		MvMSuicideBomber(client).InitializeSuicideBomber(GetMostThreateningSentry());
 		
-		// SetAsMissionEnemy(client, true);
-		
-		if (IsValidEntity(g_iObjectiveResource))
+		if (bwr3_edit_wavebar.BoolValue)
 		{
-			int iFlags = MVM_CLASS_FLAG_MISSION;
+			// SetAsMissionEnemy(client, true);
 			
-			if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
-				iFlags |= MVM_CLASS_FLAG_MINIBOSS;
-			
-			if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
-				iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
-			
-			TF2_IncrementMannVsMachineWaveClassCount(g_iObjectiveResource, strClassIcon, iFlags);
+			if (IsValidEntity(g_iObjectiveResource))
+			{
+				int iFlags = MVM_CLASS_FLAG_MISSION;
+				
+				if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+				
+				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
+					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
+				
+				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags);
+				bAddedClassIconToWavebar = true;
+			}
 		}
 		
 		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SENTRY_BUSTER, view_as<int>(TFTeam_Red));
@@ -784,22 +810,46 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_GIANT_CALLOUT, view_as<int>(TFTeam_Red));
 	}
 	
-	if (nMission == CTFBot_MISSION_SNIPER || nMission == CTFBot_MISSION_ENGINEER)
+	if (nMission >= CTFBot_MISSION_SNIPER && nMission <= CTFBot_MISSION_ENGINEER)
 	{
-		//Since we increment the icon in the wavebar, set them as the mission enemy so it decrements the icon with MVM_CLASS_FLAG_MISSION when they die
-		SetAsMissionEnemy(client, true);
-		
-		if (IsValidEntity(g_iObjectiveResource))
+		if (bwr3_edit_wavebar.BoolValue)
 		{
-			int iFlags = MVM_CLASS_FLAG_MISSION;
+			//Since we increment the icon in the wavebar, set them as the mission enemy so it decrements the icon with MVM_CLASS_FLAG_MISSION when they die
+			SetAsMissionEnemy(client, true);
 			
-			if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
-				iFlags |= MVM_CLASS_FLAG_MINIBOSS;
-			
-			if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
-				iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
-			
-			TF2_IncrementMannVsMachineWaveClassCount(g_iObjectiveResource, strClassIcon, iFlags);
+			if (IsValidEntity(g_iObjectiveResource))
+			{
+				int iFlags = MVM_CLASS_FLAG_MISSION;
+				
+				if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+				
+				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
+					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
+				
+				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags);
+				bAddedClassIconToWavebar = true;
+			}
+		}
+	}
+	
+	if (!bAddedClassIconToWavebar)
+	{
+		if (bwr3_edit_wavebar.BoolValue)
+		{
+			if (IsValidEntity(g_iObjectiveResource))
+			{
+				int iFlags = MVM_CLASS_FLAG_NORMAL;
+				
+				if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+				
+				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
+					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
+				
+				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags);
+				bAddedClassIconToWavebar = true;
+			}
 		}
 	}
 	
@@ -1685,7 +1735,18 @@ void TurnPlayerIntoHisNextRobot(int client)
 	TurnPlayerIntoRobot(client, roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 	
 	if (roboPlayer.MyNextRobotTemplateType == ROBOT_BOSS)
+	{
 		g_bSpawningAsBossRobot[client] = false;
+		
+		char robotName[PLATFORM_MAX_PATH]; robotName = GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+		
+		DataPack pack;
+		CreateDataTimer(0.2, Timer_BossRobotAlert, pack, TIMER_FLAG_NO_MAPCHANGE);
+		pack.WriteCell(client);
+		pack.WriteString(robotName);
+		
+		LogAction(client, -1, "%L spawned as boss robot %s (ID %d)", client, robotName, roboPlayer.MyNextRobotTemplateID);
+	}
 	
 	if (g_bChangeRobotPicked[client])
 	{

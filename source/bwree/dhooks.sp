@@ -207,6 +207,13 @@ static MRESReturn DHookCallback_ShouldTransmit_Pre(int pThis, DHookReturn hRetur
 
 static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 {
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return MRES_Ignored;
+	
+	//Don't decrement the class icon in the wavebar
+	if (!bwr3_edit_wavebar.BoolValue)
+		SetAsSupportEnemy(pThis, true);
+	
 	/* This does several things for when the player dies, but most notably
 	- player doesn't drop ammo pack
 	- player doesn't drop reanimator
@@ -214,7 +221,7 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 	- scout never spawns a client-side bird when gibbed
 	- stunned player fires event "mvm_adv_wave_killed_stun_radio"
 	- sends TE particle effect "bot_death"
-	- blue flag carrier fires event "mvm_bomb_carrier_killed" */
+	- BLUE flag carrier fires event "mvm_bomb_carrier_killed" */
 	if (IsPlayingAsRobot(pThis))
 		SetClientAsBot(pThis, true);
 	
@@ -223,6 +230,9 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 
 static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 {
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return MRES_Ignored;
+	
 	if (IsPlayingAsRobot(pThis))
 		SetClientAsBot(pThis, false);
 	
