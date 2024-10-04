@@ -7,6 +7,9 @@ void InitGameEventHooks()
 	HookEvent("mvm_wave_failed", Event_MvmWaveFailed);
 	HookEvent("mvm_wave_complete", Event_MvmWaveComplete);
 	HookEvent("player_spawn", Event_PlayerSpawn);
+	HookEvent("teamplay_flag_event", Event_TeamplayFlagEvent);
+	HookEvent("teamplay_round_start", Event_TeamplayRoundStart);
+	HookEvent("post_inventory_application", Event_PostInventoryApplication);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -169,10 +172,9 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	
 	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
 	
-	/* Since we control the spawning of the player, they should never be allowed to respawn themselves
-	This should be set to a very high number so that the player can't spawn in whenever bot spawning gets disabled
-	Generally I'd like to think of this value as time it takes to cap (mannhattan 12) + current respawn wave time (usually 22) */
+#if defined OVERRIDE_PLAYER_RESPAWN_TIME
 	TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + 34.0);
+#endif
 }
 
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)
@@ -182,6 +184,13 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	StartSentryBusterCooldown();
 	BossRobotSystem_UpdateData();
 	BossRobotSystem_StartSpawnCooldown();
+	
+#if !defined OVERRIDE_PLAYER_RESPAWN_TIME
+	/* Since we control the spawning of robot players, they should never be allowed to respawn themselves
+	This should be set to a very high number so that the player can't spawn in whenever bot spawning gets disabled
+	Generally I'd like to think of this value as time it takes to cap (mannhattan 12) + current respawn wave time (usually 22) */
+	SetTeamRespawnWaveTime(TFTeam_Blue, bwr3_robot_spawn_time_max.FloatValue + 34.0);
+#endif
 	
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -283,11 +292,13 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 	if (!UpdateSentryBusterSpawningCriteria())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
 	
+#if defined OVERRIDE_PLAYER_RESPAWN_TIME
 	/* All BLUE players are killed when the wave is complete, so we need to reset the respawn time on robot players because we override it when they die
 	Though they could actually get around this by changing classes as this will instantly respawn them between waves */
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
 			TF2Util_SetPlayerRespawnTimeOverride(i, -1.0);
+#endif
 }
 
 static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
@@ -308,6 +319,74 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 #if defined TELEPORTER_METHOD_MANUAL
 	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))
 		CreateTimer(0.1, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
+#endif
+}
+
+static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBroadcast)
+{
+	int type = event.GetInt("eventtype");
+	
+	switch (type)
+	{
+		case TF_FLAGEVENT_CAPTURED:
+		{
+			int client = event.GetInt("player");
+			char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
+			
+			PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Deployed_Bomb", playerName, GetClientHealth(client), TF2Util_GetEntityMaxHealth(client));
+		}
+	}
+}
+
+static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBroadcast)
+{
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (!IsClientInGame(i))
+			continue;
+		
+		if (TF2_GetClientTeam(i) != TFTeam_Spectator)
+			continue;
+		
+		if (IsTFBotPlayer(i))
+			continue;
+		
+		if (IsClientSourceTV(i))
+			continue;
+		
+		if (IsClientReplay(i))
+			continue;
+		
+		//Silent team change
+		SetVariantString("self.ForceChangeTeam(Constants.ETFTeam.TF_TEAM_PVE_DEFENDERS, false)");
+		AcceptEntityInput(i, "RunScriptCode");
+	}
+}
+
+static void Event_PostInventoryApplication(Event event, const char[] name, bool dontBroadcast)
+{
+#if defined NO_AIRBLAST_BETWEEN_ROUNDS
+	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+	{
+		if (IsPlayingAsRobot(client))
+		{
+			int primary = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
+			
+			if (primary != -1)
+			{
+				switch (TF2Util_GetWeaponID(primary))
+				{
+					case TF_WEAPON_FLAMETHROWER, TF_WEAPON_FLAME_BALL:
+					{
+						//Don't allow robot players to airblast anyone
+						TF2Attrib_SetByName(primary, "airblast_pushback_disabled", 1.0);
+					}
+				}
+			}
+		}
+	}
 #endif
 }
 

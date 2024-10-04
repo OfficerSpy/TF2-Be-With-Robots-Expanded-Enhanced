@@ -120,7 +120,24 @@
 	"Player_Spawned_As_Boss_Robot"
 	{
 		"#format"	"{1:s},{2:s},{3:d}"
-		"en"	"Player {1} spawned as boss robot {2} with {3} health."
+		"en"	"{1} spawned as boss robot {2} with {3} health."
+	}
+	"Player_Robot_Cannot_Spawn_Now_RespawnRoom"
+	{
+		"en"	"You cannot do this outside of the spawn area."
+	}
+	"Player_Change_Robot_Denied_RespawnRoom"
+	{
+		"en"	"You cannot change robots outside of the spawn area."
+	}
+	"Player_Change_Robot_Denied_GameOver"
+	{
+		"en"	"You cannot change robots at this time."
+	}
+	"Player_Deployed_Bomb"
+	{
+		"#format"	"{1:s},{2:d},{3:d}"
+		"en"	"{1} deployed the bomb with {2}/{3} health left."
 	}
 	"Changed_Heal_Target"
 	{

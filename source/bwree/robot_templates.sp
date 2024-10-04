@@ -2,7 +2,7 @@
 #define ROBOT_NAME_UNDEFINED	"TFBot"
 #define MAX_TELEPORTWHERE_NAME_COUNT	2
 #define TELEPORTWHERE_NAME_EACH_MAX_LENGTH	12
-#define MAX_ROBOT_TEMPLATES	113
+#define MAX_ROBOT_TEMPLATES	130
 #define MAX_ENGINEER_NEST_HINT_LOCATIONS	20
 
 #define BOSS_ROBOT_SPAWN_SOUND	")mvm/giant_heavy/giant_heavy_entrance.wav"
@@ -31,7 +31,7 @@ char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NA
 TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
-float g_vecEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
+float g_vecMapEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
 
 static Handle m_hDetonateTimer[MAXPLAYERS + 1];
 static bool m_bHasDetonated[MAXPLAYERS + 1];
@@ -1901,15 +1901,15 @@ float GetRobotTemplateCooldown(eRobotTemplateType type, int templateID)
 void UpdateEngineerHintLocations()
 {
 	//Reset currently stored data
-	for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
-		g_vecEngineerHintOrigin[i] = NULL_VECTOR;
+	for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
+		g_vecMapEngineerHintOrigin[i] = NULL_VECTOR;
 	
 	int ent = -1;
 	int index = 0;
 	
 	while ((ent = FindEntityByClassname(ent, "bot_hint_engineer_nest")) != -1)
 	{
-		if (index >= sizeof(g_vecEngineerHintOrigin))
+		if (index >= sizeof(g_vecMapEngineerHintOrigin))
 		{
 			LogError("UpdateEngineerHintLocations: reached the limit for engineer hint locations");
 			break;
@@ -1918,11 +1918,11 @@ void UpdateEngineerHintLocations()
 		/* if (GetEntProp(ent, Prop_Data, "m_isDisabled") == 1)
 			continue; */
 		
-		g_vecEngineerHintOrigin[index++] = GetAbsOrigin(ent);
+		g_vecMapEngineerHintOrigin[index++] = GetAbsOrigin(ent);
 	}
 	
 	//If we've already hit the limit, we can't go any further
-	if (index >= sizeof(g_vecEngineerHintOrigin))
+	if (index >= sizeof(g_vecMapEngineerHintOrigin))
 	{
 		LogMessage("UpdateEngineerHintLocations: Found %d locations for this map", index);
 		return;
@@ -1944,13 +1944,13 @@ void UpdateEngineerHintLocations()
 			{
 				do
 				{
-					if (index >= sizeof(g_vecEngineerHintOrigin))
+					if (index >= sizeof(g_vecMapEngineerHintOrigin))
 					{
 						LogError("UpdateEngineerHintLocations: reached the limit for engineer hint locations (via config)");
 						break;
 					}
 					
-					kv.GetVector("origin", g_vecEngineerHintOrigin[index++], NULL_VECTOR);
+					kv.GetVector("origin", g_vecMapEngineerHintOrigin[index++], NULL_VECTOR);
 				} while (kv.GotoNextKey(false))
 			}
 		}
@@ -1967,18 +1967,18 @@ static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3])
 	float bestDistance = 999999.0;
 	
 	//Cycle through all the stored hint positions
-	for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
+	for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
 	{
 		//Stop right here, cause the rest are probably empty as well
-		if (IsZeroVector(g_vecEngineerHintOrigin[i]))
+		if (IsZeroVector(g_vecMapEngineerHintOrigin[i]))
 			break;
 		
-		float distance = GetVectorDistance(vec, g_vecEngineerHintOrigin[i]);
+		float distance = GetVectorDistance(vec, g_vecMapEngineerHintOrigin[i]);
 		
 		if (distance <= bestDistance)
 		{
 			bestDistance = distance;
-			outputOrigin = g_vecEngineerHintOrigin[i];
+			outputOrigin = g_vecMapEngineerHintOrigin[i];
 		}
 	}
 	
@@ -2050,17 +2050,17 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 		{
 			int validCount = 0;
 			
-			for (int i = 0; i < sizeof(g_vecEngineerHintOrigin); i++)
+			for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
 			{
 				//Not valid, the rest won't be either
-				if (IsZeroVector(g_vecEngineerHintOrigin[i]))
+				if (IsZeroVector(g_vecMapEngineerHintOrigin[i]))
 					break;
 				
 				validCount++;
 			}
 			
 			if (validCount > 0)
-				hintTeleportPos = g_vecEngineerHintOrigin[GetRandomInt(0, validCount - 1)];
+				hintTeleportPos = g_vecMapEngineerHintOrigin[GetRandomInt(0, validCount - 1)];
 		}
 		case ENGINEER_TELEPORT_NEAR_TEAMMATE:
 		{

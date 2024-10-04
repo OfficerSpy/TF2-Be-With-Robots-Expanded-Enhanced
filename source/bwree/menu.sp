@@ -269,7 +269,10 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 			int templateID = StringToInt(info);
 			
 			MvMRobotPlayer(param1).SetMyNextRobot(g_nSelectedRobotType[param1], templateID);
-			g_bChangeRobotPicked[param1] = true;
+			
+			if (GameRules_GetRoundState() == RoundState_RoundRunning)
+				g_bChangeRobotPicked[param1] = true;
+			
 			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, GetRobotTemplateName(g_nSelectedRobotType[param1], templateID), g_nSelectedRobotType[param1], templateID);
 		}
 		case MenuAction_End:

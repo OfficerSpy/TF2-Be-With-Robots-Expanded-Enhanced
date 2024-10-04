@@ -1253,6 +1253,34 @@ stock bool IsProjectileArrow(int entity)
 	return HasEntProp(entity, Prop_Send, "m_bArrowAlight");
 }
 
+stock void SetTeamRespawnWaveTime(TFTeam team, float value)
+{
+	if (team < TFTeam_Red)
+		ThrowError("Team %d is not a valid playing team!", team);
+	
+	int gamerules = FindEntityByClassname(-1, "tf_gamerules");
+	
+	if (gamerules == -1)
+	{
+		LogError("SetTeamRespawnWaveTime: Could not find entity tf_gamerules!");
+		return;
+	}
+	
+	switch (team)
+	{
+		case TFTeam_Red:
+		{
+			SetVariantFloat(value);
+			AcceptEntityInput(gamerules, "SetRedTeamRespawnWaveTime");
+		}
+		case TFTeam_Blue:
+		{
+			SetVariantFloat(value);
+			AcceptEntityInput(gamerules, "SetBlueTeamRespawnWaveTime");
+		}
+	}
+}
+
 stock void BlockAttackForDuration(int client, float duration)
 {
 	SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + duration);

@@ -37,9 +37,11 @@ Author: ★ Officer Spy ★
 
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
+#define OVERRIDE_PLAYER_RESPAWN_TIME
 #define SPY_DISGUISE_VISION_OVERRIDE
 // #define ALLOW_BUILDING_BETWEEN_ROUNDS
 #define REMOVE_DEBUFF_COND_BY_ROBOTS
+#define NO_AIRBLAST_BETWEEN_ROUNDS
 
 enum
 {
@@ -725,6 +727,8 @@ public void OnPluginStart()
 	
 	RegConsoleCmd("sm_bwr", Command_JoinBlue, "Join the blue team and become a robot!");
 	RegConsoleCmd("sm_joinblu", Command_JoinBlue, "Join the blue team and become a robot!");
+	RegConsoleCmd("sm_joinblue", Command_JoinBlue, "Join the blue team and become a robot!");
+	RegConsoleCmd("sm_joinred", Command_JoinRed);
 	RegConsoleCmd("sm_viewnextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
 	RegConsoleCmd("sm_nextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
 	RegConsoleCmd("sm_robotmenu", Command_RobotTemplateMenu);
@@ -1494,9 +1498,23 @@ public Action Command_JoinBlue(int client, int args)
 	// TF2_RefundPlayer(client);
 	
 	if (GameRules_GetRoundState() == RoundState_RoundRunning)
+	{
+		//Since the player will die, set their next spawn time
 		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
+		
+#if defined OVERRIDE_PLAYER_RESPAWN_TIME
+		TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + 34.0);
+#endif
+	}
 	
 	ChangePlayerToTeamInvaders(client);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_JoinRed(int client, int args)
+{
+	TF2_ChangeClientTeam(client, TFTeam_Red);
 	
 	return Plugin_Handled;
 }
@@ -1952,6 +1970,12 @@ void RobotPlayer_SpawnNow(int client)
 		return;
 	}
 	
+	if (!TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(client), client))
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Cannot_Spawn_Now_RespawnRoom");
+		return;
+	}
+	
 	if (bwr3_edit_wavebar.BoolValue)
 	{
 		/* This is normally handled in CTFPlayer::Event_Killed, but since we are changing robots
@@ -1959,7 +1983,7 @@ void RobotPlayer_SpawnNow(int client)
 		if (IsValidEntity(g_iObjectiveResource))
 		{
 			char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(client, iconName, sizeof(iconName));
-			int iFlags = MVM_CLASS_FLAG_NORMAL;
+			int iFlags = MvMRobotPlayer(client).GetMission() >= CTFBot_MISSION_SNIPER ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
 			
 			if (TF2_IsMiniBoss(client))
 				iFlags |= MVM_CLASS_FLAG_MINIBOSS;
@@ -1982,18 +2006,35 @@ void RobotPlayer_ChangeRobot(int client)
 		return;
 	}
 	
-	if (g_bChangeRobotPicked[client])
+	RoundState state = GameRules_GetRoundState();
+	
+	if (state == RoundState_TeamWin || state == RoundState_GameOver)
 	{
-		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_Chosen");
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_GameOver");
 		return;
 	}
 	
-	float timeLeft = g_flChangeRobotCooldown[client] - GetGameTime();
-	
-	if (timeLeft > 0.0)
+	if (state != RoundState_BetweenRounds)
 	{
-		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_Cooldown", timeLeft);
-		return;
+		if (g_bChangeRobotPicked[client])
+		{
+			PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_Chosen");
+			return;
+		}
+		
+		float timeLeft = g_flChangeRobotCooldown[client] - GetGameTime();
+		
+		if (timeLeft > 0.0)
+		{
+			PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_Cooldown", timeLeft);
+			return;
+		}
+		
+		if (!TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(client), client))
+		{
+			PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_RespawnRoom");
+			return;
+		}
 	}
 	
 	ShowRobotVariantTypeMenu(client);
@@ -2057,9 +2098,11 @@ void SetRobotPlayer(int client, bool enabled)
 		
 		ResetPlayerProperties(client);
 		
+#if defined OVERRIDE_PLAYER_RESPAWN_TIME
 		//In case we switched off during a game, don't let us be stuck with a long respawn time
 		if (GameRules_GetRoundState() == RoundState_RoundRunning)
 			TF2Util_SetPlayerRespawnTimeOverride(client, -1.0);
+#endif
 		
 #if defined MOD_EXT_TF2_ECON_DYNAMIC
 		TF2Attrib_RemoveByName(client, "appear as mvm robot");
