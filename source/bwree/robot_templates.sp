@@ -541,7 +541,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				//These will be used later
 				char name[MAX_NAME_LENGTH]; kv.GetString("Name", name, sizeof(name), ROBOT_NAME_UNDEFINED);
 				int health = kv.GetNum("Health");
-				float scale = kv.GetFloat("Scale");
+				float scale = kv.GetFloat("Scale", -1.0);
 				char classIcon[PLATFORM_MAX_PATH]; kv.GetString("ClassIcon", classIcon, sizeof(classIcon));
 				int credits = kv.GetNum("TotalCurrency");
 				
@@ -769,7 +769,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 				
-				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags);
+				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
 				bAddedClassIconToWavebar = true;
 			}
 		}
@@ -827,7 +827,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 				
-				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags);
+				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
 				bAddedClassIconToWavebar = true;
 			}
 		}
@@ -847,7 +847,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 				
-				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags);
+				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
 				bAddedClassIconToWavebar = true;
 			}
 		}
@@ -855,7 +855,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	float rawHere[3];
 	
-	SpawnLocationResult result = FindSpawnLocation(rawHere);
+	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale);
 	
 	if (result == SPAWN_LOCATION_TELEPORTER)
 		OnBotTeleported(client);

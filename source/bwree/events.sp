@@ -209,15 +209,15 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 					//Remove any debuff conditions that may have been applied by the robot players
 					for (int j = 0; j < sizeof(g_nTrackedConditions); j++)
 					{
-						if (TF2_IsPlayerInCondition(i, g_nTrackedConditions[i]))
+						if (TF2_IsPlayerInCondition(i, g_nTrackedConditions[j]))
 						{
 #if defined REMOVE_DEBUFF_COND_BY_ROBOTS
-							int provider = TF2Util_GetPlayerConditionProvider(i, g_nTrackedConditions[i]);
+							int provider = TF2Util_GetPlayerConditionProvider(i, g_nTrackedConditions[j]);
 							
 							if (provider > 0 && BaseEntity_IsPlayer(provider) && IsPlayingAsRobot(provider))
-								TF2_RemoveCondition(i, g_nTrackedConditions[i]);
+								TF2_RemoveCondition(i, g_nTrackedConditions[j]);
 #else
-							TF2_RemoveCondition(i, g_nTrackedConditions[i]);
+							TF2_RemoveCondition(i, g_nTrackedConditions[j]);
 #endif
 						}
 					}
@@ -228,6 +228,16 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	
 	//Remove lingering projectiles that may exploit to hurt when the wave starts
 	RemoveAllRobotPlayerOwnedEntities();
+	
+	if (bwr3_edit_wavebar.BoolValue)
+	{
+		if (IsValidEntity(g_iObjectiveResource))
+		{
+			//TODO: we should actually check if the teleporter icon already exists in the wavebar in the first place
+			TF2_SetWaveIconSpawnCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION, 1, false);
+			TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION);
+		}
+	}
 }
 
 static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBroadcast)
@@ -340,6 +350,8 @@ static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBro
 
 static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBroadcast)
 {
+	/* From CTFGameRules::FireGameEvent, when this event is fired all BLUE players are switched to spectator
+	So here we are just going to switch them to RED, but only the actual human players! */
 	for (int i = 1; i <= MaxClients; i++)
 	{
 		if (!IsClientInGame(i))

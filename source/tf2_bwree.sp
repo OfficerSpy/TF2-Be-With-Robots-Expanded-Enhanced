@@ -63,6 +63,12 @@ enum struct eDisguisedStruct
 }
 
 eDisguisedStruct g_nDisguised[MAXPLAYERS + 1];
+#else
+enum struct esSuspectedSpyInfo
+{
+	int iSuspectedSpy;
+	float iSuspectedTime;
+}
 #endif
 
 bool g_bLateLoad;
@@ -111,6 +117,11 @@ static ArrayList m_adtTeleportWhereName[MAXPLAYERS + 1];
 static float m_flAutoJumpMin[MAXPLAYERS + 1];
 static float m_flAutoJumpMax[MAXPLAYERS + 1];
 static KeyValues m_kvEventChangeAttributes[MAXPLAYERS + 1];
+
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+static ArrayList m_adtKnownSpy[MAXPLAYERS + 1];
+static ArrayList m_adtSuspectedSpy[MAXPLAYERS + 1];
+#endif
 
 ConVar bwr3_robot_spawn_time_min;
 ConVar bwr3_robot_spawn_time_max;
@@ -239,11 +250,11 @@ methodmap MvMRobotPlayer
 		this.ClearWeaponRestrictions();
 		this.ClearAllAttributes();
 		this.SetDifficulty(CTFBot_UNDEFINED);
-		this.ClearTags();
+		delete m_adtTags[this.index];
 		this.SetMission(CTFBot_NO_MISSION);
 		this.SetMissionTarget(-1);
 		this.SetMaxVisionRange(-1.0);
-		this.ClearTeleportWhere();
+		delete m_adtTeleportWhereName[this.index];
 		this.SetAutoJump(0.0, 0.0);
 		this.ClearEventChangeAttributes();
 	}
@@ -573,6 +584,42 @@ methodmap MvMRobotPlayer
 		delete kv;
 	}
 	
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+	public bool IsKnownSpy(int player)
+	{
+		return m_adtKnownSpy.FindValue(player) != -1;
+	}
+	
+	public bool IsSuspectedSpy(int player, esSuspectedSpyInfo spyInfo)
+	{
+		for (int i = 0; i < m_adtSuspectedSpy.Length; i++)
+		{
+			m_adtSuspectedSpy.GetArray(i, spyInfo);
+			
+			if (spyInfo.iSuspectedSpy == player)
+				return true;
+		}
+		
+		return false;
+	}
+	
+	public void SuspectSpy(int player)
+	{
+		esSuspectedSpyInfo spyInfo;
+		int nCurTime = RoundToFloor(GetGameTime());
+		
+		if (!IsSuspectedSpy(player, spyInfo))
+		{
+			//Well now we do start suspecting this spy
+			spyInfo.iSuspectedSpy = player;
+			spyInfo.iSuspectedTime = nCurTime;
+		}
+		
+		if (nCurTime - spyInfo.iSuspectedTime >= tf_bot_suspect_spy_touch_interval.IntValue)
+			this.RealizeSpy(player);
+	}
+#endif
+	
 	//CountdownTimer
 	public void AutoJumpTimer_Start(float duration)
 	{
@@ -684,7 +731,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.1",
+	version = "1.1.2",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -779,15 +826,6 @@ public void OnPluginStart()
 	}
 	
 	m_adtBWRCooldown = new StringMap();
-	
-	//Initialize the tags list
-	for (int i = 1; i <= MaxClients; i++)
-	{
-		m_adtTags[i] = new ArrayList(BOT_TAG_EACH_MAX_LENGTH);
-		
-		//Does not matter how this is initialized as it will get replaced by a new one
-		m_adtTeleportWhereName[i] = new ArrayList(1);
-	}
 	
 	if (g_bLateLoad)
 	{
@@ -2078,6 +2116,8 @@ void SetRobotPlayer(int client, bool enabled)
 	if (enabled)
 	{
 		m_bIsRobot[client] = true;
+		m_adtTags[client] = new ArrayList(BOT_TAG_EACH_MAX_LENGTH);
+		m_adtTeleportWhereName[client] = new ArrayList(1); //Does not matter how this is initialized as it will get replaced by a new one
 		
 		SDKHook(client, SDKHook_TouchPost, PlayerRobot_TouchPost);
 		SDKHook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
