@@ -49,6 +49,11 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 	SpyDisguiseClear(client);
+#else
+	//All robot players forget about this spy that died
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i) && IsPlayingAsRobot(i) && IsPlayerAlive(i))
+			MvMRobotPlayer(i).ForgetSpy(client);
 #endif
 	
 	if (!IsPlayingAsRobot(client))
@@ -326,6 +331,13 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		return;
 	}
 	
+	if (IsPlayingAsRobot(client))
+	{
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+		MvMRobotPlayer(client).ClearTrackedSpyData();
+#endif
+	}
+	
 #if defined TELEPORTER_METHOD_MANUAL
 	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))
 		CreateTimer(0.1, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
@@ -342,8 +354,11 @@ static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBro
 		{
 			int client = event.GetInt("player");
 			char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
+			int health = GetClientHealth(client);
+			int maxHealth = TF2Util_GetEntityMaxHealth(client);
 			
-			PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Deployed_Bomb", playerName, GetClientHealth(client), TF2Util_GetEntityMaxHealth(client));
+			PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Deployed_Bomb", playerName, health, maxHealth);
+			LogAction(client, -1, "%L deployed the bomb (%d/%d HP).", client, health, maxHealth);
 		}
 	}
 }

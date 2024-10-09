@@ -139,6 +139,11 @@
 		"#format"	"{1:s},{2:d},{3:d}"
 		"en"	"{1} deployed the bomb with {2}/{3} health left."
 	}
+	"Player_Idle_Flag_SpawnRoom"
+	{
+		"#format"	"{1:s}"
+		"en"	"{1} is stalling the game."
+	}
 	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"

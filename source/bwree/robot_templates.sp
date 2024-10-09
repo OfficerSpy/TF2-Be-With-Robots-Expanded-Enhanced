@@ -251,7 +251,7 @@ static Action Timer_SuicideBomberDetonate(Handle timer, any data)
 	return Plugin_Stop;
 }
 
-static Action Timer_SpyLeaveSpawnRoom(Handle timer, any data)
+static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 {
 	if (!IsClientInGame(data) || !IsPlayerAlive(data) || !TF2_IsClass(data, TFClass_Spy))
 		return Plugin_Stop;
@@ -311,6 +311,10 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, any data)
 		CreateTimer(1.0, Timer_SpyLeaveSpawnRoom, data, TIMER_FLAG_NO_MAPCHANGE);
 		
 		m_iSpyTeleportAttempt[data]++;
+		
+#if defined TESTING_ONLY
+		PrintToChat(data, "[Timer_SpyLeaveSpawnRoom] Failed attempt %d", m_iSpyTeleportAttempt[data]);
+#endif
 		
 		return Plugin_Stop;
 	}
@@ -1751,8 +1755,6 @@ void TurnPlayerIntoHisNextRobot(int client)
 	if (g_bChangeRobotPicked[client])
 	{
 		//We picked this robot ourselves, apply a cooldown based on the template
-		MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
-		
 		switch (roboPlayer.MyNextRobotTemplateType)
 		{
 			case ROBOT_STANDARD, ROBOT_GATEBOT:

@@ -886,6 +886,14 @@ bool Player_IsRangeGreaterThanEntity(int client, int subject, float range)
 	return GetVectorDistance(WorldSpaceCenter(subject), WorldSpaceCenter(client));
 } */
 
+void ForcePlayerToDropFlag(int client)
+{
+	int item = TF2_GetItem(client);
+	
+	if (item != -1)
+		AcceptEntityInput(item, "ForceDrop");
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {

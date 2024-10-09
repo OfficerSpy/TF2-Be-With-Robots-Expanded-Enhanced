@@ -26,19 +26,21 @@ Author: ★ Officer Spy ★
 #pragma semicolon 1
 #pragma newdecls required
 
+// #define TESTING_ONLY
+
 #define PLUGIN_NAME	"[TF2] Be With Robots: Expanded & Enhanced"
 #define PLUGIN_PREFIX	"[BWR E&E]"
 
 #define MAP_CONFIG_DIRECTORY	"configs/bwree/map"
 
-// #define TESTING_ONLY
+#define ALERT_FLAG_HELD_TOO_LONG_SOUND	"misc/doomsday_lift_warning.wav"
 
 // #define MOD_BUY_A_ROBOT_3
 
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
 #define OVERRIDE_PLAYER_RESPAWN_TIME
-#define SPY_DISGUISE_VISION_OVERRIDE
+// #define SPY_DISGUISE_VISION_OVERRIDE
 // #define ALLOW_BUILDING_BETWEEN_ROUNDS
 #define REMOVE_DEBUFF_COND_BY_ROBOTS
 #define NO_AIRBLAST_BETWEEN_ROUNDS
@@ -67,7 +69,7 @@ eDisguisedStruct g_nDisguised[MAXPLAYERS + 1];
 enum struct esSuspectedSpyInfo
 {
 	int iSuspectedSpy;
-	float iSuspectedTime;
+	float flSuspectedTime;
 }
 #endif
 
@@ -80,6 +82,7 @@ int g_iPopulationManager = -1;
 static StringMap m_adtBWRCooldown;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
+float g_flLastTimeFlagInSpawn[MAXPLAYERS + 1];
 bool g_bChangeRobotPicked[MAXPLAYERS + 1];
 float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
@@ -120,7 +123,7 @@ static KeyValues m_kvEventChangeAttributes[MAXPLAYERS + 1];
 
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
 static ArrayList m_adtKnownSpy[MAXPLAYERS + 1];
-static ArrayList m_adtSuspectedSpy[MAXPLAYERS + 1];
+static ArrayList m_adtSuspectedSpyInfo[MAXPLAYERS + 1];
 #endif
 
 ConVar bwr3_robot_spawn_time_min;
@@ -130,6 +133,7 @@ ConVar bwr3_cosmetic_mode;
 ConVar bwr3_max_invaders;
 ConVar bwr3_min_players_for_giants;
 ConVar bwr3_edit_wavebar;
+ConVar bwr3_flag_max_hold_time;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
 ConVar bwr3_robot_gatebot_template_file;
@@ -160,6 +164,10 @@ ConVar tf_mvm_engineer_teleporter_uber_duration;
 ConVar tf_bot_suicide_bomb_range;
 ConVar tf_bot_engineer_building_health_multiplier;
 ConVar phys_pushscale;
+
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+ConVar tf_bot_suspect_spy_touch_interval;
+#endif
 
 #if defined MOD_EXT_CBASENPC
 ConVar tf_bot_suicide_bomb_friendly_fire;
@@ -257,6 +265,11 @@ methodmap MvMRobotPlayer
 		delete m_adtTeleportWhereName[this.index];
 		this.SetAutoJump(0.0, 0.0);
 		this.ClearEventChangeAttributes();
+		
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+		delete m_adtKnownSpy[this.index];
+		delete m_adtSuspectedSpyInfo[this.index];
+#endif
 	}
 	
 	public void SetMyNextRobot(eRobotTemplateType type, int templateID)
@@ -587,36 +600,92 @@ methodmap MvMRobotPlayer
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
 	public bool IsKnownSpy(int player)
 	{
-		return m_adtKnownSpy.FindValue(player) != -1;
+		return m_adtKnownSpy[this.index].FindValue(player) != -1;
 	}
 	
-	public bool IsSuspectedSpy(int player, esSuspectedSpyInfo spyInfo)
+	public bool IsSuspectedSpy(int player, esSuspectedSpyInfo spyInfo, int &foundIndex = 0)
 	{
-		for (int i = 0; i < m_adtSuspectedSpy.Length; i++)
+		for (int i = 0; i < m_adtSuspectedSpyInfo[this.index].Length; i++)
 		{
-			m_adtSuspectedSpy.GetArray(i, spyInfo);
+			m_adtSuspectedSpyInfo[this.index].GetArray(i, spyInfo);
 			
 			if (spyInfo.iSuspectedSpy == player)
+			{
+				foundIndex = i;
 				return true;
+			}
 		}
 		
+		foundIndex = -1;
 		return false;
 	}
 	
 	public void SuspectSpy(int player)
 	{
 		esSuspectedSpyInfo spyInfo;
-		int nCurTime = RoundToFloor(GetGameTime());
+		int index;
 		
-		if (!IsSuspectedSpy(player, spyInfo))
+		if (!this.IsSuspectedSpy(player, spyInfo, index))
 		{
 			//Well now we do start suspecting this spy
 			spyInfo.iSuspectedSpy = player;
-			spyInfo.iSuspectedTime = nCurTime;
+			spyInfo.flSuspectedTime = 0.0;
 		}
 		
-		if (nCurTime - spyInfo.iSuspectedTime >= tf_bot_suspect_spy_touch_interval.IntValue)
+		//TODO: this could be done better
+		spyInfo.flSuspectedTime += 0.1;
+		
+		if (RoundFloat(spyInfo.flSuspectedTime) >= tf_bot_suspect_spy_touch_interval.IntValue)
 			this.RealizeSpy(player);
+		
+		//Store into our suspicious memory
+		if (index != -1)
+			m_adtSuspectedSpyInfo[this.index].SetArray(index, spyInfo);
+		else
+			m_adtSuspectedSpyInfo[this.index].PushArray(spyInfo);
+	}
+	
+	public void RealizeSpy(int player)
+	{
+		if (this.IsKnownSpy(player))
+			return;
+		
+		m_adtKnownSpy[this.index].Push(player);
+		
+		BaseMultiplayerPlayer_SpeakConceptIfAllowed(this.index, MP_CONCEPT_PLAYER_CLOAKEDSPY);
+		
+		//TODO: should others realize there is a spy here?
+	}
+	
+	public void ForgetSpy(int player)
+	{
+		this.StopSuspectingSpy(player);
+		
+		int index = m_adtKnownSpy[this.index].FindValue(player);
+		
+		if (index != -1)
+			m_adtKnownSpy[this.index].Erase(index);
+	}
+	
+	public void StopSuspectingSpy(int player)
+	{
+		for (int i = 0; i < m_adtSuspectedSpyInfo[this.index].Length; i++)
+		{
+			esSuspectedSpyInfo spyInfo;
+			m_adtSuspectedSpyInfo[this.index].GetArray(i, spyInfo);
+			
+			if (spyInfo.iSuspectedSpy == player)
+			{
+				m_adtSuspectedSpyInfo[this.index].Erase(i);
+				break;
+			}
+		}
+	}
+	
+	public void ClearTrackedSpyData()
+	{
+		m_adtKnownSpy[this.index].Clear();
+		m_adtSuspectedSpyInfo[this.index].Clear();
 	}
 #endif
 	
@@ -750,6 +819,7 @@ public void OnPluginStart()
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
+	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_template_file = CreateConVar("sm_bwr3_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
@@ -874,6 +944,7 @@ public void OnMapStart()
 	g_bCanBotsAttackInSpawn = false;
 	m_adtBWRCooldown.Clear();
 	
+	PrecacheSound(ALERT_FLAG_HELD_TOO_LONG_SOUND);
 	PrecacheSound(BOSS_ROBOT_SPAWN_SOUND);
 	ResetRobotSpawnerData();
 	
@@ -886,6 +957,7 @@ public void OnMapStart()
 public void OnClientPutInServer(int client)
 {
 	g_iForcedButtonInput[client] = 0;
+	g_flLastTimeFlagInSpawn[client] = GetGameTime();
 	g_bChangeRobotPicked[client] = false;
 	g_flChangeRobotCooldown[client] = 0.0;
 	g_bSpawningAsBossRobot[client] = false;
@@ -938,6 +1010,10 @@ public void OnConfigsExecuted()
 	tf_bot_suicide_bomb_range = FindConVar("tf_bot_suicide_bomb_range");
 	tf_bot_engineer_building_health_multiplier = FindConVar("tf_bot_engineer_building_health_multiplier");
 	phys_pushscale = FindConVar("phys_pushscale");
+	
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+	tf_bot_suspect_spy_touch_interval = FindConVar("tf_bot_suspect_spy_touch_interval");
+#endif
 	
 #if defined MOD_EXT_CBASENPC
 	tf_bot_suicide_bomb_friendly_fire = FindConVar("tf_bot_suicide_bomb_friendly_fire");
@@ -1119,6 +1195,21 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		//Block all movement inputs
 		vel = NULL_VECTOR;
 	}
+	
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i))
+		{
+			if (TF2_GetClientTeam(i) == TFTeam_Red && IsPlayerAlive(i))
+			{
+				//Scan for any revealed spies
+				if (Player_IsRangeLessThan(client, i, 512.0) && TF2_IsLineOfFireClear2(client, WorldSpaceCenter(i)))
+					IsPlayerNoticedByRobot(client, i);
+			}
+		}
+	}
+#endif
 	
 	if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 	{
@@ -1357,18 +1448,43 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			player.AddCond(TFCond_UberchargeFading, 0.5);
 			player.AddCond(TFCond_ImmuneToPushback, 1.0);
 			
-			if (bHasTheFlag && roboPlayer.BombUpgradeLevel != DONT_UPGRADE)
+			if (bHasTheFlag)
 			{
-				//Do not upgrade the bomb while in spawn
-				roboPlayer.BombUpgradeTimer_Start(tf_mvm_bot_flag_carrier_interval_to_1st_upgrade.FloatValue);
+				float timeHoldingFlag = GetGameTime() - g_flLastTimeFlagInSpawn[client];
 				
-				OSTFObjectiveResource rsrc = OSTFObjectiveResource(g_iObjectiveResource);
-				rsrc.SetBaseMvMBombUpgradeTime(GetGameTime());
-				rsrc.SetNextMvMBombUpgradeTime(GetGameTime() + roboPlayer.BombUpgradeTimer_GetRemainingTime());
+				if (timeHoldingFlag >= bwr3_flag_max_hold_time.FloatValue)
+				{
+					g_flLastTimeFlagInSpawn[client] = GetGameTime();
+					ForcePlayerToDropFlag(client);
+					
+					char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
+					
+					PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Idle_Flag_SpawnRoom", playerName);
+					EmitSoundToAll(ALERT_FLAG_HELD_TOO_LONG_SOUND);
+					LogAction(client, -1, "%L held the flag for too long in spawn!", client);
+				}
+				
+				if (roboPlayer.BombUpgradeLevel != DONT_UPGRADE)
+				{
+					//Do not upgrade the bomb while in spawn
+					roboPlayer.BombUpgradeTimer_Start(tf_mvm_bot_flag_carrier_interval_to_1st_upgrade.FloatValue);
+					
+					OSTFObjectiveResource rsrc = OSTFObjectiveResource(g_iObjectiveResource);
+					rsrc.SetBaseMvMBombUpgradeTime(GetGameTime());
+					rsrc.SetNextMvMBombUpgradeTime(GetGameTime() + roboPlayer.BombUpgradeTimer_GetRemainingTime());
+				}
+			}
+			else
+			{
+				//We're not idling with the flag
+				g_flLastTimeFlagInSpawn[client] = GetGameTime();
 			}
 		}
 		else
 		{
+			//Not idling in spawn
+			g_flLastTimeFlagInSpawn[client] = GetGameTime();
+			
 			//When TFBots perform their taunts, they change to nextbot action CTFBotTaunt
 			//Treat player taunting as if they decided to change their own "actions"
 			if (bHasTheFlag && roboPlayer.BombUpgradeLevel != DONT_UPGRADE && !player.IsTaunting())
@@ -1821,6 +1937,14 @@ public Action Actor_SetTransmit(int entity, int client)
 		//If it's farther than our current vision range, then we can't actually see it
 		if (Player_IsRangeGreaterThanEntity(client, entity, maxSightRange))
 			return Plugin_Handled;
+		
+		if (BaseEntity_IsPlayer(entity))
+		{
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+			if (IsPlayerIgnoredByRobot(client, entity))
+				return Plugin_Handled;
+#endif
+		}
 	}
 	
 	return Plugin_Continue;
@@ -1904,8 +2028,13 @@ public void PlayerRobot_TouchPost(int entity, int other)
 				}
 			}
 		}
-		/* char classname[PLATFORM_MAX_PATH]; GetEntityClassname(other, classname, sizeof(classname));
-		PrintToChatAll("TOUCHING ENTITY %d %s", other, classname); */
+	}
+	else if (BaseEntity_IsPlayer(other))
+	{
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+		if (GetClientTeam(other) != GetClientTeam(entity))
+			MvMRobotPlayer(entity).SuspectSpy(other);
+#endif
 	}
 }
 
@@ -2118,6 +2247,11 @@ void SetRobotPlayer(int client, bool enabled)
 		m_bIsRobot[client] = true;
 		m_adtTags[client] = new ArrayList(BOT_TAG_EACH_MAX_LENGTH);
 		m_adtTeleportWhereName[client] = new ArrayList(1); //Does not matter how this is initialized as it will get replaced by a new one
+		
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+		m_adtKnownSpy[client] = new ArrayList();
+		m_adtSuspectedSpyInfo[client] = new ArrayList(2);
+#endif
 		
 		SDKHook(client, SDKHook_TouchPost, PlayerRobot_TouchPost);
 		SDKHook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
@@ -2583,5 +2717,96 @@ void SpyDisguiseThink(int client, int disguiseclass, int disguiseteam)
 			}
 		}
 	}
+}
+#else
+bool IsPlayerIgnoredByRobot(int client, int subject)
+{
+	if (MvMRobotPlayer(client).IsKnownSpy(subject))
+		return false;
+	
+	OSTFPlayer cbpSubject = OSTFPlayer(subject);
+	
+	if (cbpSubject.InCond(TFCond_OnFire) || cbpSubject.InCond(TFCond_Jarated) || cbpSubject.InCond(TFCond_CloakFlicker) || cbpSubject.InCond(TFCond_Bleeding))
+		return false;
+	
+	if (cbpSubject.InCond(TFCond_StealthedUserBuffFade))
+	{
+		MvMRobotPlayer(client).ForgetSpy(subject);
+		return true;
+	}
+	
+	if (cbpSubject.IsStealthed())
+	{
+		if (cbpSubject.GetPercentInvisible() < 0.75)
+			return false;
+		
+		MvMRobotPlayer(client).ForgetSpy(subject);
+		return true;
+	}
+	
+	if (cbpSubject.InCond(TFCond_Disguising))
+		return false;
+	
+	if (cbpSubject.InCond(TFCond_Disguised) && cbpSubject.GetDisguiseTeam() == TF2_GetClientTeam(client))
+		return true;
+	
+	return false;
+}
+
+bool IsPlayerNoticedByRobot(int client, int subject)
+{
+	OSTFPlayer cbpSubject = OSTFPlayer(subject);
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
+	if (cbpSubject.InCond(TFCond_OnFire) || cbpSubject.InCond(TFCond_Jarated) || cbpSubject.InCond(TFCond_CloakFlicker) || cbpSubject.InCond(TFCond_Bleeding))
+	{
+		if (cbpSubject.InCond(TFCond_Cloaked))
+			roboPlayer.RealizeSpy(subject);
+		
+		return true;
+	}
+	
+	if (cbpSubject.InCond(TFCond_StealthedUserBuffFade))
+	{
+		roboPlayer.ForgetSpy(subject);
+		return false;
+	}
+	
+	if (cbpSubject.IsStealthed())
+	{
+		if (cbpSubject.GetPercentInvisible() < 0.75)
+		{
+			roboPlayer.RealizeSpy(subject);
+			return true;
+		}
+		
+		roboPlayer.ForgetSpy(subject);
+		return false;
+	}
+	
+	esSuspectedSpyInfo spyInfo;
+	
+	if (!roboPlayer.IsSuspectedSpy(subject, spyInfo))
+	{
+		if (cbpSubject.InCond(TFCond_Disguised) && cbpSubject.GetDisguiseTeam() == TF2_GetClientTeam(client))
+		{
+			roboPlayer.ForgetSpy(subject);
+			return false;
+		}
+	}
+	
+	if (roboPlayer.IsKnownSpy(subject))
+		return true;
+	
+	if (cbpSubject.InCond(TFCond_Disguising))
+	{
+		roboPlayer.RealizeSpy(subject);
+		return true;
+	}
+	
+	if (cbpSubject.InCond(TFCond_Disguised) && cbpSubject.GetDisguiseTeam() == TF2_GetClientTeam(client))
+		return false;
+	
+	return true;
 }
 #endif
