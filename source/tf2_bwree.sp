@@ -148,6 +148,7 @@ ConVar bwr3_robot_menu_cooldown;
 ConVar bwr3_robot_menu_giant_cooldown;
 ConVar bwr3_engineer_teleport_method;
 ConVar bwr3_spy_teleport_method;
+ConVar bwr3_robot_custom_viewmodels;
 
 ConVar nb_update_frequency;
 ConVar tf_deploying_bomb_delay_time;
@@ -834,6 +835,7 @@ public void OnPluginStart()
 	bwr3_robot_menu_giant_cooldown = CreateConVar("sm_bwr3_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
 	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "1", _, FCVAR_NOTIFY);
 	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "1", _, FCVAR_NOTIFY);
+	bwr3_robot_custom_viewmodels = CreateConVar("sm_bwr3_robot_custom_viewmodels", "0", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
@@ -841,6 +843,7 @@ public void OnPluginStart()
 	HookConVarChange(bwr3_robot_gatebot_giant_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_sentrybuster_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_boss_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwr3_robot_custom_viewmodels, ConVarChanged_RobotCustomViewmodels);
 	
 	RegConsoleCmd("sm_bwr", Command_JoinBlue, "Join the blue team and become a robot!");
 	RegConsoleCmd("sm_joinblu", Command_JoinBlue, "Join the blue team and become a robot!");
@@ -995,6 +998,8 @@ public void OnClientDisconnect(int client)
 
 public void OnConfigsExecuted()
 {
+	PrepareCustomViewModelAssets(bwr3_robot_custom_viewmodels.IntValue);
+	
 	nb_update_frequency = FindConVar("nb_update_frequency");
 	tf_deploying_bomb_delay_time = FindConVar("tf_deploying_bomb_delay_time");
 	tf_deploying_bomb_time = FindConVar("tf_deploying_bomb_time");
@@ -1620,6 +1625,11 @@ public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue
 		UpdateRobotTemplateDataForType(ROBOT_BOSS);
 }
 
+public void ConVarChanged_RobotCustomViewmodels(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	PrepareCustomViewModelAssets(StringToInt(newValue));
+}
+
 /* public void ConVarChanged_MinibossScale(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	for (int i = 1; i <= MAXPLAYERS; i++)
@@ -2081,6 +2091,120 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 	}
 	
 	return Plugin_Continue;
+}
+
+void PrepareCustomViewModelAssets(int type)
+{
+	switch (type)
+	{
+		case 1:
+		{
+			//Bot arms (Potato's Custom MvM Servers)
+			for (int i = 0; i < sizeof(g_sRobotArmModels); i++)
+				PrecacheModel(g_sRobotArmModels[i]);
+			
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_engineer_bot_gunslinger_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_heavy_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_medic_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_pyro_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_scout_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_sniper_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_soldier_bot_arms.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_animations.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_animations.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_animations.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_animations.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_animations.vvd");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_arms.dx80.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_arms.dx90.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_arms.mdl");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_arms.sw.vtx");
+			AddFileToDownloadsTable("models/weapons/c_models/c_spy_bot_arms.vvd");
+		}
+	}
 }
 
 float GetBWRCooldownTimeLeft(int client)

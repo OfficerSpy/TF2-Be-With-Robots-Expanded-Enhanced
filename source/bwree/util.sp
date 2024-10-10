@@ -136,6 +136,21 @@ public char g_strModelHumans[][] =
 };
 #endif
 
+public char g_sRobotArmModels[][] =
+{
+	"",
+	"models/weapons/c_models/c_scout_bot_arms.mdl",
+	"models/weapons/c_models/c_sniper_bot_arms.mdl",
+	"models/weapons/c_models/c_soldier_bot_arms.mdl",
+	"models/weapons/c_models/c_demo_bot_arms.mdl",
+	"models/weapons/c_models/c_medic_bot_arms.mdl",
+	"models/weapons/c_models/c_heavy_bot_arms.mdl",
+	"models/weapons/c_models/c_pyro_bot_arms.mdl",
+	"models/weapons/c_models/c_spy_bot_arms.mdl",
+	"models/weapons/c_models/c_engineer_bot_arms.mdl",
+	""
+};
+
 public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 {
 	//NOTE: CTraceFilterSimple::ShouldHitEntity does a bit more than this, but this should be fine for now
@@ -892,6 +907,13 @@ void ForcePlayerToDropFlag(int client)
 	
 	if (item != -1)
 		AcceptEntityInput(item, "ForceDrop");
+}
+
+void SetWeaponCustomViewModel(int client, int weapon, char[] modelName = "")
+{
+	SetEntityModel(weapon, modelName);
+	SetEntProp(weapon, Prop_Send, "m_nCustomViewmodelModelIndex", GetEntProp(weapon, Prop_Send, "m_nModelIndex"));
+	SetEntProp(weapon, Prop_Send, "m_iViewModelIndex", GetEntProp(weapon, Prop_Send, "m_nModelIndex"));
 }
 
 #if defined MOD_EXT_CBASENPC
