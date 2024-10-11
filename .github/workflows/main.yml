@@ -109,7 +109,7 @@ jobs:
 
       - name: Zip output
         run: |
-          zip -qq -y -r ${{ github.event.repository.name }}.zip configs gamedata translations plugins
+          zip -qq -y -r ${{ github.event.repository.name }}-sm${{ matrix.sm-version }}.zip configs gamedata translations plugins
         working-directory: ${{ env.SCRIPTS_PATH }}
 
       - name: List files in the directory
@@ -117,7 +117,7 @@ jobs:
         working-directory: ${{ env.SCRIPTS_PATH }}
 
       - name: List files in the zip
-        run: unzip -l ${{ github.event.repository.name }}.zip
+        run: unzip -l ${{ github.event.repository.name }}-sm${{ matrix.sm-version }}.zip
         working-directory: ${{ env.SCRIPTS_PATH }}
 
       - name: Create Release
@@ -127,7 +127,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ steps.setup_sp.outputs.plugin-version }}
-          artifacts: ${{ github.event.repository.name }}.zip
+          artifacts: ${{ github.event.repository.name }}-sm${{ matrix.sm-version }}.zip
           draft: true
           allowUpdates: true
           updateOnlyUnreleased: true
