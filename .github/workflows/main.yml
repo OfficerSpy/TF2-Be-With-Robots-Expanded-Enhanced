@@ -1,0 +1,133 @@
+name: Compile and release
+
+on:
+  push:
+    branches:
+      main
+
+env:
+  PLUGIN_NAME: tf2_bwree
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sm-version: [ '1.11.x' ]
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set environment variables
+        run: echo SCRIPTS_PATH=$(pwd) >> $GITHUB_ENV
+
+      - name: Download includes
+        run: |
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include https://raw.githubusercontent.com/FlaminSarge/tf2attributes/master/scripting/include/tf2attributes.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include https://raw.githubusercontent.com/nosoop/SM-TFUtils/master/scripting/include/tf2utils.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include https://raw.githubusercontent.com/nosoop/SM-TFEconData/master/scripting/include/tf_econ_data.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/refs/heads/master/scripting/include/cbasenpc.inc
+          # CBaseNPC
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/activity.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/baseentity.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/baseanimating.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/baseanimatingoverlay.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/basecombatcharacter.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/entityfactory.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nav.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/takedamageinfo.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/behavior.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/body.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/intention.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/knownentity.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/locomotion.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/path.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/vision.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot/path https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/path/chase.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/nextbot/path https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/nextbot/path/follower.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/cbasenpc/tf https://raw.githubusercontent.com/TF2-DMB/CBaseNPC/master/scripting/include/cbasenpc/tf/nav.inc
+          # Stocklib Officerspy
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/baseanimating.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/basecombatcharacter.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/baseentity.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/baseflex.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/basemultiplayerplayer.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/baseserver.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/econ_item_view.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/gameinterface.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/gamerules.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/multiplay_gamerules.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/player.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/stocklib_extra_vscript.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/team_objectiveresource.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/teamplayroundbased_gamerules.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/util.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/mathlib https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/mathlib/vector.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/other https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/other/cpp.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/other https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/other/cpp_valve.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/public https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/public/bspflags.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/public https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/public/const.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/public https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/public/shake.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/shared https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/shared/econ_item_constants.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/shared https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/shared/mp_shareddefs.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/shared https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/shared/shareddefs.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/shared https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/shared/tf_item_constants.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/shared https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/shared/tf_shareddefs.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/stocklib_extra_vscript.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_bot.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_fx.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_gamerules.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_item.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_obj.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_objective_resource.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_player.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_player_shared.inc
+          wget -P ${{ env.SCRIPTS_PATH }}/source/include/stocklib_officerspy/tf https://raw.githubusercontent.com/OfficerSpy/SM_Stock_OfficerSpy/main/stocklib_officerspy/tf/tf_playerclass_shared.inc
+
+      - name: Setup SourcePawn Compiler ${{ matrix.sm-version }}
+        id: setup_sp
+        uses: rumblefrog/setup-sp@master
+        with:
+          version: ${{ matrix.sm-version }}
+          version-file: ./source/${{ env.PLUGIN_NAME }}.sp
+
+      - name: Compile plugins
+        run: |
+          mkdir ../plugins
+          spcomp -v2 -i "include" -o"../plugins/${{ env.PLUGIN_NAME }}.smx" ${{ env.PLUGIN_NAME }}.sp
+          echo "===OUT FILES==="
+          ls ../plugins
+          echo "===VERSION==="
+          echo ${{ steps.setup_sp.outputs.plugin-version }}
+        working-directory: ${{ env.SCRIPTS_PATH }}/source
+
+      - name: Install zip
+        uses: montudor/action-zip@v1
+
+      - name: Zip output
+        run: |
+          zip -qq -y -r ${{ github.event.repository.name }}.zip configs gamedata translations plugins
+        working-directory: ${{ env.SCRIPTS_PATH }}
+
+      - name: List files in the directory
+        run: ls -R
+        working-directory: ${{ env.SCRIPTS_PATH }}
+
+      - name: List files in the zip
+        run: unzip -l ${{ github.event.repository.name }}.zip
+        working-directory: ${{ env.SCRIPTS_PATH }}
+
+      - name: Create Release
+        uses: ncipollo/release-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ steps.setup_sp.outputs.plugin-version }}
+          artifacts: ${{ github.event.repository.name }}.zip
+          draft: true
+          allowUpdates: true
+          updateOnlyUnreleased: true
