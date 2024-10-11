@@ -10,7 +10,9 @@ void ShowPlayerNextRobotMenu(int client)
 		ThrowError("Client %N (%d) does not have a valid robot template selected!", client, client);
 	
 	Menu hMenu = new Menu(MenuHandler_ViewNextRobot, MENU_ACTIONS_ALL);
-	hMenu.SetTitle("%t", "Menu_ViewNextRobot", GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID));
+	char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID, robotName, sizeof(robotName));
+	
+	hMenu.SetTitle("%t", "Menu_ViewNextRobot", robotName);
 	
 	char textFormatBuffer[32];
 	
@@ -91,7 +93,9 @@ bool ShowRobotTemplatesForClassMenu(int client, eRobotTemplateType type, TFClass
 			//Store as template ID
 			IntToString(i, info, sizeof(info));
 			
-			hMenu.AddItem(info, GetRobotTemplateName(type, i));
+			char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(type, i, robotName, sizeof(robotName));
+			
+			hMenu.AddItem(info, robotName);
 			count++;
 		}
 	}
@@ -273,7 +277,9 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 			if (GameRules_GetRoundState() == RoundState_RoundRunning)
 				g_bChangeRobotPicked[param1] = true;
 			
-			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, GetRobotTemplateName(g_nSelectedRobotType[param1], templateID), g_nSelectedRobotType[param1], templateID);
+			char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(g_nSelectedRobotType[param1], templateID, robotName, sizeof(robotName));
+			
+			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, robotName, g_nSelectedRobotType[param1], templateID);
 		}
 		case MenuAction_End:
 		{

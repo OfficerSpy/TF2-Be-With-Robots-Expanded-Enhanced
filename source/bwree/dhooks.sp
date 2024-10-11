@@ -214,16 +214,38 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 	if (!bwr3_edit_wavebar.BoolValue)
 		SetAsSupportEnemy(pThis, true);
 	
-	/* This does several things for when the player dies, but most notably
-	- player doesn't drop ammo pack
-	- player doesn't drop reanimator
-	- decrements the wavebar based on the player's class icon
-	- scout never spawns a client-side bird when gibbed
-	- stunned player fires event "mvm_adv_wave_killed_stun_radio"
-	- sends TE particle effect "bot_death"
-	- BLUE flag carrier fires event "mvm_bomb_carrier_killed" */
 	if (IsPlayingAsRobot(pThis))
+	{
+		/* This does several things for when the player dies, but most notably
+		- player doesn't drop ammo pack
+		- player doesn't drop reanimator
+		- decrements the wavebar based on the player's class icon
+		- scout never spawns a client-side bird when gibbed
+		- stunned player fires event "mvm_adv_wave_killed_stun_radio"
+		- sends TE particle effect "bot_death"
+		- BLUE flag carrier fires event "mvm_bomb_carrier_killed" */
 		SetClientAsBot(pThis, true);
+		
+		if (bwr3_drop_credits.IntValue > CREDITS_DROP_NONE)
+		{
+			/* The amount of money we are going to drop we stored as our currency when we became a robot
+			We do this here instead of post because the game will set the property to 0 in this function
+			This does not have happen if the player isn't seen as a bot though */
+			int dropAmount = TF2_GetCurrency(pThis);
+			
+			switch (bwr3_drop_credits.IntValue)
+			{
+				case CREDITS_DROP_NORMAL:
+				{
+					DropCurrencyPack(pThis, TF_CURRENCY_PACK_CUSTOM, dropAmount, false);
+				}
+				case CREDITS_DROP_FORCE_DISTRIBUTE:
+				{
+					DropCurrencyPack(pThis, TF_CURRENCY_PACK_CUSTOM, dropAmount, true);
+				}
+			}
+		}
+	}
 	
 	return MRES_Ignored;
 }

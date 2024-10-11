@@ -909,11 +909,11 @@ void ForcePlayerToDropFlag(int client)
 		AcceptEntityInput(item, "ForceDrop");
 }
 
-void SetWeaponCustomViewModel(int client, int weapon, char[] modelName = "")
+void SetWeaponCustomViewModel(int weapon, const char[] modelName)
 {
 	SetEntityModel(weapon, modelName);
-	SetEntProp(weapon, Prop_Send, "m_nCustomViewmodelModelIndex", GetEntProp(weapon, Prop_Send, "m_nModelIndex"));
-	SetEntProp(weapon, Prop_Send, "m_iViewModelIndex", GetEntProp(weapon, Prop_Send, "m_nModelIndex"));
+	SetEntProp(weapon, Prop_Send, "m_nCustomViewmodelModelIndex", GetEntProp(weapon, Prop_Data, "m_nModelIndex"));
+	SetEntProp(weapon, Prop_Send, "m_iViewModelIndex", GetEntProp(weapon, Prop_Data, "m_nModelIndex"));
 }
 
 #if defined MOD_EXT_CBASENPC

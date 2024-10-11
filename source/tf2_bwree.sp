@@ -40,10 +40,17 @@ Author: ★ Officer Spy ★
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
 #define OVERRIDE_PLAYER_RESPAWN_TIME
-// #define SPY_DISGUISE_VISION_OVERRIDE
+#define SPY_DISGUISE_VISION_OVERRIDE
 // #define ALLOW_BUILDING_BETWEEN_ROUNDS
 #define REMOVE_DEBUFF_COND_BY_ROBOTS
 #define NO_AIRBLAST_BETWEEN_ROUNDS
+
+enum
+{
+	CREDITS_DROP_NONE = 0,
+	CREDITS_DROP_NORMAL,
+	CREDITS_DROP_FORCE_DISTRIBUTE
+};
 
 enum
 {
@@ -133,6 +140,7 @@ ConVar bwr3_cosmetic_mode;
 ConVar bwr3_max_invaders;
 ConVar bwr3_min_players_for_giants;
 ConVar bwr3_edit_wavebar;
+ConVar bwr3_drop_credits;
 ConVar bwr3_flag_max_hold_time;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
@@ -278,7 +286,9 @@ methodmap MvMRobotPlayer
 		this.MyNextRobotTemplateType = type;
 		this.MyNextRobotTemplateID = templateID;
 		
-		PrintToChat(this.index, "%s %t", PLUGIN_PREFIX, "Next_Robot_Spawn", GetRobotTemplateName(type, templateID));
+		char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(type, templateID, robotName, sizeof(robotName));
+		
+		PrintToChat(this.index, "%s %t", PLUGIN_PREFIX, "Next_Robot_Spawn", robotName);
 	}
 	
 	public bool IsDeployingTheBomb()
@@ -820,6 +830,7 @@ public void OnPluginStart()
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
+	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
@@ -830,11 +841,11 @@ public void OnPluginStart()
 	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
-	bwr3_robot_menu_allowed = CreateConVar("sm_bwr3_robot_menu_allowed", "1", _, FCVAR_NOTIFY);
+	bwr3_robot_menu_allowed = CreateConVar("sm_bwr3_robot_menu_allowed", "0", _, FCVAR_NOTIFY);
 	bwr3_robot_menu_cooldown = CreateConVar("sm_bwr3_robot_menu_cooldown", "30.0", _, FCVAR_NOTIFY);
 	bwr3_robot_menu_giant_cooldown = CreateConVar("sm_bwr3_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
-	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "1", _, FCVAR_NOTIFY);
-	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "1", _, FCVAR_NOTIFY);
+	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "0", _, FCVAR_NOTIFY);
+	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "0", _, FCVAR_NOTIFY);
 	bwr3_robot_custom_viewmodels = CreateConVar("sm_bwr3_robot_custom_viewmodels", "0", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
@@ -2093,6 +2104,14 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 	return Plugin_Continue;
 }
 
+public void PlayerRobot_WeaponEquipPost(int client, int weapon)
+{
+	switch (bwr3_robot_custom_viewmodels.IntValue)
+	{
+		case 1:	SetWeaponCustomViewModel(weapon, g_sRobotArmModels[TF2_GetPlayerClass(client)]);
+	}
+}
+
 void PrepareCustomViewModelAssets(int type)
 {
 	switch (type)
@@ -2380,6 +2399,9 @@ void SetRobotPlayer(int client, bool enabled)
 		SDKHook(client, SDKHook_TouchPost, PlayerRobot_TouchPost);
 		SDKHook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
 		
+		if (bwr3_robot_custom_viewmodels.IntValue > 0)
+			SDKHook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
+		
 #if defined MOD_EXT_TF2_ECON_DYNAMIC
 		TF2Attrib_SetByName(client, "appear as mvm robot", 1.0);
 #endif
@@ -2393,6 +2415,7 @@ void SetRobotPlayer(int client, bool enabled)
 		
 		SDKUnhook(client, SDKHook_TouchPost, PlayerRobot_TouchPost);
 		SDKUnhook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
+		SDKUnhook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
 		
 		ResetPlayerProperties(client);
 		

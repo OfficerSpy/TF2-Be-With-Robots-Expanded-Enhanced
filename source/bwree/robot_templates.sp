@@ -1742,7 +1742,7 @@ void TurnPlayerIntoHisNextRobot(int client)
 	{
 		g_bSpawningAsBossRobot[client] = false;
 		
-		char robotName[PLATFORM_MAX_PATH]; robotName = GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+		char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID, robotName, sizeof(robotName));
 		
 		DataPack pack;
 		CreateDataTimer(0.2, Timer_BossRobotAlert, pack, TIMER_FLAG_NO_MAPCHANGE);
@@ -1885,9 +1885,9 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 	delete kv;
 }
 
-char[] GetRobotTemplateName(eRobotTemplateType type, int templateID)
+int GetRobotTemplateName(eRobotTemplateType type, int templateID, char[] buffer, int maxlen)
 {
-	return g_sRobotTemplateName[type][templateID];
+	return strcopy(buffer, maxlen, g_sRobotTemplateName[type][templateID]);
 }
 
 TFClassType GetRobotTemplateClass(eRobotTemplateType type, int templateID)
