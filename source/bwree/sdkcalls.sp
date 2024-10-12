@@ -138,7 +138,7 @@ bool InitSDKCalls(GameData hGamedata)
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByValue);
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
-	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer, VDECODE_FLAG_ALLOWNULL);
 	if ((m_hDropCurrencyPack = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFPlayer::DropCurrencyPack!");

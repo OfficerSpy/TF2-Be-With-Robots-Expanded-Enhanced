@@ -859,7 +859,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	float rawHere[3];
 	
-	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale);
+	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale > 0.0 ? flScale : 1.0);
 	
 	if (result == SPAWN_LOCATION_TELEPORTER)
 		OnBotTeleported(client);

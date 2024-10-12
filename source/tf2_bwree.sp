@@ -464,6 +464,9 @@ methodmap MvMRobotPlayer
 	
 	public void OnEventChangeAttributes(const char[] eventName)
 	{
+		if (m_kvEventChangeAttributes[this.index] == null)
+			return;
+		
 		//NOTE: we don't really need to clone here, but I don't want this looking worse than it already does
 		KeyValues kv = view_as<KeyValues>(CloneHandle(m_kvEventChangeAttributes[this.index]));
 		
@@ -811,7 +814,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.2",
+	version = "1.1.3",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
