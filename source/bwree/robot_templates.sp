@@ -857,6 +857,9 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 	}
 	
+	if (flScale <= 0.0 && roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+		flScale = tf_mvm_miniboss_scale.FloatValue;
+	
 	float rawHere[3];
 	
 	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale > 0.0 ? flScale : 1.0);
@@ -951,6 +954,14 @@ static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool b
 	//Default describes what the robot's stats are for when it first spawns in
 	bool isReadingDefaultAttributes = kv.JumpToKey("Default");
 	
+	ReadEventChangeAttributesForPlayer(roboPlayer, kv);
+	
+	if (isReadingDefaultAttributes)
+		kv.GoBack();
+}
+
+void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
+{
 	char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
 	
 	roboPlayer.SetDifficulty(GetSkillFromString(kvStringBuffer));
@@ -994,7 +1005,7 @@ static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool b
 				kv.GetSectionName(attributeName, sizeof(attributeName));
 				kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
 				
-				TF2Attrib_SetFromStringValue(client, attributeName, attributeValue);
+				TF2Attrib_SetFromStringValue(roboPlayer.index, attributeName, attributeValue);
 			} while (kv.GotoNextKey(false))
 			
 			kv.GoBack();
@@ -1014,7 +1025,7 @@ static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool b
 			{
 				kv.GetSectionName(itemName, sizeof(itemName));
 				
-				item = AddItemToPlayer(client, itemName);
+				item = AddItemToPlayer(roboPlayer.index, itemName);
 				
 				if (item != -1)
 				{
@@ -1052,9 +1063,6 @@ static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool b
 		
 		kv.GoBack();
 	}
-	
-	if (isReadingDefaultAttributes)
-		kv.GoBack();
 }
 
 DifficultyType GetSkillFromString(const char[] value)

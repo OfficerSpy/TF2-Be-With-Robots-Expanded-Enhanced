@@ -233,15 +233,57 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 			This does not have happen if the player isn't seen as a bot though */
 			int dropAmount = TF2_GetCurrency(pThis);
 			
-			switch (bwr3_drop_credits.IntValue)
+			if (dropAmount)
 			{
-				case CREDITS_DROP_NORMAL:
+				switch (bwr3_drop_credits.IntValue)
 				{
-					DropCurrencyPack(pThis, TF_CURRENCY_PACK_CUSTOM, dropAmount, false);
-				}
-				case CREDITS_DROP_FORCE_DISTRIBUTE:
-				{
-					DropCurrencyPack(pThis, TF_CURRENCY_PACK_CUSTOM, dropAmount, true);
+					case CREDITS_DROP_NORMAL:
+					{
+						bool bDropPack = true;
+						int moneyMaker = -1;
+						
+#if defined MOD_EXT_CBASENPC
+						if (!hParams.IsNull(1))
+						{
+							CTakeDamageInfo info = CTakeDamageInfo(hParams.GetAddress(1));
+							int attacker = info.GetAttacker();
+							
+							if (attacker == pThis)
+							{
+#if defined SUICIDE_DISTRIBUTE_CURRENCY
+								if (TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(pThis), pThis, true))
+								{
+									bDropPack = false;
+									DistributeCurrencyAmount(dropAmount, _, _, true);
+								}
+#endif
+							}
+							else if (info.GetDamageCustom() == TF_CUSTOM_TRIGGER_HURT)
+							{
+								bDropPack = false;
+								DistributeCurrencyAmount(dropAmount, -1, true, true);
+							}
+							else if (attacker > 0 && BaseEntity_IsPlayer(attacker) && TF2_GetPlayerClass(attacker) == TFClass_Sniper)
+							{
+								int killerWeapon = info.GetWeapon();
+								
+								if (info.GetDamageCustom() == TF_CUSTOM_BLEEDING || (killerWeapon > 0 && WeaponID_IsSniperRifleOrBow(TF2Util_GetWeaponID(killerWeapon))))
+								{
+									moneyMaker = attacker;
+									
+									//TODO: achievement shit
+								}
+							}
+						}
+#endif
+						
+						if (bDropPack)
+							DropCurrencyPack(pThis, TF_CURRENCY_PACK_CUSTOM, dropAmount, false, moneyMaker);
+					}
+					case CREDITS_DROP_FORCE_DISTRIBUTE:
+					{
+						DropCurrencyPack(pThis, TF_CURRENCY_PACK_CUSTOM, dropAmount, true);
+					}
 				}
 			}
 		}

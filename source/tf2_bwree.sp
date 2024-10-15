@@ -44,6 +44,19 @@ Author: ★ Officer Spy ★
 // #define ALLOW_BUILDING_BETWEEN_ROUNDS
 #define REMOVE_DEBUFF_COND_BY_ROBOTS
 #define NO_AIRBLAST_BETWEEN_ROUNDS
+#define SUICIDE_DISTRIBUTE_CURRENCY
+
+enum
+{
+	BOMB_UPGRADE_MANUAL,
+	BOMB_UPGRADE_AUTO
+};
+
+enum
+{
+	COSMETIC_MODE_NONE = 0,
+	COSMETIC_MODE_ALLOW_ALWAYS
+};
 
 enum
 {
@@ -89,6 +102,7 @@ int g_iPopulationManager = -1;
 static StringMap m_adtBWRCooldown;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
+int g_nForcedTauntCam[MAXPLAYERS + 1];
 float g_flLastTimeFlagInSpawn[MAXPLAYERS + 1];
 bool g_bChangeRobotPicked[MAXPLAYERS + 1];
 float g_flChangeRobotCooldown[MAXPLAYERS + 1];
@@ -500,110 +514,7 @@ methodmap MvMRobotPlayer
 				if (bwr3_cosmetic_mode.IntValue == COSMETIC_MODE_NONE)
 					RemoveCosmetics(this.index);
 				
-				/* We're really just reinventing the wheel here at this point
-				This is literally the same as ParseEventChangeAttributesForPlayer
-				Why can' we just make one function so this shit isn't as redundant? */
-				char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
-				
-				this.SetDifficulty(GetSkillFromString(kvStringBuffer));
-				this.ClearWeaponRestrictions();
-				
-				kv.GetString("WeaponRestrictions", kvStringBuffer, sizeof(kvStringBuffer));
-				
-				this.SetWeaponRestriction(GetWeaponRestrictionFlagsFromString(kvStringBuffer));
-				
-				this.SetMaxVisionRange(kv.GetFloat("MaxVisionRange", -1.0));
-				this.ClearTags();
-				
-				char botTags[BOT_TAGS_BUFFER_MAX_LENGTH]; kv.GetString("Tags", botTags, sizeof(botTags));
-				
-				if (strlen(botTags) > 0)
-				{
-					char splitTags[MAX_BOT_TAG_CHECKS][BOT_TAG_EACH_MAX_LENGTH];
-					int splitTagsCount = ExplodeString(botTags, ",", splitTags, sizeof(splitTags), sizeof(splitTags[]));
-					
-					for (int i = 0; i < splitTagsCount; i++)
-						this.AddTag(splitTags[i]);
-				}
-				
-				this.ClearAllAttributes();
-				
-				if (kv.JumpToKey("BotAttributes"))
-				{
-					this.SetAttribute(GetBotAttributesFromKeyValues(kv));
-					kv.GoBack();
-				}
-				
-				if (kv.JumpToKey("CharacterAttributes"))
-				{
-					if (kv.GotoFirstSubKey(false))
-					{
-						char attributeName[PLATFORM_MAX_PATH];
-						char attributeValue[PLATFORM_MAX_PATH];
-						
-						do
-						{
-							kv.GetSectionName(attributeName, sizeof(attributeName));
-							kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
-							
-							TF2Attrib_SetFromStringValue(this.index, attributeName, attributeValue);
-						} while (kv.GotoNextKey(false));
-						
-						kv.GoBack();
-					}
-					
-					kv.GoBack();
-				}
-				
-				if (kv.JumpToKey("Items"))
-				{
-					if (kv.GotoFirstSubKey(false))
-					{
-						char itemName[128];
-						int item = -1;
-						
-						do
-						{
-							kv.GetSectionName(itemName, sizeof(itemName));
-							
-							item = AddItemToPlayer(this.index, itemName);
-							
-							if (item != -1)
-							{
-								if (kv.GotoFirstSubKey(false))
-								{
-									char attributeName[PLATFORM_MAX_PATH];
-									char attributeValue[PLATFORM_MAX_PATH];
-									
-									do
-									{
-										kv.GetSectionName(attributeName, sizeof(attributeName));
-										kv.GetString(NULL_STRING, attributeValue, sizeof(attributeValue));
-										
-										if (TF2Attrib_IsValidAttributeName(attributeName))
-										{
-											if (!DoSpecialSetFromStringValue(item, attributeName, attributeValue))
-												TF2Attrib_SetFromStringValue(item, attributeName, attributeValue);
-										}
-										else
-										{
-											LogError("OnEventChangeAttributes: %s is not a real item attribute", attributeName);
-										}
-									} while (kv.GotoNextKey(false));
-									
-									kv.GoBack();
-									
-									VS_ReapplyProvision(item);
-								}
-							}
-						} while (kv.GotoNextKey(false));
-						
-						kv.GoBack();
-					}
-					
-					kv.GoBack();
-				}
-				
+				ReadEventChangeAttributesForPlayer(this, kv);
 				break;
 			}
 		} while (kv.GotoNextKey(false));
@@ -814,7 +725,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.3",
+	version = "1.1.4",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -881,6 +792,8 @@ public void OnPluginStart()
 	
 	AddCommandListener(CommandListener_Voicemenu, "voicemenu");
 	AddCommandListener(CommandListener_TournamentPlayerReadystate, "tournament_player_readystate");
+	AddCommandListener(CommandListener_Kill, "kill");
+	AddCommandListener(CommandListener_Kill, "explode");
 	
 	AddNormalSoundHook(SoundHook_General);
 	
@@ -974,6 +887,7 @@ public void OnMapStart()
 public void OnClientPutInServer(int client)
 {
 	g_iForcedButtonInput[client] = 0;
+	// g_nForcedTauntCam[client] = 0;
 	g_flLastTimeFlagInSpawn[client] = GetGameTime();
 	g_bChangeRobotPicked[client] = false;
 	g_flChangeRobotCooldown[client] = 0.0;
@@ -1830,6 +1744,23 @@ public Action CommandListener_TournamentPlayerReadystate(int client, const char[
 	return Plugin_Continue;
 }
 
+public Action CommandListener_Kill(int client, const char[] command, int argc)
+{
+#if !defined SUICIDE_DISTRIBUTE_CURRENCY
+	if (GameRules_GetRoundState() != RoundState_RoundRunning)
+		return Plugin_Continue;
+	
+	if (bwr3_drop_credits.IntValue > CREDITS_DROP_NONE)
+	{
+		//Don't allow suicide in spawn
+		if (TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(client), client, true))
+			return Plugin_Handled;
+	}
+#endif
+	
+	return Plugin_Continue;
+}
+
 public Action SoundHook_General(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
 	if (entity > MaxClients)
@@ -2107,6 +2038,40 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 	return Plugin_Continue;
 }
 
+public Action PlayerRobot_WeaponCanSwitchTo(int client, int weapon)
+{
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
+	if (roboPlayer.HasWeaponRestriction(CTFBot_ANY_WEAPON) || !ShouldWeaponBeRestricted(weapon))
+		return Plugin_Continue;
+	
+	if (roboPlayer.HasWeaponRestriction(CTFBot_MELEE_ONLY))
+	{
+		if (TF2Util_GetWeaponSlot(weapon) != TFWeaponSlot_Melee)
+		{
+			return Plugin_Handled;
+		}
+	}
+	
+	if (roboPlayer.HasWeaponRestriction(CTFBot_PRIMARY_ONLY))
+	{
+		if (TF2Util_GetWeaponSlot(weapon) != TFWeaponSlot_Primary)
+		{
+			return Plugin_Handled;
+		}
+	}
+	
+	if (roboPlayer.HasWeaponRestriction(CTFBot_SECONDARY_ONLY))
+	{
+		if (TF2Util_GetWeaponSlot(weapon) != TFWeaponSlot_Secondary)
+		{
+			return Plugin_Handled;
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
 public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 {
 	switch (bwr3_robot_custom_viewmodels.IntValue)
@@ -2122,7 +2087,7 @@ void PrepareCustomViewModelAssets(int type)
 		case 1:
 		{
 			//Bot arms (Potato's Custom MvM Servers)
-			for (int i = 0; i < sizeof(g_sRobotArmModels); i++)
+			for (int i = 1; i < sizeof(g_sRobotArmModels); i++)
 				PrecacheModel(g_sRobotArmModels[i]);
 			
 			AddFileToDownloadsTable("models/weapons/c_models/c_demo_bot_animations.dx80.vtx");
@@ -2401,9 +2366,8 @@ void SetRobotPlayer(int client, bool enabled)
 		
 		SDKHook(client, SDKHook_TouchPost, PlayerRobot_TouchPost);
 		SDKHook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
-		
-		if (bwr3_robot_custom_viewmodels.IntValue > 0)
-			SDKHook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
+		SDKHook(client, SDKHook_WeaponCanSwitchTo, PlayerRobot_WeaponCanSwitchTo);
+		SDKHook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
 		
 #if defined MOD_EXT_TF2_ECON_DYNAMIC
 		TF2Attrib_SetByName(client, "appear as mvm robot", 1.0);
@@ -2418,6 +2382,7 @@ void SetRobotPlayer(int client, bool enabled)
 		
 		SDKUnhook(client, SDKHook_TouchPost, PlayerRobot_TouchPost);
 		SDKUnhook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
+		SDKUnhook(client, SDKHook_WeaponCanSwitchTo, PlayerRobot_WeaponCanSwitchTo);
 		SDKUnhook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
 		
 		ResetPlayerProperties(client);
@@ -2458,6 +2423,11 @@ bool MvMDeployBomb_OnStart(int client)
 		//but this shouldn't be necessary unless the attribute gets removed or changed
 		TF2Attrib_SetByName(client, "airblast vertical vulnerability multiplier", 0.0);
 	}
+	
+	g_nForcedTauntCam[client] = GetEntProp(client, Prop_Send, "m_nForceTauntCam");
+	
+	if (!g_nForcedTauntCam[client])
+		SetForcedTauntCam(client, 1);
 	
 	return true;
 }
@@ -2579,6 +2549,9 @@ void MvMDeployBomb_OnEnd(int client)
 	
 	SetPlayerToMove(client, true);
 	SetBlockPlayerMovementTime(client, 0.0);
+	
+	if (!g_nForcedTauntCam[client])
+		SetForcedTauntCam(client, 0);
 }
 
 void SetPlayerToMove(int client, bool enabled)
@@ -2686,6 +2659,20 @@ bool CanWeaponFireInRobotSpawn(int weapon, int inputType)
 				return false;
 			}
 			default:	return true;
+		}
+	}
+	
+	return true;
+}
+
+bool ShouldWeaponBeRestricted(int weapon)
+{
+	switch (TF2Util_GetWeaponID(weapon))
+	{
+		case TF_WEAPON_BUFF_ITEM, TF_WEAPON_LUNCHBOX:
+		{
+			//These are free to use
+			return false;
 		}
 	}
 	

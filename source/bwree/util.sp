@@ -13,6 +13,7 @@
 #include <stocklib_officerspy/shared/econ_item_constants>
 #include <stocklib_officerspy/util>
 #include <stocklib_officerspy/baseserver>
+#include <stocklib_officerspy/tf/tf_weaponbase>
 
 #define IsEmptyString(%1) (%1[0] == 0)
 
@@ -44,18 +45,6 @@ enum SpawnLocationResult
 	SPAWN_LOCATION_NOT_FOUND = 0,
 	SPAWN_LOCATION_NAV,
 	SPAWN_LOCATION_TELEPORTER
-};
-
-enum
-{
-	BOMB_UPGRADE_MANUAL,
-	BOMB_UPGRADE_AUTO
-};
-
-enum
-{
-	COSMETIC_MODE_NONE = 0,
-	COSMETIC_MODE_ALLOW_ALWAYS
 };
 
 public char g_sClassNamesShort[][] =
@@ -147,8 +136,7 @@ public char g_sRobotArmModels[][] =
 	"models/weapons/c_models/c_heavy_bot_arms.mdl",
 	"models/weapons/c_models/c_pyro_bot_arms.mdl",
 	"models/weapons/c_models/c_spy_bot_arms.mdl",
-	"models/weapons/c_models/c_engineer_bot_arms.mdl",
-	""
+	"models/weapons/c_models/c_engineer_bot_arms.mdl"
 };
 
 public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
@@ -915,6 +903,20 @@ void SetWeaponCustomViewModel(int weapon, const char[] modelName)
 	SetEntProp(weapon, Prop_Send, "m_nCustomViewmodelModelIndex", GetEntProp(weapon, Prop_Data, "m_nModelIndex"));
 	SetEntProp(weapon, Prop_Send, "m_iViewModelIndex", GetEntProp(weapon, Prop_Data, "m_nModelIndex"));
 }
+
+void SetForcedTauntCam(int client, int value)
+{
+	SetVariantInt(value);
+	AcceptEntityInput(client, "SetForcedTauntCam");
+}
+
+/* void EquipWeaponSlot(int client, int slot)
+{
+	int weapon = GetPlayerWeaponSlot(client, slot);
+	
+	if (weapon != -1)
+		TF2Util_SetPlayerActiveWeapon(client, weapon);
+} */
 
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)

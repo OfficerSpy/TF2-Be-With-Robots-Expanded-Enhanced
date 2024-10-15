@@ -47,10 +47,11 @@ static Handle m_hDoAnimationEvent;
 static Handle m_hCapture;
 static Handle m_hPlayThrottledAlert;
 static Handle m_hPostInventoryApplication;
+static Handle m_hGetSentryBusterDamageAndKillThreshold;
 static Handle m_hRemoveObject;
 static Handle m_hGetCurrentWave;
 static Handle m_hDropCurrencyPack;
-static Handle m_hGetSentryBusterDamageAndKillThreshold;
+static Handle m_hDistributeCurrencyAmount;
 static Handle m_hClip1;
 
 bool InitSDKCalls(GameData hGamedata)
@@ -145,6 +146,20 @@ bool InitSDKCalls(GameData hGamedata)
 		failCount++;
 	}
 	
+	StartPrepSDKCall(SDKCall_GameRules);
+	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CTFGameRules::DistributeCurrencyAmount");
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer, VDECODE_FLAG_ALLOWNULL);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_ByValue);
+	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
+	if ((m_hDistributeCurrencyAmount = EndPrepSDKCall()) == null)
+	{
+		LogError("Failed to create SDKCall for CTFGameRules::DistributeCurrencyAmount!");
+		failCount++;
+	}
+	
 	StartPrepSDKCall(SDKCall_Entity);
 	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CTFWeaponBase::Clip1");
 	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
@@ -211,6 +226,11 @@ Address GetCurrentWave(int populator)
 void DropCurrencyPack(int client, CurrencyRewards_t nSize = TF_CURRENCY_PACK_SMALL, int nAmount = 0, bool bForceDistribute = false, int pMoneyMaker = -1)
 {
 	SDKCall(m_hDropCurrencyPack, client, nSize, nAmount, bForceDistribute, pMoneyMaker);
+}
+
+int DistributeCurrencyAmount(int nAmount, int pTFPlayer = -1, bool bShared = true, bool bCountAsDropped = false, bool bIsBonus = false)
+{
+	return SDKCall(m_hDistributeCurrencyAmount, nAmount, pTFPlayer, bShared, bCountAsDropped, bIsBonus);
 }
 
 int Clip1(int weapon)

@@ -62,6 +62,11 @@
 				"windows"	"\x55\x8B\xEC\x83\xEC\x18\x57\x8B\xF9\x8B\x07"
 				"linux"		"@_ZN9CTFPlayer16DropCurrencyPackE17CurrencyRewards_tibP11CBasePlayer"
 			}
+			"CTFGameRules::DistributeCurrencyAmount"
+			{
+				"windows"	"\x55\x8B\xEC\x83\xEC\x18\x80\x7D\x10\x00"
+				"linux"		"@_ZN12CTFGameRules24DistributeCurrencyAmountEiP9CTFPlayerbbb"
+			}
 			"CTFBot::GetEventChangeAttributes"
 			{
 				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x30\x29\x00\x00"
