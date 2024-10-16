@@ -128,15 +128,15 @@ public char g_strModelHumans[][] =
 public char g_sRobotArmModels[][] =
 {
 	"",
-	"models/weapons/c_models/c_scout_bot_arms.mdl",
-	"models/weapons/c_models/c_sniper_bot_arms.mdl",
-	"models/weapons/c_models/c_soldier_bot_arms.mdl",
-	"models/weapons/c_models/c_demo_bot_arms.mdl",
-	"models/weapons/c_models/c_medic_bot_arms.mdl",
-	"models/weapons/c_models/c_heavy_bot_arms.mdl",
-	"models/weapons/c_models/c_pyro_bot_arms.mdl",
-	"models/weapons/c_models/c_spy_bot_arms.mdl",
-	"models/weapons/c_models/c_engineer_bot_arms.mdl"
+	"models/mvm/weapons/c_models/c_scout_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_sniper_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_soldier_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_demo_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_medic_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_heavy_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_pyro_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_spy_bot_arms.mdl",
+	"models/mvm/weapons/c_models/c_engineer_bot_arms.mdl"
 };
 
 public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
@@ -900,8 +900,8 @@ void ForcePlayerToDropFlag(int client)
 void SetWeaponCustomViewModel(int weapon, const char[] modelName)
 {
 	SetEntityModel(weapon, modelName);
-	SetEntProp(weapon, Prop_Send, "m_nCustomViewmodelModelIndex", GetEntProp(weapon, Prop_Data, "m_nModelIndex"));
 	SetEntProp(weapon, Prop_Send, "m_iViewModelIndex", GetEntProp(weapon, Prop_Data, "m_nModelIndex"));
+	SetEntProp(weapon, Prop_Send, "m_nCustomViewmodelModelIndex", GetEntProp(weapon, Prop_Data, "m_nModelIndex"));
 }
 
 void SetForcedTauntCam(int client, int value)
@@ -916,6 +916,14 @@ void SetForcedTauntCam(int client, int value)
 	
 	if (weapon != -1)
 		TF2Util_SetPlayerActiveWeapon(client, weapon);
+} */
+
+/* void SetPlayerViewModel(int client, const char[] modelName)
+{
+	int vm = GetEntPropEnt(client, Prop_Send, "m_hViewModel");
+	
+	if (vm != -1)
+		SetEntityModel(vm, modelName);
 } */
 
 #if defined MOD_EXT_CBASENPC

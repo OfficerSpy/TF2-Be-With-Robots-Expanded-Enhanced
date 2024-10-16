@@ -333,6 +333,11 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	
 	if (IsPlayingAsRobot(client))
 	{
+		/* switch (bwr3_robot_custom_viewmodels.IntValue)
+		{
+			case 1:	SetPlayerViewModel(client, g_sRobotArmModels[TF2_GetPlayerClass(client)]);
+		} */
+		
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
 		MvMRobotPlayer(client).ClearTrackedSpyData();
 #endif
