@@ -592,6 +592,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				pack.WriteCell(playerClass);
 				pack.WriteString(classIcon);
 				pack.WriteCell(credits);
+				pack.WriteCell(g_bSpawningAsBossRobot[client]);
 				
 				break;
 			}
@@ -615,6 +616,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	TFClassType iClass = pack.ReadCell();
 	char strClassIcon[PLATFORM_MAX_PATH]; pack.ReadString(strClassIcon, sizeof(strClassIcon));
 	int iCreditAmount = pack.ReadCell();
+	bool bIsBossRobot = pack.ReadCell();
 	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	OSTFPlayer player = OSTFPlayer(client);
@@ -692,6 +694,9 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		nHealth = player.GetMaxHealth();
 	
 	//TODO: factor in GetHealthMultiplier for endless waves
+	
+	if (g_bBossProportionalHealth && bIsBossRobot)
+		CalculateBossRobotHealth(nHealth);
 	
 	ModifyMaxHealth(client, nHealth, _, _, flScale);
 	
@@ -2263,4 +2268,17 @@ bool BossRobotSystem_UpdateData()
 void BossRobotSystem_StartSpawnCooldown()
 {
 	g_flNextBossSpawnTime = GetGameTime() + g_flBossDelayDuration;
+}
+
+static void CalculateBossRobotHealth(int &maxHealth)
+{
+	int defenderCount = GetTeamClientCount(TFTeam_Red);
+	
+	if (defenderCount >= MVM_DEFAULT_DEFENDER_TEAM_SIZE)
+		return;
+	
+	int baseHealth = maxHealth / 10;
+	int healthPerPlayer = (maxHealth - baseHealth) / MVM_DEFAULT_DEFENDER_TEAM_SIZE;
+	
+	maxHealth = baseHealth + (defenderCount * healthPerPlayer);
 }

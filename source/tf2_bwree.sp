@@ -1746,18 +1746,6 @@ public Action CommandListener_TournamentPlayerReadystate(int client, const char[
 
 public Action CommandListener_Kill(int client, const char[] command, int argc)
 {
-#if !defined SUICIDE_DISTRIBUTE_CURRENCY
-	if (GameRules_GetRoundState() != RoundState_RoundRunning)
-		return Plugin_Continue;
-	
-	if (bwr3_drop_credits.IntValue > CREDITS_DROP_NONE)
-	{
-		//Don't allow suicide in spawn
-		if (TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(client), client, true))
-			return Plugin_Handled;
-	}
-#endif
-	
 	return Plugin_Continue;
 }
 
@@ -2079,7 +2067,40 @@ public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 	
 	switch (bwr3_robot_custom_viewmodels.IntValue)
 	{
-		case 1:	SetWeaponCustomViewModel(weapon, g_sRobotArmModels[TF2_GetPlayerClass(client)]);
+		case 1:
+		{
+			switch (EconItemView_GetItemDefIndex(weapon))
+			{
+				case TF_ITEMDEF_TF_WEAPON_PDA_SPY:
+				{
+					SetWeaponCustomViewModel(weapon, "models/mvm/weapons/v_models/v_pda_spy_bot.mdl");
+				}
+				case TF_ITEMDEF_TF_WEAPON_INVIS, TF_ITEMDEF_UPGRADEABLE_TF_WEAPON_INVIS:
+				{
+					SetWeaponCustomViewModel(weapon, "models/mvm/weapons/v_models/v_watch_spy_bot.mdl");
+				}
+				case TF_ITEMDEF_THE_DEAD_RINGER:
+				{
+					SetWeaponCustomViewModel(weapon, "models/mvm/weapons/v_models/v_watch_pocket_spy_bot.mdl");
+				}
+				case TF_ITEMDEF_THE_CLOAK_AND_DAGGER:
+				{
+					SetWeaponCustomViewModel(weapon, "models/mvm/weapons/v_models/v_watch_leather_spy_bot.mdl");
+				}
+				case TF_ITEMDEF_TTG_WATCH:
+				{
+					SetWeaponCustomViewModel(weapon, "models/mvm/weapons/v_models/v_ttg_watch_spy_bot.mdl");
+				}
+				case TF_ITEMDEF_THE_QUACKENBIRDT:
+				{
+					SetWeaponCustomViewModel(weapon, "models/mvm/workshop_partner/weapons/v_models/v_hm_watch/v_hm_watch_bot.mdl");
+				}
+				default:
+				{
+					SetWeaponCustomViewModel(weapon, g_sRobotArmModels[TF2_GetPlayerClass(client)]);
+				}
+			}
+		}
 	}
 }
 
@@ -2098,6 +2119,7 @@ void PrepareCustomViewModelAssets(int type)
 			PrecacheModel("models/mvm/weapons/v_models/v_watch_leather_spy_bot.mdl");
 			PrecacheModel("models/mvm/weapons/v_models/v_watch_pocket_spy_bot.mdl");
 			PrecacheModel("models/mvm/weapons/v_models/v_watch_spy_bot.mdl");
+			PrecacheModel("models/mvm/workshop_partner/weapons/v_models/v_hm_watch/v_hm_watch_bot.mdl");
 			
 			AddFileToDownloadsTable("models/mvm/weapons/c_models/c_demo_bot_animations.mdl");
 			AddFileToDownloadsTable("models/mvm/weapons/c_models/c_demo_bot_arms.dx80.vtx");
@@ -2203,6 +2225,33 @@ void PrepareCustomViewModelAssets(int type)
 			AddFileToDownloadsTable("materials/models/mvm/bots/spy/spy_bot_arms_normal.vtf");
 			AddFileToDownloadsTable("materials/models/mvm/bots/spy/spy_bot_arms_red.vmt");
 			AddFileToDownloadsTable("materials/models/mvm/bots/spy/spy_bot_arms_red.vtf");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_pda_spy_bot.dx80");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_pda_spy_bot.dx90.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_pda_spy_bot.mdl");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_pda_spy_bot.vvd");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_pda_spy_bot_animations.mdl");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_ttg_watch_spy_bot.dx80.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_ttg_watch_spy_bot.dx90.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_ttg_watch_spy_bot.mdl");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_ttg_watch_spy_bot.vvd");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_leather_spy_bot.dx80.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_leather_spy_bot.dx90.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_leather_spy_bot.mdl");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_leather_spy_bot.vvd");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_pocket_spy_bot.dx80.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_pocket_spy_bot.dx90.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_pocket_spy_bot.mdl");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_pocket_spy_bot.vvd");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_pocket_spy_bot_animations.mdl");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_spy_bot.dx80.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_spy_bot.dx90.vtx");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_spy_bot.mdl");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_spy_bot.vvd");
+			AddFileToDownloadsTable("models/mvm/weapons/v_models/v_watch_spy_bot_animations.mdl");
+			AddFileToDownloadsTable("models/mvm/workshop_partner/weapons/v_models/v_hm_watch/v_hm_watch_bot.dx80.vtx");
+			AddFileToDownloadsTable("models/mvm/workshop_partner/weapons/v_models/v_hm_watch/v_hm_watch_bot.dx90.vtx");
+			AddFileToDownloadsTable("models/mvm/workshop_partner/weapons/v_models/v_hm_watch/v_hm_watch_bot.mdl");
+			AddFileToDownloadsTable("models/mvm/workshop_partner/weapons/v_models/v_hm_watch/v_hm_watch_bot.vvd");
 		}
 	}
 }

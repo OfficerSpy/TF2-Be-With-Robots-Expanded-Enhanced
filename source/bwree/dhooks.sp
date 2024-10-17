@@ -247,18 +247,20 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 						{
 							CTakeDamageInfo info = CTakeDamageInfo(hParams.GetAddress(1));
 							int attacker = info.GetAttacker();
+							int inflictor = info.GetInflictor();
 							
 							if (attacker == pThis)
 							{
-#if defined SUICIDE_DISTRIBUTE_CURRENCY
-								if (TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(pThis), pThis, true))
+								if (info.GetDamageCustom() == TF_CUSTOM_SUICIDE)
 								{
 									bDropPack = false;
+									
+#if defined SUICIDE_DISTRIBUTE_CURRENCY
 									DistributeCurrencyAmount(dropAmount, _, _, true);
-								}
 #endif
+								}
 							}
-							else if (info.GetDamageCustom() == TF_CUSTOM_TRIGGER_HURT)
+							else if (inflictor > 0 && IsEntityATrigger(inflictor))
 							{
 								bDropPack = false;
 								DistributeCurrencyAmount(dropAmount, -1, true, true);

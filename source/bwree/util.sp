@@ -29,6 +29,9 @@
 //Raw value found in CTFBotVision::GetMaxVisionRange
 #define TFBOT_MAX_VISION_RANGE	6000.0
 
+//Cvar tf_mvm_defenders_team_size
+#define MVM_DEFAULT_DEFENDER_TEAM_SIZE	6
+
 #define SOUND_GIANT_SCOUT_LOOP	"mvm/giant_scout/giant_scout_loop.wav"
 #define SOUND_GIANT_SOLDIER_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
 #define SOUND_GIANT_PYRO_LOOP	"mvm/giant_pyro/giant_pyro_loop.wav"
@@ -39,6 +42,14 @@
 #if !defined __tf_econ_data_included
 #define TF_ITEMDEF_DEFAULT	-1
 #endif
+
+#define TF_ITEMDEF_TF_WEAPON_PDA_SPY	27
+#define TF_ITEMDEF_TF_WEAPON_INVIS	30
+#define TF_ITEMDEF_THE_DEAD_RINGER	59
+#define TF_ITEMDEF_THE_CLOAK_AND_DAGGER	60
+#define TF_ITEMDEF_UPGRADEABLE_TF_WEAPON_INVIS	212
+#define TF_ITEMDEF_TTG_WATCH	297
+#define TF_ITEMDEF_THE_QUACKENBIRDT	947
 
 enum SpawnLocationResult
 {
@@ -1385,6 +1396,17 @@ stock int GetLivingClientCountOnTeam(TFTeam team)
 	}
 	
 	return count;
+}
+
+stock bool IsEntityATrigger(int entity)
+{
+	//TODO: this isn't a reliable way to check for CBaseTrigger
+	char classname[PLATFORM_MAX_PATH];
+	
+	if (!GetEdictClassname(entity, classname, sizeof(classname)))
+		return false;
+	
+	return StrContains(classname, "trigger_", false) != -1;
 }
 
 stock bool IsLeftForInvasionMode()
