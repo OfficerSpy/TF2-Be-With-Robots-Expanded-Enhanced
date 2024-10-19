@@ -184,6 +184,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)
 {
+	g_flTimeRoundStarted = GetGameTime();
 	g_bCanBotsAttackInSpawn = CanBotsAttackWhileInSpawnRoom(g_iPopulationManager);
 	
 	StartSentryBusterCooldown();

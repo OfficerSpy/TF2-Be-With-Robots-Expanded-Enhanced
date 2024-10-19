@@ -53,6 +53,7 @@ static Handle m_hGetCurrentWave;
 static Handle m_hDropCurrencyPack;
 static Handle m_hDistributeCurrencyAmount;
 static Handle m_hClip1;
+static Handle m_hPickup;
 
 bool InitSDKCalls(GameData hGamedata)
 {
@@ -169,6 +170,16 @@ bool InitSDKCalls(GameData hGamedata)
 		failCount++;
 	}
 	
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CTFItem::PickUp");
+	PrepSDKCall_AddParameter(SDKType_CBasePlayer, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_Bool, SDKPass_Plain);
+	if ((m_hPickup = EndPrepSDKCall()) == null)
+	{
+		LogError("Failed to create SDKCall for CTFItem::PickUp!");
+		failCount++;
+	}
+	
 	if (failCount > 0)
 	{
 		LogError("InitSDKCalls: GameData file has %d problems!", failCount);
@@ -236,4 +247,9 @@ int DistributeCurrencyAmount(int nAmount, int pTFPlayer = -1, bool bShared = tru
 int Clip1(int weapon)
 {
 	return SDKCall(m_hClip1, weapon);
+}
+
+void CTFItemPickup(int item, int pPlayer, bool bInvisible)
+{
+	SDKCall(m_hPickup, item, pPlayer, bInvisible);
 }

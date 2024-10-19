@@ -96,6 +96,11 @@
 				"windows"	"344"
 				"linux"		"350"
 			}
+			"CTFItem::PickUp"
+			{
+				"windows"	"231"
+				"linux"		"269"
+			}
 			"CBaseEntity::ShouldTransmit"		
 			{
 				"windows"	"20"

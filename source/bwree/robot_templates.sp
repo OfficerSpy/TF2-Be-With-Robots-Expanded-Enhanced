@@ -2,7 +2,7 @@
 #define ROBOT_NAME_UNDEFINED	"TFBot"
 #define MAX_TELEPORTWHERE_NAME_COUNT	2
 #define TELEPORTWHERE_NAME_EACH_MAX_LENGTH	12
-#define MAX_ROBOT_TEMPLATES	130
+#define MAX_ROBOT_TEMPLATES	140
 #define MAX_ENGINEER_NEST_HINT_LOCATIONS	20
 
 #define BOSS_ROBOT_SPAWN_SOUND	")mvm/giant_heavy/giant_heavy_entrance.wav"
@@ -926,6 +926,25 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		{
 			//Default teleporting
 			MvMEngineerTeleportSpawn(client);
+		}
+	}
+	else
+	{
+		//Let's not try to pickup the flag before the bots do
+		if (GetGameTime() - g_flTimeRoundStarted >= nb_update_frequency.FloatValue + 0.1)
+		{
+			/* Most should start with the flag except some for various reasons
+			- spies teleport near victims
+			- teleporting engineers teleport in
+			- medics are healers
+			- aggressive does push to capture point */
+			if (nMission == CTFBot_NO_MISSION && iClass != TFClass_Medic && !roboPlayer.HasAttribute(CTFBot_AGGRESSIVE))
+			{
+				int flag = GetFlagToFetch(client);
+				
+				if (flag != -1 && CaptureFlag_IsHome(flag))
+					CTFItemPickup(flag, client, true);
+			}
 		}
 	}
 	

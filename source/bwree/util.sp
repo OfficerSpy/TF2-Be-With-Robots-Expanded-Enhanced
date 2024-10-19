@@ -14,6 +14,7 @@
 #include <stocklib_officerspy/util>
 #include <stocklib_officerspy/baseserver>
 #include <stocklib_officerspy/tf/tf_weaponbase>
+#include <stocklib_officerspy/tf/entity_capture_flag>
 
 #define IsEmptyString(%1) (%1[0] == 0)
 

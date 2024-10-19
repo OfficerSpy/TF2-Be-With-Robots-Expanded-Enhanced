@@ -144,6 +144,14 @@
 		"#format"	"{1:s}"
 		"en"	"{1} is stalling the game."
 	}
+	"Hud_Reloading_Barrage"
+	{
+		"en"	"RELOADING BARRAGE"
+	}
+	"Hud_Instruct_SentryBuster_Detonate"
+	{
+		"en"	"Use VoiceCommand \"MEDIC!\" to detonate"
+	}
 	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"

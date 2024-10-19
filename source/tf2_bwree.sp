@@ -94,7 +94,10 @@ enum struct esSuspectedSpyInfo
 #endif
 
 bool g_bLateLoad;
+
 bool g_bCanBotsAttackInSpawn;
+Handle g_hHudText;
+float g_flTimeRoundStarted;
 
 int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
@@ -801,6 +804,9 @@ public void OnPluginStart()
 	
 	InitGameEventHooks();
 	
+	g_hHudText = CreateHudSynchronizer();
+	m_adtBWRCooldown = new StringMap();
+	
 	GameData hGamedata = new GameData("tf2.bwree");
 	
 	if (hGamedata)
@@ -824,8 +830,6 @@ public void OnPluginStart()
 	{
 		SetFailState("Failed to load gamedata file tf2.bwree.txt");
 	}
-	
-	m_adtBWRCooldown = new StringMap();
 	
 	if (g_bLateLoad)
 	{
@@ -1200,7 +1204,30 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		buttons |= IN_ATTACK;
 	}
 	
-	int myWeapon = player.GetActiveTFWeapon();
+	int myWeapon = player.GetActiveWeapon();
+	
+	if (myWeapon != -1)
+	{
+		if (roboPlayer.HasAttribute(CTFBot_HOLD_FIRE_UNTIL_FULL_RELOAD) || tf_bot_always_full_reload.BoolValue)
+		{
+			if (Clip1(myWeapon) <= 0)
+				m_bIsWaitingForReload[client] = true;
+			
+			if (m_bIsWaitingForReload[client])
+			{
+				if (Clip1(myWeapon) < TF2Util_GetWeaponMaxClip(myWeapon))
+				{
+					//Our clip has not refiled yet, so don't attack right now
+					buttons &= ~IN_ATTACK;
+				}
+				else
+				{
+					//We have fully reloaded
+					m_bIsWaitingForReload[client] = false;
+				}
+			}
+		}
+	}
 	
 	if (buttons & IN_ATTACK)
 	{
@@ -1209,29 +1236,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			//Never allowed to attack
 			BlockAttackForDuration(client, 0.5);
 			buttons &= ~IN_ATTACK;
-		}
-		else if (myWeapon != -1)
-		{
-			if (roboPlayer.HasAttribute(CTFBot_HOLD_FIRE_UNTIL_FULL_RELOAD) || tf_bot_always_full_reload.BoolValue)
-			{
-				if (Clip1(myWeapon) <= 0)
-					m_bIsWaitingForReload[client] = true;
-				
-				if (m_bIsWaitingForReload[client])
-				{
-					if (Clip1(myWeapon) < TF2Util_GetWeaponMaxClip(myWeapon))
-					{
-						//Our clip has not refiled yet, so don't attack right now
-						BlockAttackForDuration(client, 0.5);
-						buttons &= ~IN_ATTACK;
-					}
-					else
-					{
-						//We have fully reloaded
-						m_bIsWaitingForReload[client] = false;
-					}
-				}
-			}
 		}
 	}
 	
@@ -1306,6 +1310,17 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 		}
+	}
+	
+	if (m_bIsWaitingForReload[client])
+	{
+		SetHudTextParams(-1.0, -0.55, 0.25, 0, 255, 0, 255, 0, 0.0, 0.0, 0.0);
+		ShowSyncHudText(client, g_hHudText, "%t", "Hud_Reloading_Barrage");
+	}
+	else if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
+	{
+		SetHudTextParams(-1.0, -1.0, 0.1, 255, 0, 0, 0, 0, 0.0, 0.0, 0.0);
+		ShowSyncHudText(client, g_hHudText, "%t", "Hud_Instruct_SentryBuster_Detonate");
 	}
 	
 	float myAbsOrigin[3]; GetClientAbsOrigin(client, myAbsOrigin);
@@ -2062,8 +2077,8 @@ public Action PlayerRobot_WeaponCanSwitchTo(int client, int weapon)
 
 public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 {
-	/* if (GameRules_GetRoundState() == RoundState_BetweenRounds)
-		return; */
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return;
 	
 	switch (bwr3_robot_custom_viewmodels.IntValue)
 	{
@@ -2787,6 +2802,78 @@ bool CanPerformNewBehaviorAction(int client)
 void SetNextBehaviorActionTime(int client, float value)
 {
 	m_flNextActionTime[client] = GetEngineTime() + value;
+}
+
+int GetFlagToFetch(int client)
+{
+	if (TF2_GetPlayerClass(client) == TFClass_Engineer)
+		return -1;
+	
+	if (MvMRobotPlayer(client).HasAttribute(CTFBot_IGNORE_FLAG))
+		return -1;
+	
+	int ent = -1;
+	ArrayList adtFlags = new ArrayList();
+	int nCarriedFlags = 0;
+	int enemyTeam = view_as<int>(TF2_GetEnemyTeam(TF2_GetClientTeam(client)));
+	
+	while ((ent = FindEntityByClassname(ent, "item_teamflag")) != -1)
+	{
+		if (CaptureFlag_IsDisabled(ent))
+			continue;
+		
+		//We do not look for these as we are not looking for the enemy's flag
+		if (CaptureFlag_GetType(ent) == TF_FLAGTYPE_CTF)
+			continue;
+		
+		if (BaseEntity_GetTeamNumber(ent) != enemyTeam)
+			adtFlags.Push(ent);
+		
+		if (CaptureFlag_IsStolen(ent))
+			nCarriedFlags++;
+	}
+	
+	int iClosestFlag = -1;
+	float flClosestFlagDist = FLT_MAX;
+	int iClosestUncarriedFlag = -1;
+	float flClosestUncarriedFlagDist = FLT_MAX;
+	
+	//Always in mvm, so we don't care about non-mvm specific rules here
+	float myAbsOrigin[3]; GetClientAbsOrigin(client, myAbsOrigin);
+	
+	for (int i = 0; i < adtFlags.Length; i++)
+	{
+		int iFlag = adtFlags.Get(i);
+		
+		//TODO: m_followers?
+		
+		//Find closest flag
+		float vecSubtracted[3]; SubtractVectors(GetAbsOrigin(iFlag), myAbsOrigin, vecSubtracted);
+		float flDist = GetVectorLength(vecSubtracted, true);
+		
+		if (flDist < flClosestFlagDist)
+		{
+			iClosestFlag = iFlag;
+			flClosestFlagDist = flDist;
+		}
+		
+		//Find closest uncarried flag
+		if (nCarriedFlags < adtFlags.Length && !CaptureFlag_IsStolen(iFlag))
+		{
+			if (flDist < flClosestUncarriedFlagDist)
+			{
+				iClosestUncarriedFlag = iFlag;
+				flClosestUncarriedFlagDist = flDist;
+			}
+		}
+	}
+	
+	CloseHandle(adtFlags);
+	
+	if (iClosestUncarriedFlag != -1)
+		return iClosestUncarriedFlag;
+	
+	return iClosestFlag;
 }
 
 void RemoveAllRobotPlayerOwnedEntities()

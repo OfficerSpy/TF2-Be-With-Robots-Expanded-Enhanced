@@ -251,14 +251,11 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 							
 							if (attacker == pThis)
 							{
-								if (info.GetDamageCustom() == TF_CUSTOM_SUICIDE)
-								{
-									bDropPack = false;
-									
+								bDropPack = false;
+								
 #if defined SUICIDE_DISTRIBUTE_CURRENCY
-									DistributeCurrencyAmount(dropAmount, _, _, true);
+								DistributeCurrencyAmount(dropAmount, _, _, true);
 #endif
-								}
 							}
 							else if (inflictor > 0 && IsEntityATrigger(inflictor))
 							{
