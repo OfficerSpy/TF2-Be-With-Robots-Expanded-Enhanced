@@ -728,7 +728,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.4",
+	version = "1.1.5",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -780,10 +780,10 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_viewnextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
 	RegConsoleCmd("sm_nextrobot", Command_ViewNextRobotTemplate, "View the next robot you are going to spawn as.");
 	RegConsoleCmd("sm_robotmenu", Command_RobotTemplateMenu);
-	// RegConsoleCmd("sm_rm", Command_RobotTemplateMenu);
+	RegConsoleCmd("sm_rm", Command_RobotTemplateMenu);
 	RegConsoleCmd("sm_nextrobotmenu", Command_RobotTemplateMenu);
 	RegConsoleCmd("sm_newrobot", Command_ReselectRobot);
-	// RegConsoleCmd("sm_nr", Command_ReselectRobot);
+	RegConsoleCmd("sm_nr", Command_ReselectRobot);
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
@@ -1105,6 +1105,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		//Player is always allowed to respawn when they're dead
 		g_bCanRespawn[client] = true;
+		
+		m_bIsWaitingForReload[client] = false;
 		
 		//Spawn the player in the next respawn wave
 		if (roboPlayer.NextSpawnTime <= GetGameTime() && !IsBotSpawningPaused(g_iPopulationManager))
