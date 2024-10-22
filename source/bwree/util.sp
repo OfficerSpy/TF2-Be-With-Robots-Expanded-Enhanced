@@ -606,6 +606,7 @@ void PressAltFireButton(int client)
 	g_iForcedButtonInput[client] = IN_ATTACK2;
 }
 
+//Based on DoTeleporterOverride
 bool IsTeleporterUsableByRobots(int teleporter)
 {
 	OSBaseObject cboTeleporter = OSBaseObject(teleporter);
@@ -620,6 +621,12 @@ bool IsTeleporterUsableByRobots(int teleporter)
 		return false;
 	
 	if (cboTeleporter.IsPlasmaDisabled())
+		return false;
+	
+	if (cboTeleporter.IsPlacing())
+		return false;
+	
+	if (cboTeleporter.IsCarried())
 		return false;
 	
 	return true;

@@ -32,6 +32,7 @@ Author: ★ Officer Spy ★
 #define PLUGIN_PREFIX	"[BWR E&E]"
 
 #define MAP_CONFIG_DIRECTORY	"configs/bwree/map"
+#define MAX_ROBOT_SPAWN_NAMES	3
 
 #define ALERT_FLAG_HELD_TOO_LONG_SOUND	"misc/doomsday_lift_warning.wav"
 
@@ -39,6 +40,7 @@ Author: ★ Officer Spy ★
 
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
+#define PLAYER_UBER_LOGIC
 #define OVERRIDE_PLAYER_RESPAWN_TIME
 #define SPY_DISGUISE_VISION_OVERRIDE
 // #define ALLOW_BUILDING_BETWEEN_ROUNDS
@@ -50,32 +52,32 @@ enum
 {
 	BOMB_UPGRADE_MANUAL,
 	BOMB_UPGRADE_AUTO
-};
+}
 
 enum
 {
 	COSMETIC_MODE_NONE = 0,
 	COSMETIC_MODE_ALLOW_ALWAYS
-};
+}
 
 enum
 {
 	CREDITS_DROP_NONE = 0,
 	CREDITS_DROP_NORMAL,
 	CREDITS_DROP_FORCE_DISTRIBUTE
-};
+}
 
 enum
 {
 	ENGINEER_TELEPORT_METHOD_NONE = 0,
 	ENGINEER_TELEPORT_METHOD_MENU
-};
+}
 
 enum
 {
 	SPY_TELEPORT_METHOD_NONE = 0,
 	SPY_TELEPORT_METHOD_MENU
-};
+}
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 enum struct eDisguisedStruct
@@ -93,14 +95,29 @@ enum struct esSuspectedSpyInfo
 }
 #endif
 
+enum eRobotSpawnType
+{
+	ROBOT_SPAWN_NO_TYPE = -1,
+	ROBOT_SPAWN_STANDARD,
+	ROBOT_SPAWN_GIANT,
+	ROBOT_SPAWN_SNIPER,
+	ROBOT_SPAWN_SPY,
+	ROBOT_SPAWN_TYPE_COUNT
+}
+
 bool g_bLateLoad;
 
 bool g_bCanBotsAttackInSpawn;
 Handle g_hHudText;
 float g_flTimeRoundStarted;
 
+// PRESERVED ENTITIES
 int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
+
+// MAP SETTINGS
+float g_flMapGiantScale;
+char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MAX_PATH];
 
 static StringMap m_adtBWRCooldown;
 
@@ -728,7 +745,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.5",
+	version = "1.1.6",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -784,6 +801,12 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_nextrobotmenu", Command_RobotTemplateMenu);
 	RegConsoleCmd("sm_newrobot", Command_ReselectRobot);
 	RegConsoleCmd("sm_nr", Command_ReselectRobot);
+	RegConsoleCmd("sm_robotspawn", Command_SpawnNewRobotNow);
+	RegConsoleCmd("sm_rs", Command_SpawnNewRobotNow);
+	RegConsoleCmd("sm_newspawnpoint", Command_FindUseNewSpawnLocation);
+	RegConsoleCmd("sm_newspawnarea", Command_FindUseNewSpawnLocation);
+	RegConsoleCmd("sm_newspawn", Command_FindUseNewSpawnLocation);
+	RegConsoleCmd("sm_ns", Command_FindUseNewSpawnLocation);
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
@@ -963,6 +986,7 @@ public void OnConfigsExecuted()
 	for (eRobotTemplateType i = ROBOT_STANDARD; i < ROBOT_TEMPLATE_TYPE_COUNT; i++)
 		UpdateRobotTemplateDataForType(i);
 	
+	MapConfig_UpdateSettings();
 	UpdateEngineerHintLocations();
 }
 
@@ -1275,6 +1299,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						buttons &= ~IN_ATTACK2;
 					}
 				}
+#if defined PLAYER_UBER_LOGIC
 				case TF_WEAPON_MEDIGUN:
 				{
 					bool bUseUber = true; //TODO: change this
@@ -1310,6 +1335,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						}
 					}
 				}
+#endif
 			}
 		}
 	}
@@ -1658,6 +1684,53 @@ public Action Command_ReselectRobot(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_SpawnNewRobotNow(int client, int args)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
+	RobotPlayer_SpawnNow(client);
+	
+	return Plugin_Handled;
+}
+
+public Action Command_FindUseNewSpawnLocation(int client, int args)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+	{
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "FindNewSpawn_Denied_RoundState");
+		return Plugin_Handled;
+	}
+	
+	if (!TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(client), client, true))
+	{
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "FindNewSpawn_Denied_OutsideSpawn");
+		return Plugin_Handled;
+	}
+	
+	float newSpawnPos[3];
+	
+	if (FindSpawnLocation(newSpawnPos, BaseAnimating_GetModelScale(client), true, GetRobotPlayerSpawnType(MvMRobotPlayer(client))) == SPAWN_LOCATION_NOT_FOUND)
+	{
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "FindNewSpawn_Failed_Search");
+		return Plugin_Handled;
+	}
+	
+	newSpawnPos[2] += TFBOT_STEP_HEIGHT;
+	
+	TeleportEntity(client, newSpawnPos);
+	LogAction(client, -1, "%L selected a new spawn point.", client);
+	
+#if defined TESTING_ONLY
+	PrintToChatAll("[Command_FindUseNewSpawnLocation] New spawn at %f %f %f", newSpawnPos[0], newSpawnPos[1], newSpawnPos[2]);
+#endif
+	
+	return Plugin_Handled;
+}
+
 public Action Command_PlayAsRobotType(int client, int args)
 {
 	if (!IsPlayingAsRobot(client))
@@ -1883,9 +1956,12 @@ public Action Actor_SetTransmit(int entity, int client)
 			return Plugin_Continue;
 #endif
 		
-		/* In MvM, BLUE bots cannot see teleporters due to CTFBotVision::CollectPotentiallyVisibleEntities
-		We will however let robot players see their own team teleporters */
-		if (BaseEntity_IsBaseObject(entity) && TF2_GetObjectType(entity) == TFObject_Teleporter && BaseEntity_GetTeamNumber(entity) != view_as<int>(TFTeam_Blue))
+		//Always see entities on our team
+		if (BaseEntity_GetTeamNumber(entity) == GetClientTeam(client))
+			return Plugin_Continue;
+		
+		//In MvM, BLUE bots cannot see teleporters due to CTFBotVision::CollectPotentiallyVisibleEntities
+		if (BaseEntity_IsBaseObject(entity) && TF2_GetObjectType(entity) == TFObject_Teleporter)
 			return Plugin_Handled;
 		
 		float maxSightRange = MvMRobotPlayer(client).GetMaxVisionRange();
@@ -3098,3 +3174,68 @@ bool IsPlayerNoticedByRobot(int client, int subject)
 	return true;
 }
 #endif
+
+void MapConfig_UpdateSettings()
+{
+	//Reset all data
+	g_flMapGiantScale = -1.0;
+	
+	for (int i = 0; i < sizeof(g_sMapSpawnNames); i++)
+		for (int j = 0; j < sizeof(g_sMapSpawnNames[]); j++)
+			g_sMapSpawnNames[i][j] = NULL_STRING;
+	
+	char mapName[PLATFORM_MAX_PATH]; GetCurrentMap(mapName, sizeof(mapName));
+	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s.cfg", MAP_CONFIG_DIRECTORY, mapName);
+	
+	if (FileExists(filePath))
+	{
+		KeyValues kv = new KeyValues("MapConfig");
+		
+		kv.ImportFromFile(filePath);
+		
+		if (kv.JumpToKey("Settings"))
+		{
+			g_flMapGiantScale = kv.GetFloat("giant_scale", -1.0);
+			kv.GoBack();
+		}
+		
+		if (kv.JumpToKey("SpawnPoints"))
+		{
+			//Align this with eRobotSpawnType appropriately
+			char keynameSpawnType[ROBOT_SPAWN_TYPE_COUNT][] = {"standard", "giant", "sniper", "spy"};
+			
+			char spawnNameList[PLATFORM_MAX_PATH];
+			int count = 0;
+			
+			for (int i = 0; i < sizeof(keynameSpawnType); i++)
+			{
+				kv.GetString(keynameSpawnType[i], spawnNameList, sizeof(spawnNameList));
+				count += ExplodeString(spawnNameList, ",", g_sMapSpawnNames[i], sizeof(g_sMapSpawnNames[]), sizeof(g_sMapSpawnNames[][]));
+			}
+			
+			kv.GoBack();
+			
+			LogMessage("MapConfig_UpdateSettings: %d spawns specified", count);
+		}
+		
+		CloseHandle(kv);
+	}
+	
+#if defined TESTING_ONLY
+	LogMessage("MapConfig_UpdateSettings: Giant scale: %f", g_flMapGiantScale);
+#endif
+}
+
+eRobotSpawnType GetRobotPlayerSpawnType(MvMRobotPlayer roboPlayer)
+{
+	if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+		return ROBOT_SPAWN_GIANT;
+	
+	if (roboPlayer.HasMission(CTFBot_MISSION_SNIPER))
+		return ROBOT_SPAWN_SNIPER;
+	
+	if (TF2_GetPlayerClass(roboPlayer.index) == TFClass_Spy)
+		return ROBOT_SPAWN_SPY;
+	
+	return ROBOT_SPAWN_STANDARD;
+}

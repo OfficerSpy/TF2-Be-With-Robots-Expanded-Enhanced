@@ -152,6 +152,18 @@
 	{
 		"en"	"Use VoiceCommand \"MEDIC!\" to detonate"
 	}
+	"FindNewSpawn_Denied_OutsideSpawn"
+	{
+		"en"	"You are outside the spawn room."
+	}
+	"FindNewSpawn_Denied_RoundState"
+	{
+		"en"	"You cannot use this as this time."
+	}
+	"FindNewSpawn_Failed_Search"
+	{
+		"en"	"Failed to find you a new spawnpoint!"
+	}
 	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"

@@ -291,7 +291,7 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 		EmitGameSoundToAll("Engineer.MVM_AutoBuildingTeleporter02", client);
 		
 		//Objects use context think, but this is apparently called while it's building so we'll just use it as a think
-		SDKHook(entity, SDKHook_GetMaxHealth, GetMaxHealth_TeleporterFinish);
+		SDKHook(entity, SDKHook_GetMaxHealth, TeleporterConstructionGetMaxHealth);
 	}
 	
 	TF2_PushAllPlayersAway(GetAbsOrigin(entity), 400.0, 500.0, TFTeam_Red);
@@ -442,7 +442,7 @@ static void Event_VoteOptions(Event event, const char[] name, bool dontBroadcast
 }
 #endif
 
-public Action GetMaxHealth_TeleporterFinish(int entity, int &maxhealth)
+static Action TeleporterConstructionGetMaxHealth(int entity, int &maxhealth)
 {
 	if (GetEntPropFloat(entity, Prop_Send, "m_flPercentageConstructed") == 1.0)
 	{
@@ -458,7 +458,7 @@ public Action GetMaxHealth_TeleporterFinish(int entity, int &maxhealth)
 		/* While we can use a temporary entity, it is a bit risky for persistent particles
 		Not only that, but unless the building always transmits, the particle won't be visible to everyone */
 		IPS_CreateParticle(entity, "teleporter_mvm_bot_persist", vec, true);
-		SDKUnhook(entity, SDKHook_GetMaxHealth, GetMaxHealth_TeleporterFinish);
+		SDKUnhook(entity, SDKHook_GetMaxHealth, TeleporterConstructionGetMaxHealth);
 	}
 	
 	return Plugin_Continue;

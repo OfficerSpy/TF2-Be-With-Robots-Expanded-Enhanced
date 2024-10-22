@@ -16,14 +16,14 @@ enum eRobotTemplateType
 	ROBOT_SENTRYBUSTER,
 	ROBOT_BOSS,
 	ROBOT_TEMPLATE_TYPE_COUNT
-};
+}
 
 enum eEngineerTeleportType
 {
 	ENGINEER_TELEPORT_NEAR_BOMB,
 	ENGINEER_TELEPORT_RANDOM,
 	ENGINEER_TELEPORT_NEAR_TEAMMATE
-};
+}
 
 // Robot template property arrays
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
@@ -685,6 +685,10 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 	}
 	
+	//Check for custom giant robot scaling
+	if (flScale <= 0.0 && roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+		flScale = g_flMapGiantScale > 0.0 ? g_flMapGiantScale : tf_mvm_miniboss_scale.FloatValue;
+	
 	if (flScale > 0.0)
 		player.SetModelScale(flScale);
 	
@@ -698,7 +702,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	if (g_bBossProportionalHealth && bIsBossRobot)
 		CalculateBossRobotHealth(nHealth);
 	
-	ModifyMaxHealth(client, nHealth, _, _, flScale);
+	ModifyMaxHealth(client, nHealth, _, false);
 	
 	StartIdleSound(client, iClass);
 	
@@ -862,12 +866,9 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 	}
 	
-	if (flScale <= 0.0 && roboPlayer.HasAttribute(CTFBot_MINIBOSS))
-		flScale = tf_mvm_miniboss_scale.FloatValue;
-	
 	float rawHere[3];
 	
-	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale > 0.0 ? flScale : 1.0);
+	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale > 0.0 ? flScale : 1.0, _, GetRobotPlayerSpawnType(roboPlayer));
 	
 	if (result == SPAWN_LOCATION_TELEPORTER)
 		OnBotTeleported(client);
@@ -1521,41 +1522,46 @@ static int GetMostThreateningSentry()
 	return -1;
 }
 
-SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale = 1.0)
+SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale = 1.0, bool bIgnoreTeleporter = false, eRobotSpawnType iRobotSpawnType = ROBOT_SPAWN_NO_TYPE)
 {
-	int activeTeleporter = EntRefToEntIndex(g_iRefLastTeleporter);
+	int ent;
 	
-	if (activeTeleporter != INVALID_ENT_REFERENCE && IsTeleporterUsableByRobots(activeTeleporter))
+	if (!bIgnoreTeleporter)
 	{
-		//Just use the teleporter we're already aware of
-		vSpawnPosition = WorldSpaceCenter(activeTeleporter);
-		return SPAWN_LOCATION_TELEPORTER;
-	}
-	
-	ArrayList adtTeleporter = new ArrayList();
-	int ent = -1;
-	
-	while ((ent = FindEntityByClassname(ent, "obj_teleporter")) != -1)
-	{
-		if (!IsTeleporterUsableByRobots(ent))
-			continue;
+		int activeTeleporter = EntRefToEntIndex(g_iRefLastTeleporter);
 		
-		adtTeleporter.Push(ent);
-	}
-	
-	if (adtTeleporter.Length > 0)
-	{
-		int which = GetRandomInt(0, adtTeleporter.Length - 1);
-		int chosenTeleporter = adtTeleporter.Get(which);
+		if (activeTeleporter != INVALID_ENT_REFERENCE && IsTeleporterUsableByRobots(activeTeleporter))
+		{
+			//Just use the teleporter we're already aware of
+			vSpawnPosition = WorldSpaceCenter(activeTeleporter);
+			return SPAWN_LOCATION_TELEPORTER;
+		}
+		
+		ArrayList adtTeleporter = new ArrayList();
+		ent = -1;
+		
+		while ((ent = FindEntityByClassname(ent, "obj_teleporter")) != -1)
+		{
+			if (!IsTeleporterUsableByRobots(ent))
+				continue;
+			
+			adtTeleporter.Push(ent);
+		}
+		
+		if (adtTeleporter.Length > 0)
+		{
+			int which = GetRandomInt(0, adtTeleporter.Length - 1);
+			int chosenTeleporter = adtTeleporter.Get(which);
+			delete adtTeleporter;
+			
+			vSpawnPosition = WorldSpaceCenter(chosenTeleporter);
+			g_iRefLastTeleporter = EntIndexToEntRef(chosenTeleporter);
+			
+			return SPAWN_LOCATION_TELEPORTER;
+		}
+		
 		delete adtTeleporter;
-		
-		vSpawnPosition = WorldSpaceCenter(chosenTeleporter);
-		g_iRefLastTeleporter = EntIndexToEntRef(chosenTeleporter);
-		
-		return SPAWN_LOCATION_TELEPORTER;
 	}
-	
-	delete adtTeleporter;
 	
 	ent = -1;
 	ArrayList adtSpawnPoints = new ArrayList();
@@ -1565,10 +1571,30 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 		if (GetEntProp(ent, Prop_Data, "m_bDisabled") == 1)
 			continue;
 		
-		if (BaseEntity_GetTeamNumber(ent) == view_as<int>(TFTeam_Red))
-			continue;
-		
-		adtSpawnPoints.Push(ent);
+		//Check if the map config specified its own spawn names for this type of robot spawning
+		if (iRobotSpawnType > ROBOT_SPAWN_NO_TYPE && strlen(g_sMapSpawnNames[iRobotSpawnType][0]) > 0)
+		{
+			char targetname[PLATFORM_MAX_PATH];
+			
+			for (int i = 0; i < sizeof(g_sMapSpawnNames[]); i++)
+			{
+				//BLANK! the rest probably are too
+				if (strlen(g_sMapSpawnNames[iRobotSpawnType][i]) < 1)
+					break;
+				
+				BaseEntity_GetEntityName(ent, targetname, sizeof(targetname));
+				
+				if (StrEqual(targetname, g_sMapSpawnNames[iRobotSpawnType][i], false))
+					adtSpawnPoints.Push(ent);
+			}
+		}
+		else
+		{
+			if (BaseEntity_GetTeamNumber(ent) == view_as<int>(TFTeam_Red))
+				continue;
+			
+			adtSpawnPoints.Push(ent);
+		}
 	}
 	
 	if (adtSpawnPoints.Length == 0)
