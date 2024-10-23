@@ -210,10 +210,6 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
 		return MRES_Ignored;
 	
-	//Don't decrement the class icon in the wavebar
-	if (!bwr3_edit_wavebar.BoolValue)
-		SetAsSupportEnemy(pThis, true);
-	
 	if (IsPlayingAsRobot(pThis))
 	{
 		/* This does several things for when the player dies, but most notably
@@ -225,6 +221,31 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 		- sends TE particle effect "bot_death"
 		- BLUE flag carrier fires event "mvm_bomb_carrier_killed" */
 		SetClientAsBot(pThis, true);
+		
+#if defined MANUAL_DEATH_WAVEBAR_EDIT
+		if (bwr3_edit_wavebar.BoolValue)
+		{
+			SetAsSupportEnemy(pThis, true);
+			
+			if (IsValidEntity(g_iObjectiveResource))
+			{
+				char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(pThis, iconName, sizeof(iconName));
+				int iFlags = MvMRobotPlayer(pThis).GetMission() >= CTFBot_MISSION_SNIPER ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
+				
+				if (TF2_IsMiniBoss(pThis))
+					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+				
+				if (IsClassIconUsedInCurrentWave(iconName))
+					TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
+				else
+					TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
+			}
+		}
+#else
+		//Don't decrement the class icon in the wavebar
+		if (!bwr3_edit_wavebar.BoolValue)
+			SetAsSupportEnemy(pThis, true);
+#endif
 		
 		if (bwr3_drop_credits.IntValue > CREDITS_DROP_NONE)
 		{
@@ -297,7 +318,27 @@ static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 		return MRES_Ignored;
 	
 	if (IsPlayingAsRobot(pThis))
+	{
 		SetClientAsBot(pThis, false);
+		
+#if !defined MANUAL_DEATH_WAVEBAR_EDIT
+		if (bwr3_edit_wavebar.BoolValue)
+		{
+			if (IsValidEntity(g_iObjectiveResource))
+			{
+				char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(pThis, iconName, sizeof(iconName));
+				int iFlags = MvMRobotPlayer(pThis).GetMission() >= CTFBot_MISSION_SNIPER ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
+				
+				if (TF2_IsMiniBoss(pThis))
+					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+				
+				//Remove our class icon from the wavebar entirely if it wasn't originally part of it and has zero count
+				if (!IsClassIconUsedInCurrentWave(iconName) && TF2_GetWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags) == 0)
+					TF2_SetWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 0, false);
+			}
+		}
+#endif
+	}
 	
 	return MRES_Ignored;
 }

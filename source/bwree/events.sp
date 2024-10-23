@@ -187,8 +187,11 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	g_flTimeRoundStarted = GetGameTime();
 	g_bCanBotsAttackInSpawn = CanBotsAttackWhileInSpawnRoom(g_iPopulationManager);
 	
+	if (bwr3_edit_wavebar.BoolValue)
+		UpdateWaveCurrentUsedIcons();
+	
 	StartSentryBusterCooldown();
-	BossRobotSystem_UpdateData();
+	BossRobotSystem_UpdateSettings();
 	BossRobotSystem_StartSpawnCooldown();
 	
 #if !defined OVERRIDE_PLAYER_RESPAWN_TIME
@@ -239,9 +242,12 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	{
 		if (IsValidEntity(g_iObjectiveResource))
 		{
-			//TODO: we should actually check if the teleporter icon already exists in the wavebar in the first place
-			TF2_SetWaveIconSpawnCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION, 1, false);
-			TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION);
+			if (!IsClassIconUsedInCurrentWave(TFOR_TELEPORTER_STRING))
+			{
+				//TODO: how about you put this in the wavebar without actually setting a count > 0?
+				TF2_SetWaveIconSpawnCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION, 1, false);
+				TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION);
+			}
 		}
 	}
 }
@@ -275,14 +281,14 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	if (objectType == TFObject_Sentry)
 	{
 		//Destroy the previous building we have built
-		DetonateObjectsOfType(client, TFObject_Sentry, _, entity);
+		DetonateAllObjectsOfType(client, TFObject_Sentry, _, entity);
 		
 		//Start the sentry at level 3
 		SetEntProp(entity, Prop_Data, "m_nDefaultUpgradeLevel", 2);
 	}
 	else if (objectType == TFObject_Teleporter)
 	{
-		DetonateObjectsOfType(client, TFObject_Teleporter, TFObjectMode_Exit, entity);
+		DetonateAllObjectsOfType(client, TFObject_Teleporter, TFObjectMode_Exit, entity);
 		
 		int iHealth = BaseEntity_GetMaxHealth(entity) * tf_bot_engineer_building_health_multiplier.IntValue;
 		BaseEntity_SetMaxHealth(entity, iHealth);
@@ -325,6 +331,9 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	{
 		if (IsPlayingAsRobot(client))
 		{
+			if (!bwr3_allow_movement.BoolValue)
+				SetEntityMoveType(client, MOVETYPE_NONE);
+			
 			//Robot players are ignored by sentries between rounds
 			SetEntityFlags(client, GetEntityFlags(client) | FL_NOTARGET);
 		}

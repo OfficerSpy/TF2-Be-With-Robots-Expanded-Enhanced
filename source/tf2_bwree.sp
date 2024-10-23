@@ -47,6 +47,7 @@ Author: ★ Officer Spy ★
 #define REMOVE_DEBUFF_COND_BY_ROBOTS
 #define NO_AIRBLAST_BETWEEN_ROUNDS
 #define SUICIDE_DISTRIBUTE_CURRENCY
+// #define MANUAL_DEATH_WAVEBAR_EDIT
 
 enum
 {
@@ -173,6 +174,8 @@ ConVar bwr3_bomb_upgrade_mode;
 ConVar bwr3_cosmetic_mode;
 ConVar bwr3_max_invaders;
 ConVar bwr3_min_players_for_giants;
+ConVar bwr3_allow_movement;
+ConVar bwr3_allow_readystate;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
 ConVar bwr3_flag_max_hold_time;
@@ -740,6 +743,8 @@ int g_iModelIndexRobots[sizeof(g_sBotModels)];
 int g_iModelIndexHumans[sizeof(g_strModelHumans)];
 #endif
 
+static char m_sCurrentWaveIconNames[MVM_CLASS_TYPES_PER_WAVE_MAX * 2][PLATFORM_MAX_PATH];
+
 public Plugin myinfo =
 {
 	name = PLUGIN_NAME,
@@ -763,6 +768,8 @@ public void OnPluginStart()
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
+	bwr3_allow_movement = CreateConVar("sm_bwr3_allow_movement", "1", _, FCVAR_NOTIFY);
+	bwr3_allow_readystate = CreateConVar("sm_bwr3_allow_readystate", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
@@ -782,6 +789,7 @@ public void OnPluginStart()
 	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "0", _, FCVAR_NOTIFY);
 	bwr3_robot_custom_viewmodels = CreateConVar("sm_bwr3_robot_custom_viewmodels", "0", _, FCVAR_NOTIFY);
 	
+	HookConVarChange(bwr3_allow_movement, ConVarChanged_AllowMovement);
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_gatebot_template_file, ConVarChanged_RobotTemplateFile);
@@ -1563,6 +1571,16 @@ public void TF2_OnConditionRemoved(int client, TFCond condition)
 	}
 }
 
+public void ConVarChanged_AllowMovement(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	if (GameRules_GetRoundState() != RoundState_BetweenRounds)
+		return;
+	
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i) && IsPlayingAsRobot(i))
+			SetEntityMoveType(i, StringToInt(newValue) ? MOVETYPE_WALK : MOVETYPE_NONE);
+}
+
 public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue, const char[] newValue)
 {
 	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, newValue);
@@ -1827,9 +1845,13 @@ public Action CommandListener_Voicemenu(int client, const char[] command, int ar
 
 public Action CommandListener_TournamentPlayerReadystate(int client, const char[] command, int argc)
 {
-	//Robot players can't start the game
 	if (IsPlayingAsRobot(client))
+	{
+		if (bwr3_allow_readystate.BoolValue)
+			return Plugin_Continue;
+		
 		return Plugin_Handled;
+	}
 	
 	return Plugin_Continue;
 }
@@ -2349,6 +2371,24 @@ void PrepareCustomViewModelAssets(int type)
 	}
 }
 
+void UpdateWaveCurrentUsedIcons()
+{
+	for (int i = 0; i < MVM_CLASS_TYPES_PER_WAVE_MAX; i++)
+	{
+		GetEntPropString(g_iObjectiveResource, Prop_Data, "m_iszMannVsMachineWaveClassNames", m_sCurrentWaveIconNames[i], sizeof(m_sCurrentWaveIconNames[]));
+		GetEntPropString(g_iObjectiveResource, Prop_Data, "m_iszMannVsMachineWaveClassNames2", m_sCurrentWaveIconNames[i + MVM_CLASS_TYPES_PER_WAVE_MAX], sizeof(m_sCurrentWaveIconNames[]));
+	}
+}
+
+bool IsClassIconUsedInCurrentWave(const char[] iconName)
+{
+	for (int i = 0; i < sizeof(m_sCurrentWaveIconNames); i++)
+		if (StrEqual(iconName, m_sCurrentWaveIconNames[i], false))
+			return true;
+	
+	return false;
+}
+
 float GetBWRCooldownTimeLeft(int client)
 {
 	//Nobody has a cooldown
@@ -2421,7 +2461,10 @@ void RobotPlayer_SpawnNow(int client)
 			if (TF2_IsMiniBoss(client))
 				iFlags |= MVM_CLASS_FLAG_MINIBOSS;
 			
-			TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
+			if (IsClassIconUsedInCurrentWave(iconName))
+				TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
+			else
+				TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
 		}
 	}
 	

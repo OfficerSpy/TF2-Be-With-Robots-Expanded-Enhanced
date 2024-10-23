@@ -710,7 +710,7 @@ void AddCond_MVMBotStunRadiowave(int client, float duration)
 	}
 }
 
-void DetonateObjectsOfType(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None, int ignoredObject = -1)
+void DetonateAllObjectsOfType(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None, int ignoredObject = -1)
 {
 	int ent = -1;
 	
@@ -729,6 +729,16 @@ void DetonateObjectsOfType(int client, TFObjectType type, TFObjectMode mode = TF
 			continue;
 		
 		TF2_DetonateObject(ent);
+		
+		Event hEvent = CreateEvent("object_removed");
+		
+		if (hEvent)
+		{
+			hEvent.SetInt("userid", GetClientUserId(client));
+			hEvent.SetInt("objecttype", view_as<int>(type));
+			hEvent.SetInt("index", ent);
+			hEvent.Fire();
+		}
 	}
 }
 

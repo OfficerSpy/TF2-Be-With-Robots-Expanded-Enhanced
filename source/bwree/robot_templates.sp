@@ -2219,7 +2219,7 @@ bool UpdateSentryBusterSpawningCriteria()
 	return bUpdated;
 }
 
-bool BossRobotSystem_UpdateData()
+bool BossRobotSystem_UpdateSettings()
 {
 	g_bRobotBossesAvailable = false;
 	g_flBossDelayDuration = 60.0;
@@ -2232,13 +2232,13 @@ bool BossRobotSystem_UpdateData()
 	
 	if (!FileExists(filePath))
 	{
-		LogError("BossRobotSystem_UpdateData: File %s not found.", filePath);
+		LogError("BossRobotSystem_UpdateSettings: File %s not found.", filePath);
 		return false;
 	}
 	
 	if (!IsValidEntity(g_iObjectiveResource))
 	{
-		LogError("BossRobotSystem_UpdateData: Where is objective resource?");
+		LogError("BossRobotSystem_UpdateSettings: Where is objective resource?");
 		return false;
 	}
 	
@@ -2273,7 +2273,7 @@ bool BossRobotSystem_UpdateData()
 			delete kv;
 			
 #if defined TESTING_ONLY
-			LogMessage("BossRobotSystem_UpdateData: No data found for wave %d of mission %s", waveNumber, missionName);
+			LogMessage("BossRobotSystem_UpdateSettings: No data found for wave %d of mission %s", waveNumber, missionName);
 #endif
 			
 			return false;
@@ -2297,7 +2297,7 @@ bool BossRobotSystem_UpdateData()
 	else
 	{
 		delete kv;
-		LogError("BossRobotSystem_UpdateData: No default section found");
+		LogError("BossRobotSystem_UpdateSettings: No default section found");
 		return false;
 	}
 	
