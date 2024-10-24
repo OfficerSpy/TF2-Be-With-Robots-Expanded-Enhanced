@@ -4,6 +4,11 @@
 	{
 		"en"	"Specify a robot template type and ID!"
 	}
+	"Admin_Forced_BWR_Cooldown"
+	{
+		"#format"	"{1:f},{2:t}"
+		"en"	"Applied cooldown of {1} second(s) on {2}."
+	}
 	"Robot_Menu_Not_Allowed"
 	{
 		"en"	"The robot menu is not currently allowed."

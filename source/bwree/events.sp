@@ -29,6 +29,7 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 		if (team != TFTeam_Blue)
 		{
 			//Any robot player changing to a team that's not blue is not a robot
+			SetBWRCooldownTimeLeft(client, GetPlayerCalculatedCooldown(client));
 			SetRobotPlayer(client, false);
 		}
 	}
@@ -56,8 +57,20 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 			MvMRobotPlayer(i).ForgetSpy(client);
 #endif
 	
+	int attacker = GetClientOfUserId(event.GetInt("attacker"));
+	
+	if (attacker > 0 && BaseEntity_IsPlayer(attacker))
+	{
+		if (IsPlayingAsRobot(attacker))
+		{
+			g_arrRobotPlayerStats[client].iKills++;
+		}
+	}
+	
 	if (!IsPlayingAsRobot(client))
 		return;
+	
+	g_arrRobotPlayerStats[client].iDeaths++;
 	
 	MvMSuicideBomber roboPlayer = MvMSuicideBomber(client);
 	
@@ -147,8 +160,6 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		StopIdleSound(client);
 	}
 	
-	int attacker = GetClientOfUserId(event.GetInt("attacker"));
-	
 	//Killed by a RED player and we're a gatebot, give them the achievement
 	//Would never fire normally for human players regardless because they can't be casted as CTFBot
 	if (attacker > 0 && BaseEntity_IsPlayer(attacker) && TF2_GetClientTeam(attacker) == TFTeam_Red)
@@ -188,7 +199,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	g_bCanBotsAttackInSpawn = CanBotsAttackWhileInSpawnRoom(g_iPopulationManager);
 	
 	if (bwr3_edit_wavebar.BoolValue)
-		UpdateWaveCurrentUsedIcons();
+		UpdateCurrentWaveUsedIcons();
 	
 	StartSentryBusterCooldown();
 	BossRobotSystem_UpdateSettings();
@@ -368,12 +379,18 @@ static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBro
 		case TF_FLAGEVENT_CAPTURED:
 		{
 			int client = event.GetInt("player");
-			char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
-			int health = GetClientHealth(client);
-			int maxHealth = TF2Util_GetEntityMaxHealth(client);
 			
-			PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Deployed_Bomb", playerName, health, maxHealth);
-			LogAction(client, -1, "%L deployed the bomb (%d/%d HP).", client, health, maxHealth);
+			if (IsPlayingAsRobot(client))
+			{
+				char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
+				int health = GetClientHealth(client);
+				int maxHealth = TF2Util_GetEntityMaxHealth(client);
+				
+				PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Deployed_Bomb", playerName, health, maxHealth);
+				LogAction(client, -1, "%L deployed the bomb (%d/%d HP).", client, health, maxHealth);
+				
+				SetBWRCooldownTimeLeft(client, bwr3_robots_cooldown_base.FloatValue);
+			}
 		}
 	}
 }

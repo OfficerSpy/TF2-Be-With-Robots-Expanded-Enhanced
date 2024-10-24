@@ -80,6 +80,21 @@ enum
 	SPY_TELEPORT_METHOD_MENU
 }
 
+enum struct esPlayerStats
+{
+	int iKills;
+	int iDeaths;
+	int iCaptures;
+	int iObjectsKilled;
+	int iInvulns;
+	int iKillAssists;
+	int iTeleports;
+	int iHealing;
+	float flDamage;
+}
+
+esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
+
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 enum struct eDisguisedStruct
 {
@@ -178,6 +193,7 @@ ConVar bwr3_allow_movement;
 ConVar bwr3_allow_readystate;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
+ConVar bwr3_robots_cooldown_base;
 ConVar bwr3_flag_max_hold_time;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
@@ -772,6 +788,7 @@ public void OnPluginStart()
 	bwr3_allow_readystate = CreateConVar("sm_bwr3_allow_readystate", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
+	bwr3_robots_cooldown_base = CreateConVar("sm_bwr3_robots_cooldown_base", "60.0", _, FCVAR_NOTIFY);
 	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
@@ -817,6 +834,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_ns", Command_FindUseNewSpawnLocation);
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_setcooldown", Command_SetCooldownOnPlayer, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_wavedata", Command_DebugWaveData, ADMFLAG_GENERIC);
 	
@@ -921,6 +939,8 @@ public void OnMapStart()
 
 public void OnClientPutInServer(int client)
 {
+	ResetRobotPlayerGameStats(client);
+	
 	g_iForcedButtonInput[client] = 0;
 	// g_nForcedTauntCam[client] = 0;
 	g_flLastTimeFlagInSpawn[client] = GetGameTime();
@@ -1769,6 +1789,47 @@ public Action Command_PlayAsRobotType(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_SetCooldownOnPlayer(int client, int args)
+{
+	if (args < 2)
+	{
+		ReplyToCommand(client, "[SM] Usage: sm_bwr3_setcooldown <#userid|name> <seconds>");
+		return Plugin_Handled;
+	}
+	
+	char arg1[MAX_NAME_LENGTH]; GetCmdArg(1, arg1, sizeof(arg1));
+	
+	char target_name[MAX_TARGET_LENGTH];
+	int target_list[MAXPLAYERS], target_count;
+	bool tn_is_ml;
+	
+	if ((target_count = ProcessTargetString(
+			arg1,
+			client,
+			target_list,
+			MAXPLAYERS,
+			COMMAND_FILTER_CONNECTED,
+			target_name,
+			sizeof(target_name),
+			tn_is_ml)) <= 0)
+	{
+		ReplyToTargetError(client, target_count);
+		return Plugin_Handled;
+	}
+	
+	char arg2[4]; GetCmdArg(2, arg2, sizeof(arg2));
+	float duration = StringToFloat(arg2);
+	
+	for (int i = 0; i < target_count; i++)
+	{
+		SetBWRCooldownTimeLeft(target_list[i], duration, client);
+	}
+	
+	ShowActivity2(client, "[SM] ", "%t", "Admin_Forced_BWR_Cooldown", duration, target_name);
+	
+	return Plugin_Handled;
+}
+
 public Action Command_DebugSentryBuster(int client, int args)
 {
 	int nDmgLimit = 0;
@@ -2371,7 +2432,7 @@ void PrepareCustomViewModelAssets(int type)
 	}
 }
 
-void UpdateWaveCurrentUsedIcons()
+void UpdateCurrentWaveUsedIcons()
 {
 	for (int i = 0; i < MVM_CLASS_TYPES_PER_WAVE_MAX; i++)
 	{
@@ -2387,6 +2448,19 @@ bool IsClassIconUsedInCurrentWave(const char[] iconName)
 			return true;
 	
 	return false;
+}
+
+void ResetRobotPlayerGameStats(int client)
+{
+	g_arrRobotPlayerStats[client].iKills = 0;
+	g_arrRobotPlayerStats[client].iDeaths = 0;
+	g_arrRobotPlayerStats[client].iCaptures = 0;
+	g_arrRobotPlayerStats[client].iObjectsKilled = 0;
+	g_arrRobotPlayerStats[client].iInvulns = 0;
+	g_arrRobotPlayerStats[client].iKillAssists = 0;
+	g_arrRobotPlayerStats[client].iTeleports = 0;
+	g_arrRobotPlayerStats[client].iHealing = 0;
+	g_arrRobotPlayerStats[client].flDamage = 0.0;
 }
 
 float GetBWRCooldownTimeLeft(int client)
@@ -2416,17 +2490,34 @@ float GetBWRCooldownTimeLeft(int client)
 	return timeLeft;
 }
 
-bool SetBWRCooldownTimeLeft(int client, float duration)
+bool SetBWRCooldownTimeLeft(int client, float duration, int activator = -1)
 {
 	char steamID[MAX_AUTHID_LENGTH];
 	
 	if (!GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID)))
 		return false;
 	
+	if (activator != -1)
+		LogAction(activator, client, "%L set a cooldown of %f seconds on %L.", activator, duration, client);
+	
 	if (duration <= 0.0)
 		return m_adtBWRCooldown.Remove(steamID);
 	
 	return m_adtBWRCooldown.SetValue(steamID, GetGameTime() + duration);
+}
+
+//Returns the cooldown duration the player should get based on certain statistics
+float GetPlayerCalculatedCooldown(int client)
+{
+	if (g_arrRobotPlayerStats[client].iKills > 0 && g_arrRobotPlayerStats[client].iDeaths == 0)
+		return bwr3_robots_cooldown_base.FloatValue;
+	
+	float ratioKD = float(g_arrRobotPlayerStats[client].iKills) / float(g_arrRobotPlayerStats[client].iDeaths);
+	
+	if (ratioKD > 1.0)
+		return bwr3_robots_cooldown_base.FloatValue;
+	
+	return ratioKD * bwr3_robots_cooldown_base.FloatValue;
 }
 
 void RobotPlayer_SpawnNow(int client)
@@ -2573,6 +2664,8 @@ void SetRobotPlayer(int client, bool enabled)
 	}
 	else
 	{
+		ResetRobotPlayerGameStats(client);
+		
 		g_bCanRespawn[client] = true;
 		m_bIsRobot[client] = false;
 		

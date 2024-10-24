@@ -2,6 +2,7 @@
 #define ROBOT_NAME_UNDEFINED	"TFBot"
 #define MAX_TELEPORTWHERE_NAME_COUNT	2
 #define TELEPORTWHERE_NAME_EACH_MAX_LENGTH	12
+#define ROBOT_DESC_MAX_LENGTH	PLATFORM_MAX_PATH
 #define MAX_ROBOT_TEMPLATES	140
 #define MAX_ENGINEER_NEST_HINT_LOCATIONS	20
 
@@ -28,6 +29,7 @@ enum eEngineerTeleportType
 // Robot template property arrays
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
+// char g_sRobotTemplateDescription[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][ROBOT_DESC_MAX_LENGTH];
 TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
@@ -548,6 +550,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				float scale = kv.GetFloat("Scale", -1.0);
 				char classIcon[PLATFORM_MAX_PATH]; kv.GetString("ClassIcon", classIcon, sizeof(classIcon));
 				int credits = kv.GetNum("TotalCurrency");
+				char description[ROBOT_DESC_MAX_LENGTH]; kv.GetString("Description", description, sizeof(description));
 				
 				roboPlayer.ClearEventChangeAttributes();
 				
@@ -592,6 +595,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				pack.WriteCell(playerClass);
 				pack.WriteString(classIcon);
 				pack.WriteCell(credits);
+				pack.WriteString(description);
 				pack.WriteCell(g_bSpawningAsBossRobot[client]);
 				
 				break;
@@ -616,6 +620,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	TFClassType iClass = pack.ReadCell();
 	char strClassIcon[PLATFORM_MAX_PATH]; pack.ReadString(strClassIcon, sizeof(strClassIcon));
 	int iCreditAmount = pack.ReadCell();
+	char strDescription[ROBOT_DESC_MAX_LENGTH]; pack.ReadString(strDescription, sizeof(strDescription));
 	bool bIsBossRobot = pack.ReadCell();
 	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
@@ -958,6 +963,9 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 #if defined TESTING_ONLY
 	LogAction(client, -1, "%3.2f: %L spawned as robot %s", GetGameTime(), client, strName);
 #endif
+	
+	if (strlen(strDescription) > 0)
+		PrintToChat(client, strDescription);
 	
 	return Plugin_Stop;
 }
@@ -1920,6 +1928,7 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 				
 				//Store these details for later
 				kv.GetString("Name", g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateName[][]), ROBOT_NAME_UNDEFINED);
+				// kv.GetString("Description", g_sRobotTemplateDescription[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateDescription[][]));
 				
 				kv.GetString("Class", className, sizeof(className));
 				g_nRobotTemplateClass[type][g_iTotalRobotTemplates[type]] = TF2_GetClassIndexFromString(className);
@@ -1947,6 +1956,11 @@ int GetRobotTemplateName(eRobotTemplateType type, int templateID, char[] buffer,
 {
 	return strcopy(buffer, maxlen, g_sRobotTemplateName[type][templateID]);
 }
+
+/* int GetRobotTemplateDescription(eRobotTemplateType type, int templateID, char[] buffer, int maxlen)
+{
+	return strcopy(buffer, maxlen, g_sRobotTemplateDescription[type][templateID]);
+} */
 
 TFClassType GetRobotTemplateClass(eRobotTemplateType type, int templateID)
 {
