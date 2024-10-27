@@ -1,3 +1,7 @@
+#define BOMBRUSH_WATCH_MAX_SECONDS	60.0
+#define BOMBRUSH_COOLDOWN_MAX_MINUTES	10
+#define BOMBRUSH_COOLDOWN_SEC_PER_MIN	(BOMBRUSH_WATCH_MAX_SECONDS / BOMBRUSH_COOLDOWN_MAX_MINUTES)
+
 void InitGameEventHooks()
 {
 	HookEvent("player_team", Event_PlayerTeam);
@@ -28,8 +32,10 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 		
 		if (team != TFTeam_Blue)
 		{
+			if (GetBWRCooldownTimeLeft(client) <= 0.0)
+				SetBWRCooldownTimeLeft(client, GetPlayerCalculatedCooldown(client));
+			
 			//Any robot player changing to a team that's not blue is not a robot
-			SetBWRCooldownTimeLeft(client, GetPlayerCalculatedCooldown(client));
 			SetRobotPlayer(client, false);
 		}
 	}
@@ -201,6 +207,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	if (bwr3_edit_wavebar.BoolValue)
 		UpdateCurrentWaveUsedIcons();
 	
+	BWRCooldown_PurgeExpired();
 	StartSentryBusterCooldown();
 	BossRobotSystem_UpdateSettings();
 	BossRobotSystem_StartSpawnCooldown();
@@ -325,13 +332,20 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 	if (!UpdateSentryBusterSpawningCriteria())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
 	
-#if defined OVERRIDE_PLAYER_RESPAWN_TIME
-	/* All BLUE players are killed when the wave is complete, so we need to reset the respawn time on robot players because we override it when they die
-	Though they could actually get around this by changing classes as this will instantly respawn them between waves */
 	for (int i = 1; i <= MaxClients; i++)
+	{
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
+		{
+			ResetRobotPlayerGameStats(i);
+			
+#if defined OVERRIDE_PLAYER_RESPAWN_TIME
+			/* All BLUE players are killed when the wave is complete
+			so we need to reset the respawn time on robot players because we override it when they die
+			Though they could actually get around this by changing classes as this will instantly respawn them between waves */
 			TF2Util_SetPlayerRespawnTimeOverride(i, -1.0);
 #endif
+		}
+	}
 }
 
 static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast)
@@ -389,7 +403,22 @@ static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBro
 				PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Deployed_Bomb", playerName, health, maxHealth);
 				LogAction(client, -1, "%L deployed the bomb (%d/%d HP).", client, health, maxHealth);
 				
-				SetBWRCooldownTimeLeft(client, bwr3_robots_cooldown_base.FloatValue);
+				float cooldownDuration = bwr3_robots_cooldown_base.FloatValue;
+				
+				if (cooldownDuration > 0.0)
+				{
+					float roundLength = GetGameTime() - g_flTimeRoundStarted;
+					
+					if (roundLength < BOMBRUSH_WATCH_MAX_SECONDS)
+					{
+						float penalTimeLeft = BOMBRUSH_WATCH_MAX_SECONDS - roundLength;
+						cooldownDuration += (penalTimeLeft / BOMBRUSH_COOLDOWN_SEC_PER_MIN) * 60;
+						
+						LogAction(client, -1, "%L deployed the bomb in %f seconds (ban time: %f)", client, roundLength, cooldownDuration);
+					}
+				}
+				
+				SetBWRCooldownTimeLeft(client, cooldownDuration);
 			}
 		}
 	}

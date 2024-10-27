@@ -6,8 +6,12 @@
 	}
 	"Admin_Forced_BWR_Cooldown"
 	{
-		"#format"	"{1:f},{2:t}"
+		"#format"	"{1:f},{2:s}"
 		"en"	"Applied cooldown of {1} second(s) on {2}."
+	}
+	"Admin_ViewCooldownData_Empty"
+	{
+		"en"	"There is no one on the cooldown list!"
 	}
 	"Robot_Menu_Not_Allowed"
 	{

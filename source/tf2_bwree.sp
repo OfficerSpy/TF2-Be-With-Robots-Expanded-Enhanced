@@ -835,6 +835,7 @@ public void OnPluginStart()
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_setcooldown", Command_SetCooldownOnPlayer, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_viewcooldowns", Command_ViewCooldownData, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_wavedata", Command_DebugWaveData, ADMFLAG_GENERIC);
 	
@@ -1650,13 +1651,13 @@ public Action Command_JoinBlue(int client, int args)
 {
 	if (IsPlayingAsRobot(client))
 	{
-		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Already_Robot");
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Player_Already_Robot");
 		return Plugin_Handled;
 	}
 	
 	if (GetRobotPlayerCount() >= bwr3_max_invaders.IntValue)
 	{
-		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Robot_Player_Limit_Reached");
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Robot_Player_Limit_Reached");
 		return Plugin_Handled;
 	}
 	
@@ -1664,7 +1665,7 @@ public Action Command_JoinBlue(int client, int args)
 	
 	if (cooldown > 0.0)
 	{
-		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Denied_Cooldown", cooldown);
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Denied_Cooldown", cooldown);
 		return Plugin_Handled;
 	}
 	
@@ -1830,13 +1831,39 @@ public Action Command_SetCooldownOnPlayer(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_ViewCooldownData(int client, int args)
+{
+	if (m_adtBWRCooldown.Size == 0)
+	{
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Admin_ViewCooldownData_Empty");
+		return Plugin_Handled;
+	}
+	
+	ReplyToCommand(client, "CURRENT BWR COOLDOWNS");
+	
+	StringMapSnapshot shot = m_adtBWRCooldown.Snapshot();
+	char keyName[MAX_AUTHID_LENGTH];
+	float cooldownTime;
+	
+	for (int i = 0; i < shot.Length; i++)
+	{
+		shot.GetKey(i, keyName, sizeof(keyName));
+		m_adtBWRCooldown.GetValue(keyName, cooldownTime);
+		ReplyToCommand(client, "%s - %f", keyName, cooldownTime - GetGameTime());
+	}
+	
+	CloseHandle(shot);
+	
+	return Plugin_Handled;
+}
+
 public Action Command_DebugSentryBuster(int client, int args)
 {
 	int nDmgLimit = 0;
 	int nKillLimit = 0;
 	GetSentryBusterDamageAndKillThreshold(g_iPopulationManager, nDmgLimit, nKillLimit);
 	
-	PrintToChat(client, "SENTRY BUSTER\nDamage limit = %d\nKill limit = %d", nDmgLimit, nKillLimit);
+	ReplyToCommand(client, "SENTRY BUSTER\nDamage limit = %d\nKill limit = %d", nDmgLimit, nKillLimit);
 	
 	int ent = -1;
 	
@@ -1856,7 +1883,7 @@ public Action Command_DebugSentryBuster(int client, int args)
 				int nDmgDone = RoundFloat(GetAccumulatedSentryGunDamageDealt(sentryOwner));
 				int nKillsMade = GetAccumulatedSentryGunKillCount(sentryOwner);
 				
-				PrintToChat(client, "%N's sentry damage = %d, sentry kills = %d", sentryOwner, nDmgDone, nKillsMade);
+				ReplyToCommand(client, "%N's sentry damage = %d, sentry kills = %d", sentryOwner, nDmgDone, nKillsMade);
 			}
 		}
 	}
@@ -1874,9 +1901,9 @@ public Action Command_DebugWaveData(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	PrintToChat(client, "Sentry Busters spawned: %d", GetNumSentryBustersSpawned(pWave));
-	PrintToChat(client, "Engineers teleport spawned: %d", GetNumEngineersTeleportSpawned(pWave));
-	PrintToChat(client, "Sentry Busters killed: %d", GetNumSentryBustersKilled(pWave));
+	ReplyToCommand(client, "Sentry Busters spawned: %d", GetNumSentryBustersSpawned(pWave));
+	ReplyToCommand(client, "Engineers teleport spawned: %d", GetNumEngineersTeleportSpawned(pWave));
+	ReplyToCommand(client, "Sentry Busters killed: %d", GetNumSentryBustersKilled(pWave));
 	
 	return Plugin_Handled;
 }
@@ -2475,13 +2502,13 @@ float GetBWRCooldownTimeLeft(int client)
 	if (!GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID)))
 		return 0.0;
 	
-	float cooldown;
+	float cooldownTime;
 	
 	//They don't currently have a cooldown
-	if (!m_adtBWRCooldown.GetValue(steamID, cooldown))
+	if (!m_adtBWRCooldown.GetValue(steamID, cooldownTime))
 		return 0.0;
 	
-	float timeLeft = cooldown - GetGameTime();
+	float timeLeft = cooldownTime - GetGameTime();
 	
 	//If their cooldown time has expired, remove it
 	if (timeLeft <= 0.0)
@@ -2506,10 +2533,34 @@ bool SetBWRCooldownTimeLeft(int client, float duration, int activator = -1)
 	return m_adtBWRCooldown.SetValue(steamID, GetGameTime() + duration);
 }
 
+void BWRCooldown_PurgeExpired()
+{
+	if (m_adtBWRCooldown.Size == 0)
+		return;
+	
+	StringMapSnapshot shot = m_adtBWRCooldown.Snapshot();
+	char keyName[MAX_AUTHID_LENGTH];
+	float cooldownTime;
+	
+	for (int i = 0; i < shot.Length; i++)
+	{
+		shot.GetKey(i, keyName, sizeof(keyName));
+		m_adtBWRCooldown.GetValue(keyName, cooldownTime);
+		
+		if (cooldownTime <= GetGameTime())
+			m_adtBWRCooldown.Remove(keyName);
+	}
+	
+	CloseHandle(shot);
+}
+
 //Returns the cooldown duration the player should get based on certain statistics
 float GetPlayerCalculatedCooldown(int client)
 {
-	if (g_arrRobotPlayerStats[client].iKills > 0 && g_arrRobotPlayerStats[client].iDeaths == 0)
+	if (g_arrRobotPlayerStats[client].iKills == 0)
+		return 0.0;
+	
+	if (g_arrRobotPlayerStats[client].iDeaths == 0)
 		return bwr3_robots_cooldown_base.FloatValue;
 	
 	float ratioKD = float(g_arrRobotPlayerStats[client].iKills) / float(g_arrRobotPlayerStats[client].iDeaths);
