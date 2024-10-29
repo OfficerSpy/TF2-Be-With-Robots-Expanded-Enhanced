@@ -76,7 +76,8 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	if (!IsPlayingAsRobot(client))
 		return;
 	
-	g_arrRobotPlayerStats[client].iDeaths++;
+	if (attacker != client)
+		g_arrRobotPlayerStats[client].iDeaths++;
 	
 	MvMSuicideBomber roboPlayer = MvMSuicideBomber(client);
 	

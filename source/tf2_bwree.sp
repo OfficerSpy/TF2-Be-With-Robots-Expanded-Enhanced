@@ -191,6 +191,7 @@ ConVar bwr3_max_invaders;
 ConVar bwr3_min_players_for_giants;
 ConVar bwr3_allow_movement;
 ConVar bwr3_allow_readystate;
+ConVar bwr3_allow_drop_item;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
 ConVar bwr3_robots_cooldown_base;
@@ -766,7 +767,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.6",
+	version = "1.1.7",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -786,6 +787,7 @@ public void OnPluginStart()
 	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
 	bwr3_allow_movement = CreateConVar("sm_bwr3_allow_movement", "1", _, FCVAR_NOTIFY);
 	bwr3_allow_readystate = CreateConVar("sm_bwr3_allow_readystate", "0", _, FCVAR_NOTIFY);
+	bwr3_allow_drop_item = CreateConVar("sm_bwr3_allow_drop_item", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_robots_cooldown_base = CreateConVar("sm_bwr3_robots_cooldown_base", "60.0", _, FCVAR_NOTIFY);
@@ -845,6 +847,7 @@ public void OnPluginStart()
 	
 	AddCommandListener(CommandListener_Voicemenu, "voicemenu");
 	AddCommandListener(CommandListener_TournamentPlayerReadystate, "tournament_player_readystate");
+	AddCommandListener(CommandListener_Dropitem, "dropitem");
 	AddCommandListener(CommandListener_Kill, "kill");
 	AddCommandListener(CommandListener_Kill, "explode");
 	
@@ -1490,9 +1493,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			//Not idling in spawn
 			g_flLastTimeFlagInSpawn[client] = GetGameTime();
 			
-			//When TFBots perform their taunts, they change to nextbot action CTFBotTaunt
-			//Treat player taunting as if they decided to change their own "actions"
-			if (bHasTheFlag && roboPlayer.BombUpgradeLevel != DONT_UPGRADE && !player.IsTaunting())
+			if (bHasTheFlag && roboPlayer.BombUpgradeLevel != DONT_UPGRADE && !ShouldCurrentActionBeSuspended(client))
 			{
 				//Buff me and all of my teammates near me after first upgrading the bomb
 				if (roboPlayer.BombUpgradeLevel > 0 && roboPlayer.BuffPulseTimer_IsElapsed())
@@ -1944,6 +1945,21 @@ public Action CommandListener_TournamentPlayerReadystate(int client, const char[
 	return Plugin_Continue;
 }
 
+public Action CommandListener_Dropitem(int client, const char[] command, int argc)
+{
+	if (IsPlayingAsRobot(client))
+	{
+		if (bwr3_allow_drop_item.IntValue > 0)
+			return Plugin_Continue;
+		
+		//The buffs after stage 1 are permanent so don't let them to drop it here
+		if (MvMRobotPlayer(client).BombUpgradeLevel > 1)
+			return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
 public Action CommandListener_Kill(int client, const char[] command, int argc)
 {
 	return Plugin_Continue;
@@ -1969,12 +1985,12 @@ public Action SoundHook_General(int clients[MAXPLAYERS], int &numClients, char s
 	return Plugin_Continue;
 }
 
-public Action Timer_Taunt(Handle timer, any data)
+public Action Timer_Taunt(Handle timer, int data)
 {
 	if (!IsClientInGame(data) || !IsPlayingAsRobot(data) || !IsPlayerAlive(data))
 		return Plugin_Stop;
 	
-	SendTauntCommand(data);
+	VS_HandleTauntCommand(data);
 	
 	return Plugin_Stop;
 }
@@ -1995,7 +2011,7 @@ public void CaptureFlag_OnPickup(const char[] output, int caller, int activator,
 	RequestFrame(Frame_CaptureFlagOnPickup, owner);
 }
 
-public void Frame_CaptureFlagOnPickup(any data)
+public void Frame_CaptureFlagOnPickup(int data)
 {
 	//Update the bomb HUD
 	if (TF2_IsMiniBoss(data))
@@ -2236,29 +2252,17 @@ public Action PlayerRobot_WeaponCanSwitchTo(int client, int weapon)
 	if (roboPlayer.HasWeaponRestriction(CTFBot_ANY_WEAPON) || !ShouldWeaponBeRestricted(weapon))
 		return Plugin_Continue;
 	
+	int forcedWeapon = -1;
+	
 	if (roboPlayer.HasWeaponRestriction(CTFBot_MELEE_ONLY))
-	{
-		if (TF2Util_GetWeaponSlot(weapon) != TFWeaponSlot_Melee)
-		{
-			return Plugin_Handled;
-		}
-	}
+		forcedWeapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
+	else if (roboPlayer.HasWeaponRestriction(CTFBot_PRIMARY_ONLY))
+		forcedWeapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
+	else if (roboPlayer.HasWeaponRestriction(CTFBot_SECONDARY_ONLY))
+		forcedWeapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
 	
-	if (roboPlayer.HasWeaponRestriction(CTFBot_PRIMARY_ONLY))
-	{
-		if (TF2Util_GetWeaponSlot(weapon) != TFWeaponSlot_Primary)
-		{
-			return Plugin_Handled;
-		}
-	}
-	
-	if (roboPlayer.HasWeaponRestriction(CTFBot_SECONDARY_ONLY))
-	{
-		if (TF2Util_GetWeaponSlot(weapon) != TFWeaponSlot_Secondary)
-		{
-			return Plugin_Handled;
-		}
-	}
+	if (forcedWeapon != -1 && weapon != forcedWeapon)
+		return Plugin_Handled;
 	
 	return Plugin_Continue;
 }
@@ -2517,15 +2521,17 @@ float GetBWRCooldownTimeLeft(int client)
 	return timeLeft;
 }
 
-bool SetBWRCooldownTimeLeft(int client, float duration, int activator = -1)
+bool SetBWRCooldownTimeLeft(int client, float duration, int user = -1)
 {
 	char steamID[MAX_AUTHID_LENGTH];
 	
 	if (!GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID)))
 		return false;
 	
-	if (activator != -1)
-		LogAction(activator, client, "%L set a cooldown of %f seconds on %L.", activator, duration, client);
+	if (user != -1)
+		LogAction(user, client, "%L set a cooldown of %f seconds on %L.", user, duration, client);
+	else
+		LogAction(-1, client, "Applied a cooldown of %f seconds on %L.", duration, client);
 	
 	if (duration <= 0.0)
 		return m_adtBWRCooldown.Remove(steamID);
@@ -3021,15 +3027,17 @@ bool ShouldWeaponBeRestricted(int weapon)
 	return true;
 }
 
+//Determine what we're doing right now can interrupt our "behavior"
 bool ShouldCurrentActionBeSuspended(int client)
 {
 	//Taunting means we suspended our current behavior to do it
-	//Detonating sentry busters don't count since they taunt when they do it
+	//Detonating sentry busters don't count since they taunt while doing it
 	if (TF2_IsTaunting(client) && !MvMSuicideBomber(client).DetonateTimer_HasStarted())
 		return true;
 	
-	//For TFBots, CTFBotTacticalMonitor::Update suspends CTFBotMvMDeployBomb for CTFBotSeekAndDestroy when the round has been won and they are on the winning team
-	//So for the robot players here, just stop the deploy process once their team has already won the round
+	/* For TFBots, CTFBotTacticalMonitor::Update suspends CTFBotMvMDeployBomb for CTFBotSeekAndDestroy
+	when the round has been won and they are on the winning team, so for the robot players here 
+	just stop the deploy process once the round has already been won */
 	return GameRules_GetRoundState() == RoundState_TeamWin;
 }
 

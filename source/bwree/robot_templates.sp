@@ -5,6 +5,7 @@
 #define ROBOT_DESC_MAX_LENGTH	PLATFORM_MAX_PATH
 #define MAX_ROBOT_TEMPLATES	140
 #define MAX_ENGINEER_NEST_HINT_LOCATIONS	20
+#define ROBOT_TEMPLATE_MEDIEVAL_SUFFIX	"_medieval"
 
 #define BOSS_ROBOT_SPAWN_SOUND	")mvm/giant_heavy/giant_heavy_entrance.wav"
 
@@ -544,9 +545,20 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				kv.GetString("Objective", kvStringBuffer, sizeof(kvStringBuffer));
 				roboPlayer.SetMission(GetBotMissionFromString(kvStringBuffer));
 				
+				int health = kv.GetNum("Health");
+				
+				if (health <= 0.0)
+					health = TF2Util_GetEntityMaxHealth(client);
+				
+				//TODO: factor in GetHealthMultiplier for endless waves
+				
+				if (g_bBossProportionalHealth && g_bSpawningAsBossRobot[client])
+					CalculateBossRobotHealth(health);
+				
+				ModifyMaxHealth(client, health, _, false);
+				
 				//These will be used later
 				char name[MAX_NAME_LENGTH]; kv.GetString("Name", name, sizeof(name), ROBOT_NAME_UNDEFINED);
-				int health = kv.GetNum("Health");
 				float scale = kv.GetFloat("Scale", -1.0);
 				char classIcon[PLATFORM_MAX_PATH]; kv.GetString("ClassIcon", classIcon, sizeof(classIcon));
 				int credits = kv.GetNum("TotalCurrency");
@@ -590,13 +602,11 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				CreateDataTimer(0.1, Timer_FinishRobotPlayer, pack);
 				pack.WriteCell(client);
 				pack.WriteString(name);
-				pack.WriteCell(health);
 				pack.WriteFloat(scale);
 				pack.WriteCell(playerClass);
 				pack.WriteString(classIcon);
 				pack.WriteCell(credits);
 				pack.WriteString(description);
-				pack.WriteCell(g_bSpawningAsBossRobot[client]);
 				
 				break;
 			}
@@ -615,23 +625,33 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		return Plugin_Stop;
 	
 	char strName[MAX_NAME_LENGTH]; pack.ReadString(strName, sizeof(strName));
-	int iHealth = pack.ReadCell();
 	float flScale = pack.ReadFloat();
 	TFClassType iClass = pack.ReadCell();
 	char strClassIcon[PLATFORM_MAX_PATH]; pack.ReadString(strClassIcon, sizeof(strClassIcon));
 	int iCreditAmount = pack.ReadCell();
 	char strDescription[ROBOT_DESC_MAX_LENGTH]; pack.ReadString(strDescription, sizeof(strDescription));
-	bool bIsBossRobot = pack.ReadCell();
 	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	OSTFPlayer player = OSTFPlayer(client);
 	
-	//If an icon wasn't specified, then we just use the class's default icon
-	//Even though we don't modify it, we still copy it over cause we're going to use it for the wavebar
 	if (strlen(strClassIcon) > 0)
+	{
 		player.SetClassIconName(strClassIcon);
+	}
 	else
+	{
+		/* Use the default class icon if none was specified in the template
+		This is normally set in CTFPlayerClassShared::Init when spawning but only if changing class
+		That means the class icon won't change if respawning as the same class we were previously
+		Here we will set the icon manually if it was not updated to match our class's default icon */
 		player.GetClassIconName(strClassIcon, sizeof(strClassIcon));
+		
+		if (!StrEqual(strClassIcon, g_sClassNamesShort[iClass], false))
+		{
+			strcopy(strClassIcon, sizeof(strClassIcon), g_sClassNamesShort[iClass]);
+			player.SetClassIconName(strClassIcon);
+		}
+	}
 	
 	//NOTE: TeleportWhere is done in ParseTemplateOntoPlayerFromKeyValues
 	
@@ -697,17 +717,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	if (flScale > 0.0)
 		player.SetModelScale(flScale);
 	
-	int nHealth = iHealth;
-	
-	if (nHealth <= 0.0)
-		nHealth = player.GetMaxHealth();
-	
-	//TODO: factor in GetHealthMultiplier for endless waves
-	
-	if (g_bBossProportionalHealth && bIsBossRobot)
-		CalculateBossRobotHealth(nHealth);
-	
-	ModifyMaxHealth(client, nHealth, _, false);
+	//NOTE: health is set elsewhere before items are added
 	
 	StartIdleSound(client, iClass);
 	
