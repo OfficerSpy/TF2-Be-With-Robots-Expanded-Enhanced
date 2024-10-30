@@ -33,6 +33,11 @@
 //Cvar tf_mvm_defenders_team_size
 #define MVM_DEFAULT_DEFENDER_TEAM_SIZE	6
 
+//Raw value found in CTFGameRules::GetBonusRoundTime
+#define BONUS_ROUND_TIME_MVM	5
+
+#define BWR_FAKE_SPAWN_DURATION_EXTRA	34.0
+
 #define SOUND_GIANT_SCOUT_LOOP	"mvm/giant_scout/giant_scout_loop.wav"
 #define SOUND_GIANT_SOLDIER_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
 #define SOUND_GIANT_PYRO_LOOP	"mvm/giant_pyro/giant_pyro_loop.wav"

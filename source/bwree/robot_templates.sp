@@ -916,6 +916,18 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	PrintToChatAll("[Timer_FinishRobotPlayer] Spawn Location for %N at %6.1f %6.1f %6.1f", client, here[0], here[1], here[2]);
 #endif
 	
+	int requiredWeapon = -1;
+	
+	if (roboPlayer.HasWeaponRestriction(CTFBot_MELEE_ONLY))
+		requiredWeapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Melee);
+	else if (roboPlayer.HasWeaponRestriction(CTFBot_PRIMARY_ONLY))
+		requiredWeapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Primary);
+	else if (roboPlayer.HasWeaponRestriction(CTFBot_SECONDARY_ONLY))
+		requiredWeapon = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
+	
+	if (requiredWeapon != -1)
+		TF2Util_SetPlayerActiveWeapon(client, requiredWeapon);
+	
 	if (iClass == TFClass_Spy)
 	{
 		if (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)

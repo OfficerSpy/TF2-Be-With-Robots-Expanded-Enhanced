@@ -1,7 +1,3 @@
-#define BOMBRUSH_WATCH_MAX_SECONDS	60.0
-#define BOMBRUSH_COOLDOWN_MAX_MINUTES	10
-#define BOMBRUSH_COOLDOWN_SEC_PER_MIN	(BOMBRUSH_WATCH_MAX_SECONDS / BOMBRUSH_COOLDOWN_MAX_MINUTES)
-
 void InitGameEventHooks()
 {
 	HookEvent("player_team", Event_PlayerTeam);
@@ -13,6 +9,7 @@ void InitGameEventHooks()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("teamplay_flag_event", Event_TeamplayFlagEvent);
 	HookEvent("teamplay_round_start", Event_TeamplayRoundStart);
+	HookEvent("teamplay_round_win", Event_TeamplayRoundWin);
 	HookEvent("post_inventory_application", Event_PostInventoryApplication);
 	
 #if defined FIX_VOTE_CONTROLLER
@@ -196,7 +193,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
 	
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
-	TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + 34.0);
+	TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif
 }
 
@@ -217,7 +214,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	/* Since we control the spawning of robot players, they should never be allowed to respawn themselves
 	This should be set to a very high number so that the player can't spawn in whenever bot spawning gets disabled
 	Generally I'd like to think of this value as time it takes to cap (mannhattan 12) + current respawn wave time (usually 22) */
-	SetTeamRespawnWaveTime(TFTeam_Blue, bwr3_robot_spawn_time_max.FloatValue + 34.0);
+	SetTeamRespawnWaveTime(TFTeam_Blue, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif
 	
 	for (int i = 1; i <= MaxClients; i++)
@@ -397,29 +394,14 @@ static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBro
 			
 			if (IsPlayingAsRobot(client))
 			{
+				g_arrRobotPlayerStats[client].iFlagCaptures++;
+				
 				char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
 				int health = GetClientHealth(client);
 				int maxHealth = TF2Util_GetEntityMaxHealth(client);
 				
 				PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Deployed_Bomb", playerName, health, maxHealth);
 				LogAction(client, -1, "%L deployed the bomb (%d/%d HP).", client, health, maxHealth);
-				
-				float cooldownDuration = bwr3_robots_cooldown_base.FloatValue;
-				
-				if (cooldownDuration > 0.0)
-				{
-					float roundLength = GetGameTime() - g_flTimeRoundStarted;
-					
-					if (roundLength < BOMBRUSH_WATCH_MAX_SECONDS)
-					{
-						float penalTimeLeft = BOMBRUSH_WATCH_MAX_SECONDS - roundLength;
-						cooldownDuration += (penalTimeLeft / BOMBRUSH_COOLDOWN_SEC_PER_MIN) * 60;
-						
-						LogAction(client, -1, "%L deployed the bomb in %f seconds (ban time: %f)", client, roundLength, cooldownDuration);
-					}
-				}
-				
-				SetBWRCooldownTimeLeft(client, cooldownDuration);
 			}
 		}
 	}
@@ -449,6 +431,23 @@ static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBr
 		//Silent team change
 		SetVariantString("self.ForceChangeTeam(Constants.ETFTeam.TF_TEAM_PVE_DEFENDERS, false)");
 		AcceptEntityInput(i, "RunScriptCode");
+	}
+}
+
+static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroadcast)
+{
+	TFTeam team = view_as<TFTeam>(event.GetInt("team"));
+	
+	if (team == TFTeam_Blue)
+	{
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (IsClientInGame(i) && IsPlayingAsRobot(i))
+			{
+				//Compensate cooldown for map reset time
+				SetBWRCooldownTimeLeft(i, GetPlayerCalculatedCooldown(i) + BONUS_ROUND_TIME_MVM);
+			}
+		}
 	}
 }
 

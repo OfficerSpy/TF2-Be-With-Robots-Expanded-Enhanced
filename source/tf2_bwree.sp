@@ -34,6 +34,9 @@ Author: ★ Officer Spy ★
 #define MAP_CONFIG_DIRECTORY	"configs/bwree/map"
 #define MAX_ROBOT_SPAWN_NAMES	3
 
+#define BOMBRUSH_WATCH_MAX_SECONDS	60.0
+#define BOMBRUSH_COOLDOWN_MAX_MINUTES	10
+#define BOMBRUSH_COOLDOWN_SEC_PER_MIN	(BOMBRUSH_WATCH_MAX_SECONDS / BOMBRUSH_COOLDOWN_MAX_MINUTES)
 #define ALERT_FLAG_HELD_TOO_LONG_SOUND	"misc/doomsday_lift_warning.wav"
 
 // #define MOD_BUY_A_ROBOT_3
@@ -84,7 +87,8 @@ enum struct esPlayerStats
 {
 	int iKills;
 	int iDeaths;
-	int iCaptures;
+	int iFlagCaptures;
+	int iPointCaptures;
 	int iObjectsKilled;
 	int iInvulns;
 	int iKillAssists;
@@ -1678,7 +1682,7 @@ public Action Command_JoinBlue(int client, int args)
 		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
 		
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
-		TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + 34.0);
+		TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif
 	}
 	
@@ -2485,7 +2489,8 @@ void ResetRobotPlayerGameStats(int client)
 {
 	g_arrRobotPlayerStats[client].iKills = 0;
 	g_arrRobotPlayerStats[client].iDeaths = 0;
-	g_arrRobotPlayerStats[client].iCaptures = 0;
+	g_arrRobotPlayerStats[client].iFlagCaptures = 0;
+	g_arrRobotPlayerStats[client].iPointCaptures = 0;
 	g_arrRobotPlayerStats[client].iObjectsKilled = 0;
 	g_arrRobotPlayerStats[client].iInvulns = 0;
 	g_arrRobotPlayerStats[client].iKillAssists = 0;
@@ -2563,6 +2568,26 @@ void BWRCooldown_PurgeExpired()
 //Returns the cooldown duration the player should get based on certain statistics
 float GetPlayerCalculatedCooldown(int client)
 {
+	if (g_arrRobotPlayerStats[client].iFlagCaptures > 0)
+	{
+		float duration = bwr3_robots_cooldown_base.FloatValue;
+		
+		if (duration > 0.0)
+		{
+			float roundLength = GetGameTime() - g_flTimeRoundStarted;
+			
+			if (roundLength < BOMBRUSH_WATCH_MAX_SECONDS)
+			{
+				float penalTimeLeft = BOMBRUSH_WATCH_MAX_SECONDS - roundLength;
+				duration += (penalTimeLeft / BOMBRUSH_COOLDOWN_SEC_PER_MIN) * 60;
+				
+				LogAction(client, -1, "%L deployed the bomb in %f seconds (ban time: %f)", client, roundLength, duration);
+			}
+		}
+		
+		return duration;
+	}
+	
 	if (g_arrRobotPlayerStats[client].iKills == 0)
 		return 0.0;
 	
