@@ -17,6 +17,8 @@ void InitOffsets(GameData hGamedata)
 	SetOffset(hGamedata, "CPopulationManager", "m_bSpawningPaused");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsMissionEnemy");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsSupportEnemy");
+	SetOffset(hGamedata, "CPopulationManager", "m_nMvMEventPopfileType");
+	SetOffset(hGamedata, "CBaseObject", "m_vecBuildOrigin");
 	
 	//These are raw offset values and are not calculated
 	m_iOffsetSentryBustersSpawned = hGamedata.GetOffset("CWave::m_nSentryBustersSpawned");
@@ -32,6 +34,8 @@ void InitOffsets(GameData hGamedata)
 	LogMessage("InitOffsets: CPopulationManager->m_bSpawningPaused = %d", GetOffset("CPopulationManager", "m_bSpawningPaused"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsMissionEnemy = %d", GetOffset("CTFPlayer", "m_bIsMissionEnemy"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsSupportEnemy = %d", GetOffset("CTFPlayer", "m_bIsSupportEnemy"));
+	LogMessage("InitOffsets: CPopulationManager->m_nMvMEventPopfileType = %d", GetOffset("CPopulationManager", "m_nMvMEventPopfileType"));
+	LogMessage("InitOffsets: CBaseObject->m_vecBuildOrigin = %d", GetOffset("CBaseObject", "m_vecBuildOrigin"));
 	LogMessage("InitOffsets: CWave->m_nSentryBustersSpawned = %d", m_iOffsetSentryBustersSpawned);
 	LogMessage("InitOffsets: CWave->m_nNumEngineersTeleportSpawned = %d", m_iOffsetNumEngineersTeleportSpawned);
 	LogMessage("InitOffsets: CWave->m_nNumSentryBustersKilled = %d", m_iOffsetNumSentryBustersKilled);
@@ -123,6 +127,16 @@ void SetAsMissionEnemy(int client, bool bVal)
 void SetAsSupportEnemy(int client, bool bVal)
 {
 	SetEntData(client, GetOffset("CTFPlayer", "m_bIsSupportEnemy"), bVal, 1);
+}
+
+int GetPopFileEventType(int populator)
+{
+	return GetEntData(populator, GetOffset("CPopulationManager", "m_nMvMEventPopfileType"));
+}
+
+void GetCurrentBuildOrigin(int iObject, float buffer[3])
+{
+	GetEntDataVector(iObject, GetOffset("CBaseObject", "m_vecBuildOrigin"), buffer);
 }
 
 int GetNumSentryBustersSpawned(Address wave)

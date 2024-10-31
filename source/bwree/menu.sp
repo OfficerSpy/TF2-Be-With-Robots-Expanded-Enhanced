@@ -277,6 +277,9 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 			if (GameRules_GetRoundState() == RoundState_RoundRunning)
 				g_bChangeRobotPicked[param1] = true;
 			
+			if (MvMRobotPlayer(param1).MyNextRobotTemplateType != ROBOT_BOSS)
+				g_bSpawningAsBossRobot[param1] = false;
+			
 			char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(g_nSelectedRobotType[param1], templateID, robotName, sizeof(robotName));
 			
 			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, robotName, g_nSelectedRobotType[param1], templateID);

@@ -14,6 +14,11 @@
 				"windows"	"m_vecOrigin"
 				"linux"		"m_vecOrigin"
 			}
+			"CBaseObject_BaseOffset"
+			{
+				"windows"	"m_hBuilder"
+				"linux"		"m_hBuilder"
+			}
 		}
 		"Signatures"
 		{
@@ -161,12 +166,22 @@
 			"CTFPlayer::m_bIsMissionEnemy"
 			{
 				"windows"	"8" //build 9050375: 9276
-				"linux"		"8" //build 8835751: 9280
+				"linux"		"8" //build 9050375: 9280
 			}
 			"CTFPlayer::m_bIsSupportEnemy"
 			{
-				"windows"	"9" //build 9050375: 9277
-				"linux"		"9" //build 8835751: 9281
+				"windows"	"9" //build 9115164: 9277
+				"linux"		"9" //build 9115164: 9281
+			}
+			"CPopulationManager::m_nMvMEventPopfileType"
+			{
+				"windows"	"636" //build 9290789: 1468
+				"linux"		"636" //build 9290789: 1492
+			}
+			"CBaseObject::m_vecBuildOrigin"
+			{
+				"windows"	"4" //build 9290789: 2324
+				"linux"		"4" //build 9290789: 9281
 			}
 			//These are raw offset values and are not used for any calculations
 			"CWave::m_nSentryBustersSpawned"

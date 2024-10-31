@@ -236,7 +236,7 @@ static char m_sIdleSound[MAXPLAYERS + 1][PLATFORM_MAX_PATH];
 static int m_nIdleSoundChannel[MAXPLAYERS + 1];
 static int m_iSpyTeleportAttempt[MAXPLAYERS + 1];
 
-static Action Timer_SuicideBomberDetonate(Handle timer, any data)
+static Action Timer_SuicideBomberDetonate(Handle timer, int data)
 {
 	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data) && !ShouldCurrentActionBeSuspended(data))
 	{
@@ -735,8 +735,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	int nClassIndex = view_as<int>(iClass);
 	
-	//TODO: this should be using the value of m_nMvMEventPopfileType from CPopulationManager
-	if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
+	if (GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN)
 	{
 		//NOTE: this part wouldn't actually change anything visibly due to how the client's game is coded
 		player.m_nSkin = 4;
@@ -767,6 +766,15 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		player.SetCustomModel(g_sBotSentryBusterModel, true);
 		player.SetBloodColor(DONT_BLEED);
 	}
+	
+	/* FIXME: this is a stupid hack, but we need some way to tell the client game
+	to update the eyeglow effect after we apply the custom model to the player
+	If we don't do this then the particles don't attach to the model properly
+	Another way to cause an update is by changing the m_iMaxHealth property
+	in the CTFPlayerResource entity but that's just even more ridiculous */
+	DifficultyType mySkill = roboPlayer.GetDifficulty();
+	roboPlayer.SetDifficulty(CTFBot_UNDEFINED);
+	roboPlayer.SetDifficulty(mySkill);
 	
 	//Do this after the items, since this one only adds new ones if there are no equip region conflicts
 	AddRomevisionCosmetics(client);

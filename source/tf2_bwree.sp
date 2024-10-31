@@ -54,6 +54,7 @@ Author: ★ Officer Spy ★
 
 enum
 {
+	BOMB_UPGRADE_DISABLED = 0,
 	BOMB_UPGRADE_MANUAL,
 	BOMB_UPGRADE_AUTO
 }
@@ -62,6 +63,13 @@ enum
 {
 	COSMETIC_MODE_NONE = 0,
 	COSMETIC_MODE_ALLOW_ALWAYS
+}
+
+enum
+{
+	DROPITEM_DISABLED = -1,
+	DROPITEM_DISABLED_BOMB_LEVEL2,
+	DROPITEM_ALLOWED
 }
 
 enum
@@ -785,7 +793,7 @@ public void OnPluginStart()
 	
 	bwr3_robot_spawn_time_min = CreateConVar("sm_bwr3_robot_spawn_time_min", "12", _, FCVAR_NOTIFY);
 	bwr3_robot_spawn_time_max = CreateConVar("sm_bwr3_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
-	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "1", _, FCVAR_NOTIFY);
+	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "2", _, FCVAR_NOTIFY);
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
@@ -851,6 +859,7 @@ public void OnPluginStart()
 	
 	AddCommandListener(CommandListener_Voicemenu, "voicemenu");
 	AddCommandListener(CommandListener_TournamentPlayerReadystate, "tournament_player_readystate");
+	AddCommandListener(CommandListener_Taunt, "taunt");
 	AddCommandListener(CommandListener_Dropitem, "dropitem");
 	AddCommandListener(CommandListener_Kill, "kill");
 	AddCommandListener(CommandListener_Kill, "explode");
@@ -1299,6 +1308,28 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			BlockAttackForDuration(client, 0.5);
 			buttons &= ~IN_ATTACK;
 		}
+		else
+		{
+			if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter) //TODO: replace this stock
+			{
+				int teleporter = GetEntPropEnt(myWeapon, Prop_Send, "m_hObjectBeingBuilt");
+				
+				if (teleporter != -1)
+				{
+					float telePos[3]; GetCurrentBuildOrigin(teleporter, telePos);
+					telePos[2] += TFBOT_STEP_HEIGHT;
+					
+					if (!IsSpaceToSpawnHere(telePos, tf_mvm_miniboss_scale.FloatValue))
+					{
+						buttons &= ~IN_ATTACK;
+						
+#if defined TESTING_ONLY
+						PrintToChat(client, "No space for teleporter at %f %f %f!", telePos[0], telePos[1], telePos[2] - TFBOT_STEP_HEIGHT);
+#endif
+					}
+				}
+			}
+		}
 	}
 	
 	if (buttons & IN_ATTACK2)
@@ -1467,7 +1498,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				if (timeHoldingFlag >= bwr3_flag_max_hold_time.FloatValue)
 				{
 					g_flLastTimeFlagInSpawn[client] = GetGameTime();
-					ForcePlayerToDropFlag(client);
+					
+					if (roboPlayer.BombUpgradeLevel > 1 && bwr3_allow_drop_item.IntValue <= DROPITEM_DISABLED_BOMB_LEVEL2)
+					{
+						//At this point we have permanent buffs, so just suicide
+						ForcePlayerSuicide(client);
+					}
+					else
+					{
+						ForcePlayerToDropFlag(client);
+					}
 					
 					char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
 					
@@ -1524,7 +1564,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						{
 							//Upgrade the bomb over time
 							if (UpgradeBomb(client))
+							{
+								//CTFBotTaunt taunts on random interval
 								CreateTimer(GetRandomFloat(0.0, 1.0), Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
+							}
 						}
 					}
 				}
@@ -1563,12 +1606,7 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 	if (!IsPlayingAsRobot(client))
 		return;
 	
-	if (condition == TFCond_Taunting && bwr3_bomb_upgrade_mode.IntValue == BOMB_UPGRADE_MANUAL && MvMRobotPlayer(client).BombUpgradeTimer_IsElapsed() && TF2_HasTheFlag(client))
-	{
-		//Here we taunt to upgrade the bomb in this mode
-		UpgradeBomb(client);
-	}
-	else if (condition == TFCond_MVMBotRadiowave && m_bBypassBotCheck[client] == false)
+	if (condition == TFCond_MVMBotRadiowave && m_bBypassBotCheck[client] == false)
 	{
 		//This condition does nothing on human players, so we apply the stun ourselves
 		m_bBypassBotCheck[client] = true;
@@ -1713,6 +1751,17 @@ public Action Command_RobotTemplateMenu(int client, int args)
 	if (!IsPlayingAsRobot(client))
 		return Plugin_Handled;
 	
+	if (args >= 1)
+	{
+		char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
+		
+		if (StringToInt(arg1) == 1 && CheckCommandAccess(client, "", ADMFLAG_GENERIC, true))
+		{
+			RobotPlayer_ChangeRobot(client, true);
+			return Plugin_Handled;
+		}
+	}
+	
 	RobotPlayer_ChangeRobot(client);
 	
 	return Plugin_Handled;
@@ -1724,6 +1773,9 @@ public Action Command_ReselectRobot(int client, int args)
 		return Plugin_Handled;
 	
 	SelectPlayerNextRobot(client);
+	
+	if (MvMRobotPlayer(client).MyNextRobotTemplateType != ROBOT_BOSS)
+		g_bSpawningAsBossRobot[client] = false;
 	
 	return Plugin_Handled;
 }
@@ -1789,6 +1841,7 @@ public Action Command_PlayAsRobotType(int client, int args)
 	char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 	char arg2[3]; GetCmdArg(2, arg2, sizeof(arg2));
 	
+	g_bSpawningAsBossRobot[client] = false;
 	g_bCanRespawn[client] = true;
 	TurnPlayerIntoRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)), StringToInt(arg2));
 	
@@ -1949,11 +2002,28 @@ public Action CommandListener_TournamentPlayerReadystate(int client, const char[
 	return Plugin_Continue;
 }
 
+public Action CommandListener_Taunt(int client, const char[] command, int argc)
+{
+	if (IsPlayingAsRobot(client))
+	{
+		if (bwr3_bomb_upgrade_mode.IntValue == BOMB_UPGRADE_MANUAL && MvMRobotPlayer(client).BombUpgradeTimer_IsElapsed() && TF2_HasTheFlag(client))
+		{
+			if (UpgradeBomb(client))
+			{
+				CreateTimer(GetRandomFloat(0.0, 1.0), Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
+				return Plugin_Handled;
+			}
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
 public Action CommandListener_Dropitem(int client, const char[] command, int argc)
 {
 	if (IsPlayingAsRobot(client))
 	{
-		if (bwr3_allow_drop_item.IntValue > 0)
+		if (bwr3_allow_drop_item.IntValue > DROPITEM_DISABLED_BOMB_LEVEL2)
 			return Plugin_Continue;
 		
 		//The buffs after stage 1 are permanent so don't let them to drop it here
@@ -2647,7 +2717,7 @@ void RobotPlayer_SpawnNow(int client)
 	LogAction(client, -1, "%L forcibly spawned as their next robot.", client);
 }
 
-void RobotPlayer_ChangeRobot(int client)
+void RobotPlayer_ChangeRobot(int client, bool bAdmin = false)
 {
 	if (!bwr3_robot_menu_allowed.BoolValue)
 	{
@@ -2686,7 +2756,7 @@ void RobotPlayer_ChangeRobot(int client)
 		}
 	}
 	
-	ShowRobotVariantTypeMenu(client);
+	ShowRobotVariantTypeMenu(client, bAdmin);
 }
 
 bool IsPlayingAsRobot(int client)
@@ -2748,6 +2818,7 @@ void SetRobotPlayer(int client, bool enabled)
 	{
 		ResetRobotPlayerGameStats(client);
 		
+		g_bSpawningAsBossRobot[client] = false;
 		g_bCanRespawn[client] = true;
 		m_bIsRobot[client] = false;
 		
@@ -3271,7 +3342,7 @@ void SpyDisguiseThink(int client, int disguiseclass, int disguiseteam)
 				// RED spy disguised as a RED team member, should look like a RED human
 				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
 			}
-			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
+			else if (GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN)
 			{
 				// RED spy disguised as a BLU team member, should look like a BLU human on wave 666
 				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
@@ -3289,7 +3360,7 @@ void SpyDisguiseThink(int client, int disguiseclass, int disguiseteam)
 				// BLU spy disguised as a RED team member, should look like a RED human
 				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
 			}
-			else if (GetEntProp(g_iObjectiveResource, Prop_Send, "m_nMvMEventPopfileType") == MVM_EVENT_POPFILE_HALLOWEEN)
+			else if (GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN)
 			{
 				// BLU spy disguised as a BLU team member, should look like a BLU human on wave 666
 				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);				

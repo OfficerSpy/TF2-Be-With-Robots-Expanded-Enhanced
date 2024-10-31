@@ -62,11 +62,12 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	
 	int attacker = GetClientOfUserId(event.GetInt("attacker"));
 	
-	if (attacker > 0 && BaseEntity_IsPlayer(attacker))
+	if (attacker > 0)
 	{
 		if (IsPlayingAsRobot(attacker))
 		{
-			g_arrRobotPlayerStats[client].iKills++;
+			if (attacker != client)
+				g_arrRobotPlayerStats[client].iKills++;
 		}
 	}
 	
@@ -166,7 +167,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	
 	//Killed by a RED player and we're a gatebot, give them the achievement
 	//Would never fire normally for human players regardless because they can't be casted as CTFBot
-	if (attacker > 0 && BaseEntity_IsPlayer(attacker) && TF2_GetClientTeam(attacker) == TFTeam_Red)
+	if (attacker > 0 && TF2_GetClientTeam(attacker) == TFTeam_Red)
 	{
 		char mapName[15]; GetCurrentMap(mapName, sizeof(mapName));
 		
