@@ -189,7 +189,15 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	} */
 	
 	if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
+	{
+		if (!roboPlayer.DetonateTimer_HasStarted())
+		{
+			//Would normally call StartDetonate here but it's pointless
+			EmitGameSoundToAll("MvM.SentryBusterSpin", client);
+		}
+		
 		roboPlayer.DestroySuicideBomber();
+	}
 	
 	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
 	

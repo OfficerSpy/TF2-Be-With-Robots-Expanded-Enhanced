@@ -1310,22 +1310,25 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 		else
 		{
-			if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter) //TODO: replace this stock
+			if (myWeapon != -1)
 			{
-				int teleporter = GetEntPropEnt(myWeapon, Prop_Send, "m_hObjectBeingBuilt");
-				
-				if (teleporter != -1)
+				if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter) //TODO: replace this stock
 				{
-					float telePos[3]; GetCurrentBuildOrigin(teleporter, telePos);
-					telePos[2] += TFBOT_STEP_HEIGHT;
+					int teleporter = GetEntPropEnt(myWeapon, Prop_Send, "m_hObjectBeingBuilt");
 					
-					if (!IsSpaceToSpawnHere(telePos, tf_mvm_miniboss_scale.FloatValue))
+					if (teleporter != -1)
 					{
-						buttons &= ~IN_ATTACK;
+						float telePos[3]; GetCurrentBuildOrigin(teleporter, telePos);
+						telePos[2] += TFBOT_STEP_HEIGHT;
 						
+						if (!IsSpaceToSpawnHere(telePos, tf_mvm_miniboss_scale.FloatValue))
+						{
+							buttons &= ~IN_ATTACK;
+							
 #if defined TESTING_ONLY
-						PrintToChat(client, "No space for teleporter at %f %f %f!", telePos[0], telePos[1], telePos[2] - TFBOT_STEP_HEIGHT);
+							PrintToChat(client, "No space for teleporter at %f %f %f!", telePos[0], telePos[1], telePos[2] - TFBOT_STEP_HEIGHT);
 #endif
+						}
 					}
 				}
 			}
@@ -2083,6 +2086,9 @@ public void CaptureFlag_OnPickup(const char[] output, int caller, int activator,
 	//CCaptureFlag::PickUp updates the bomb hud and fires this output on the same frame
 	//Since the output is fired first, we need to delay by a frame here to update the bomb hud ourselves
 	RequestFrame(Frame_CaptureFlagOnPickup, owner);
+	
+	//Copy the tags from the flag onto the player
+	InheritFlagTags(owner, activator);
 }
 
 public void Frame_CaptureFlagOnPickup(int data)
@@ -2699,15 +2705,22 @@ void RobotPlayer_SpawnNow(int client)
 		if (IsValidEntity(g_iObjectiveResource))
 		{
 			char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(client, iconName, sizeof(iconName));
-			int iFlags = MvMRobotPlayer(client).GetMission() >= CTFBot_MISSION_SNIPER ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
+			int iFlags = MvMRobotPlayer(client).GetMission() >= CTFBot_MISSION_DESTROY_SENTRIES ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
 			
 			if (TF2_IsMiniBoss(client))
 				iFlags |= MVM_CLASS_FLAG_MINIBOSS;
 			
 			if (IsClassIconUsedInCurrentWave(iconName))
+			{
 				TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
+			}
 			else
+			{
+				if (MvMRobotPlayer(client).HasAttribute(CTFBot_ALWAYS_CRIT))
+					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
+				
 				TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
+			}
 		}
 	}
 	
@@ -3243,6 +3256,18 @@ int GetFlagToFetch(int client)
 		return iClosestUncarriedFlag;
 	
 	return iClosestFlag;
+}
+
+void InheritFlagTags(int client, int flag)
+{
+	char tags[BOT_TAGS_BUFFER_MAX_LENGTH]; GetEntPropString(flag, Prop_Data, "m_iszTags", tags, sizeof(tags));
+	
+	//This entity can parse multiple tags, separated by a blank space
+	char splitTags[MAX_BOT_TAG_CHECKS][BOT_TAG_EACH_MAX_LENGTH];
+	int splitTagsCount = ExplodeString(tags, " ", splitTags, sizeof(splitTags), sizeof(splitTags[]));
+	
+	for (int i = 0; i < splitTagsCount; i++)
+		MvMRobotPlayer(client).AddTag(splitTags[i]);
 }
 
 void RemoveAllRobotPlayerOwnedEntities()

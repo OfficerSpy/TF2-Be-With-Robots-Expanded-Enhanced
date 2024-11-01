@@ -394,6 +394,21 @@ static Action Timer_BossRobotAlert(Handle timer, DataPack pack)
 	return Plugin_Stop;
 }
 
+static Action Timer_SetPlayerBotSkill(Handle timer, DataPack pack)
+{
+	pack.Reset();
+	
+	int client = pack.ReadCell();
+	
+	if (!IsClientInGame(client) || !IsPlayingAsRobot(client) || !IsPlayerAlive(client))
+		return Plugin_Stop;
+	
+	DifficultyType skill = pack.ReadCell();
+	MvMRobotPlayer(client).SetDifficulty(skill);
+	
+	return Plugin_Stop;
+}
+
 static float SentryBuster_GetDamageForVictim(int victim, float baseDamage)
 {
 	if (BaseEntity_IsPlayer(victim))
@@ -767,15 +782,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		player.SetBloodColor(DONT_BLEED);
 	}
 	
-	/* FIXME: this is a stupid hack, but we need some way to tell the client game
-	to update the eyeglow effect after we apply the custom model to the player
-	If we don't do this then the particles don't attach to the model properly
-	Another way to cause an update is by changing the m_iMaxHealth property
-	in the CTFPlayerResource entity but that's just even more ridiculous */
-	DifficultyType mySkill = roboPlayer.GetDifficulty();
-	roboPlayer.SetDifficulty(CTFBot_UNDEFINED);
-	roboPlayer.SetDifficulty(mySkill);
-	
 	//Do this after the items, since this one only adds new ones if there are no equip region conflicts
 	AddRomevisionCosmetics(client);
 	
@@ -1027,7 +1033,17 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 {
 	char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
 	
-	roboPlayer.SetDifficulty(GetSkillFromString(kvStringBuffer));
+	/* FIXME: this is a stupid hack, but we need some way to tell the client game
+	to update the eyeglow effect after we apply the custom model to the player
+	If we don't do this then the particles don't attach to the model properly
+	Another way to cause an update is by changing the m_iMaxHealth property
+	in the CTFPlayerResource entity but that's just even more ridiculous */
+	roboPlayer.SetDifficulty(CTFBot_UNDEFINED);
+	DataPack pack;
+	CreateDataTimer(0.2, Timer_SetPlayerBotSkill, pack, TIMER_FLAG_NO_MAPCHANGE);
+	pack.WriteCell(roboPlayer.index);
+	pack.WriteCell(GetSkillFromString(kvStringBuffer));
+	
 	roboPlayer.ClearWeaponRestrictions();
 	
 	kv.GetString("WeaponRestrictions", kvStringBuffer, sizeof(kvStringBuffer));
@@ -1855,11 +1871,13 @@ void TurnPlayerIntoHisNextRobot(int client)
 		{
 			case ROBOT_STANDARD, ROBOT_GATEBOT:
 			{
-				g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+				if (bwr3_robot_menu_cooldown.IntValue >= 0)
+					g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 			}
 			case ROBOT_GIANT, ROBOT_GATEBOT_GIANT:
 			{
-				g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+				if (bwr3_robot_menu_giant_cooldown.IntValue >= 0)
+					g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 			}
 		}
 		

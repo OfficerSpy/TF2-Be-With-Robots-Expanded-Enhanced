@@ -230,15 +230,22 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 			if (IsValidEntity(g_iObjectiveResource))
 			{
 				char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(pThis, iconName, sizeof(iconName));
-				int iFlags = MvMRobotPlayer(pThis).GetMission() >= CTFBot_MISSION_SNIPER ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
+				int iFlags = MvMRobotPlayer(pThis).GetMission() >= CTFBot_MISSION_DESTROY_SENTRIES ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
 				
 				if (TF2_IsMiniBoss(pThis))
 					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
 				
 				if (IsClassIconUsedInCurrentWave(iconName))
+				{
 					TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
+				}
 				else
+				{
+					if (MvMRobotPlayer(client).HasAttribute(CTFBot_ALWAYS_CRIT))
+						iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
+					
 					TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
+				}
 			}
 		}
 #else

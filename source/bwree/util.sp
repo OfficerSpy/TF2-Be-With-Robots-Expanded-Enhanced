@@ -248,14 +248,9 @@ int FindBombNearestToHatch()
 	
 	while ((ent = FindEntityByClassname(ent, "item_teamflag")) != -1)
 	{
-		//Ignore bombs not in play
-		if (GetEntProp(ent, Prop_Send, "m_nFlagStatus") == 0)
+		if (CaptureFlag_IsHome(ent))
 			continue;
 		
-		//Ignore bombs not on blue team.
-		if (GetEntProp(ent, Prop_Send, "m_iTeamNum") != view_as<int>(TFTeam_Blue))
-			continue;
-	
 		float distance = GetVectorDistance(origin, WorldSpaceCenter(ent));
 		
 		if (distance <= bestDistance)
