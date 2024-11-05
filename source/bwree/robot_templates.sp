@@ -1847,7 +1847,7 @@ void TurnPlayerIntoHisNextRobot(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
-	g_bCanRespawn[client] = true;
+	g_bAllowRespawn[client] = true;
 	TurnPlayerIntoRobot(client, roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 	
 	if (roboPlayer.MyNextRobotTemplateType == ROBOT_BOSS)

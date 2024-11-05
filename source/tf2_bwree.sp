@@ -155,7 +155,7 @@ float g_flLastTimeFlagInSpawn[MAXPLAYERS + 1];
 bool g_bChangeRobotPicked[MAXPLAYERS + 1];
 float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
-bool g_bCanRespawn[MAXPLAYERS + 1];
+bool g_bAllowRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
@@ -779,7 +779,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.7",
+	version = "1.1.8",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -964,7 +964,7 @@ public void OnClientPutInServer(int client)
 	g_bChangeRobotPicked[client] = false;
 	g_flChangeRobotCooldown[client] = 0.0;
 	g_bSpawningAsBossRobot[client] = false;
-	g_bCanRespawn[client] = true;
+	g_bAllowRespawn[client] = true;
 	
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
@@ -1146,7 +1146,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
 	{
-		g_bCanRespawn[client] = true;
+		g_bAllowRespawn[client] = true;
 		
 		//No attacking allowed during pre-round
 		/* if (buttons & IN_ATTACK)
@@ -1172,24 +1172,26 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (!IsPlayerAlive(client))
 	{
-		//Player is always allowed to respawn when they're dead
-		g_bCanRespawn[client] = true;
-		
 		m_bIsWaitingForReload[client] = false;
 		
 		//Spawn the player in the next respawn wave
 		if (roboPlayer.NextSpawnTime <= GetGameTime() && !IsBotSpawningPaused(g_iPopulationManager))
 		{
+			g_bAllowRespawn[client] = true;
 			roboPlayer.NextSpawnTime = GetGameTime() + 1.0;
 			TurnPlayerIntoHisNextRobot(client);
 			SelectPlayerNextRobot(client);
+		}
+		else
+		{
+			g_bAllowRespawn[client] = false;
 		}
 		
 		return Plugin_Continue;
 	}
 	
 	//We have spawned in as one of the robots, so we are currently not allowed to respawn ourselves
-	g_bCanRespawn[client] = false;
+	g_bAllowRespawn[client] = false;
 	
 	//Force any input if specified elsewhere
 	if (g_iForcedButtonInput[client] != 0)
@@ -1239,7 +1241,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (roboPlayer.IsDeployingTheBomb())
 	{
-		//NOTE: not needed if using TF_COND_FREEZE_INPUT in SetPlayerToMove
+		//NOTE: not needed if using TF_COND_FREEZE_INPUT in FreezePlayerInput
 		/* if (buttons & IN_ATTACK)
 		{
 			//Deny attacking while deploying
@@ -1645,7 +1647,7 @@ public void ConVarChanged_AllowMovement(ConVar convar, const char[] oldValue, co
 	
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
-			SetEntityMoveType(i, StringToInt(newValue) ? MOVETYPE_WALK : MOVETYPE_NONE);
+			SetPlayerToMove(i, StringToInt(newValue) ? true : false);
 }
 
 public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -1845,7 +1847,7 @@ public Action Command_PlayAsRobotType(int client, int args)
 	char arg2[3]; GetCmdArg(2, arg2, sizeof(arg2));
 	
 	g_bSpawningAsBossRobot[client] = false;
-	g_bCanRespawn[client] = true;
+	g_bAllowRespawn[client] = true;
 	TurnPlayerIntoRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)), StringToInt(arg2));
 	
 	return Plugin_Handled;
@@ -1996,10 +1998,8 @@ public Action CommandListener_TournamentPlayerReadystate(int client, const char[
 {
 	if (IsPlayingAsRobot(client))
 	{
-		if (bwr3_allow_readystate.BoolValue)
-			return Plugin_Continue;
-		
-		return Plugin_Handled;
+		if (!bwr3_allow_readystate.BoolValue)
+			return Plugin_Handled;
 	}
 	
 	return Plugin_Continue;
@@ -2026,12 +2026,20 @@ public Action CommandListener_Dropitem(int client, const char[] command, int arg
 {
 	if (IsPlayingAsRobot(client))
 	{
-		if (bwr3_allow_drop_item.IntValue > DROPITEM_DISABLED_BOMB_LEVEL2)
-			return Plugin_Continue;
-		
-		//The buffs after stage 1 are permanent so don't let them to drop it here
-		if (MvMRobotPlayer(client).BombUpgradeLevel > 1)
-			return Plugin_Handled;
+		switch (bwr3_allow_drop_item.IntValue)
+		{
+			case DROPITEM_DISABLED:
+			{
+				//No dropping here
+				return Plugin_Handled;
+			}
+			case DROPITEM_DISABLED_BOMB_LEVEL2:
+			{
+				//The buffs after stage 1 are permanent so don't let them to drop it here
+				if (MvMRobotPlayer(client).BombUpgradeLevel > 1)
+					return Plugin_Handled;
+			}
+		}
 	}
 	
 	return Plugin_Continue;
@@ -2832,7 +2840,7 @@ void SetRobotPlayer(int client, bool enabled)
 		ResetRobotPlayerGameStats(client);
 		
 		g_bSpawningAsBossRobot[client] = false;
-		g_bCanRespawn[client] = true;
+		g_bAllowRespawn[client] = true;
 		m_bIsRobot[client] = false;
 		
 		MvMRobotPlayer(client).Reset();
@@ -2870,7 +2878,7 @@ bool MvMDeployBomb_OnStart(int client)
 	roboPlayer.DeployBombTimer_Start(tf_deploying_bomb_delay_time.FloatValue);
 	
 	GetClientAbsOrigin(client, m_vecDeployPos[client]);
-	SetPlayerToMove(client, false);
+	FreezePlayerInput(client, true);
 	SetBlockPlayerMovementTime(client, 0.1);
 	SetAbsVelocity(client, {0.0, 0.0, 0.0});
 	
@@ -3004,24 +3012,36 @@ void MvMDeployBomb_OnEnd(int client)
 	
 	roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_NONE;
 	
-	SetPlayerToMove(client, true);
+	FreezePlayerInput(client, false);
 	SetBlockPlayerMovementTime(client, 0.0);
 	
 	if (!g_nForcedTauntCam[client])
 		SetForcedTauntCam(client, 0);
 }
 
-void SetPlayerToMove(int client, bool enabled)
+void FreezePlayerInput(int client, bool bFreeze)
 {
-	if (enabled)
+	if (bFreeze)
+	{
+		TF2_AddCondition(client, TFCond_FreezeInput);
+	}
+	else
+	{
+		TF2_RemoveCondition(client, TFCond_FreezeInput);
+	}
+}
+
+void SetPlayerToMove(int client, bool bEnable)
+{
+	if (bEnable)
 	{
 		//Enable movement
-		TF2_RemoveCondition(client, TFCond_FreezeInput);
+		SetEntityMoveType(client, MOVETYPE_WALK);
 	}
 	else
 	{
 		//Disable movement
-		TF2_AddCondition(client, TFCond_FreezeInput);
+		SetEntityMoveType(client, MOVETYPE_NONE);
 	}
 }
 

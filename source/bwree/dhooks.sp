@@ -421,7 +421,7 @@ static MRESReturn DHookCallback_AcceptInput_Post(int pThis, DHookReturn hReturn,
 static MRESReturn DHookCallback_ForceRespawn_Pre(int pThis)
 {
 	//Somewhere, we said this player is not allowed to respawn at this time
-	if (g_bCanRespawn[pThis] == false)
+	if (g_bAllowRespawn[pThis] == false)
 		return MRES_Supercede;
 	
 	return MRES_Ignored;

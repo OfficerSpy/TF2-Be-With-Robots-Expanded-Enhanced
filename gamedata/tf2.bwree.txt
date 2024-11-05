@@ -181,7 +181,7 @@
 			"CBaseObject::m_vecBuildOrigin"
 			{
 				"windows"	"4" //build 9290789: 2324
-				"linux"		"4" //build 9290789: 9281
+				"linux"		"4" //build 9290789: 2348
 			}
 			//These are raw offset values and are not used for any calculations
 			"CWave::m_nSentryBustersSpawned"

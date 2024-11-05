@@ -364,7 +364,7 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		if (IsPlayingAsRobot(client))
 		{
 			if (!bwr3_allow_movement.BoolValue)
-				SetEntityMoveType(client, MOVETYPE_NONE);
+				SetPlayerToMove(client, false);
 			
 			//Robot players are ignored by sentries between rounds
 			SetEntityFlags(client, GetEntityFlags(client) | FL_NOTARGET);
@@ -454,7 +454,7 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 			if (IsClientInGame(i) && IsPlayingAsRobot(i))
 			{
 				//Compensate cooldown for map reset time
-				SetBWRCooldownTimeLeft(i, GetPlayerCalculatedCooldown(i) + BONUS_ROUND_TIME_MVM);
+				SetBWRCooldownTimeLeft(i, GetPlayerCalculatedCooldown(i) + BONUS_ROUND_TIME_MVM + 1.0);
 			}
 		}
 	}
