@@ -51,6 +51,7 @@ Author: ★ Officer Spy ★
 #define NO_AIRBLAST_BETWEEN_ROUNDS
 #define SUICIDE_DISTRIBUTE_CURRENCY
 // #define MANUAL_DEATH_WAVEBAR_EDIT
+#define CORRECT_VISIBLE_RESPAWN_TIME
 
 enum
 {
@@ -150,6 +151,7 @@ char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MA
 static StringMap m_adtBWRCooldown;
 
 int g_iForcedButtonInput[MAXPLAYERS + 1];
+bool g_bRobotSpawning[MAXPLAYERS + 1];
 int g_nForcedTauntCam[MAXPLAYERS + 1];
 float g_flLastTimeFlagInSpawn[MAXPLAYERS + 1];
 bool g_bChangeRobotPicked[MAXPLAYERS + 1];
@@ -848,6 +850,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_ns", Command_FindUseNewSpawnLocation);
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_robots", Command_ListRobots, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_setcooldown", Command_SetCooldownOnPlayer, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_viewcooldowns", Command_ViewCooldownData, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
@@ -959,6 +962,7 @@ public void OnClientPutInServer(int client)
 	ResetRobotPlayerGameStats(client);
 	
 	g_iForcedButtonInput[client] = 0;
+	g_bRobotSpawning[client] = false;
 	// g_nForcedTauntCam[client] = 0;
 	g_flLastTimeFlagInSpawn[client] = GetGameTime();
 	g_bChangeRobotPicked[client] = false;
@@ -1098,6 +1102,11 @@ public void OnEntityCreated(int entity, const char[] classname)
 		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
 	}
 	
+	if (StrEqual(classname, "trigger") || StrContains(classname, "trigger_") != -1)
+	{
+		SDKHook(entity, SDKHook_Touch, BaseTrigger_Touch);
+	}
+	
 	//TODO: should we try to check if any other entity is a member of CBaseCombatCharacter?
 	
 	DHooks_OnEntityCreated(entity, classname);
@@ -1142,9 +1151,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		return Plugin_Continue;
 	}
 	
+	RoundState iRoundState = GameRules_GetRoundState();
 	OSTFPlayer player = OSTFPlayer(client);
 	
-	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+	if (iRoundState == RoundState_BetweenRounds)
 	{
 		g_bAllowRespawn[client] = true;
 		
@@ -1174,10 +1184,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		m_bIsWaitingForReload[client] = false;
 		
+		if (iRoundState == RoundState_GameOver)
+		{
+			//No spawning at this time
+			return Plugin_Continue;
+		}
+		
 		//Spawn the player in the next respawn wave
 		if (roboPlayer.NextSpawnTime <= GetGameTime() && !IsBotSpawningPaused(g_iPopulationManager))
 		{
-			g_bAllowRespawn[client] = true;
 			roboPlayer.NextSpawnTime = GetGameTime() + 1.0;
 			TurnPlayerIntoHisNextRobot(client);
 			SelectPlayerNextRobot(client);
@@ -1725,8 +1740,18 @@ public Action Command_JoinBlue(int client, int args)
 		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
 		
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
+#if defined CORRECT_VISIBLE_RESPAWN_TIME
+		if (!IsPlayerAlive(client))
+		{
+			//We're already dead, act as if we died now as overridden respawn time is calculated as GetDeathTime() + GetRespawnTimeOverride()
+			SetEntPropFloat(client, Prop_Send, "m_flDeathTime", GetGameTime());
+		}
+		
+		TF2Util_SetPlayerRespawnTimeOverride(client, MvMRobotPlayer(client).NextSpawnTime - GetGameTime() + 0.1);
+#else
 		TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
-#endif
+#endif //CORRECT_VISIBLE_RESPAWN_TIME
+#endif //OVERRIDE_PLAYER_RESPAWN_TIME
 	}
 	
 	ChangePlayerToTeamInvaders(client);
@@ -1849,6 +1874,30 @@ public Action Command_PlayAsRobotType(int client, int args)
 	g_bSpawningAsBossRobot[client] = false;
 	g_bAllowRespawn[client] = true;
 	TurnPlayerIntoRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)), StringToInt(arg2));
+	
+	return Plugin_Handled;
+}
+
+public Action Command_ListRobots(int client, int args)
+{
+	eRobotTemplateType type = ROBOT_STANDARD;
+	
+	if (args > 0)
+	{
+		char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
+		type = view_as<eRobotTemplateType>(StringToInt(arg1));
+	}
+	
+	PrintToConsole(client, "#ID - NAME");
+	
+	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
+	{
+		char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(type, i, robotName, sizeof(robotName));
+		PrintToConsole(client, "#%d - \"%s\"", i, robotName);
+	}
+	
+	if (GetCmdReplySource() == SM_REPLY_TO_CHAT)
+		PrintToChat(client, "Check console for details.");
 	
 	return Plugin_Handled;
 }
@@ -2211,12 +2260,31 @@ public Action CaptureFlag_Touch(int entity, int other)
 	if (!IsPlayerAlive(other))
 		return Plugin_Continue;
 	
+	//Currently in robot transformation
+	if (g_bRobotSpawning[other])
+		return Plugin_Handled;
+	
 	//Mission robots can't pick up the flag
 	if (MvMRobotPlayer(other).IsOnAnyMission())
 		return Plugin_Handled;
 	
 	//This robot is currently ignoring the flag
 	if (MvMRobotPlayer(other).HasAttribute(CTFBot_IGNORE_FLAG))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public Action BaseTrigger_Touch(int entity, int other)
+{
+	if (!BaseEntity_IsPlayer(other))
+		return Plugin_Continue;
+	
+	if (!IsPlayingAsRobot(other))
+		return Plugin_Continue;
+	
+	//Currently in robot transformation
+	if (g_bRobotSpawning[other])
 		return Plugin_Handled;
 	
 	return Plugin_Continue;
@@ -2239,13 +2307,12 @@ public void PlayerRobot_TouchPost(int entity, int other)
 {
 	if (other > MaxClients)
 	{
+		char otherClassname[PLATFORM_MAX_PATH]; GetEntityClassname(other, otherClassname, sizeof(otherClassname));
 		OSTFPlayer player = OSTFPlayer(entity);
 		
 		if (!ShouldCurrentActionBeSuspended(entity))
 		{
-			char classname[PLATFORM_MAX_PATH]; GetEntityClassname(other, classname, sizeof(classname));
-			
-			if (StrEqual(classname, "func_capturezone"))
+			if (StrEqual(otherClassname, "func_capturezone"))
 			{
 				//Start deploying the bomb
 				if (!MvMRobotPlayer(entity).IsDeployingTheBomb() && CanPerformNewBehaviorAction(entity) && player.HasTheFlag())
@@ -2278,6 +2345,17 @@ public void PlayerRobot_TouchPost(int entity, int other)
 				}
 			}
 		}
+		
+#if defined MOD_EXT_CBASENPC
+		if (StrEqual(otherClassname, "trigger_capture_area") || StrEqual(otherClassname, "trigger_timer_door"))
+		{
+			if (TF2_IsPlayerInCondition(entity, TFCond_UberchargedHidden))
+			{
+				//Stop capture if we're somehow in our spawn area
+				AcceptEntityInput(other, "EndTouch", _, entity);
+			}
+		}
+#endif
 	}
 	else if (BaseEntity_IsPlayer(other))
 	{
@@ -2688,6 +2766,12 @@ float GetPlayerCalculatedCooldown(int client)
 
 void RobotPlayer_SpawnNow(int client)
 {
+	if (g_bRobotSpawning[client])
+	{
+		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Cannot_Spawn_Now");
+		return;
+	}
+	
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
 	{
 		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Cannot_Spawn_Now");
@@ -2839,6 +2923,7 @@ void SetRobotPlayer(int client, bool enabled)
 	{
 		ResetRobotPlayerGameStats(client);
 		
+		g_bRobotSpawning[client] = false;
 		g_bSpawningAsBossRobot[client] = false;
 		g_bAllowRespawn[client] = true;
 		m_bIsRobot[client] = false;

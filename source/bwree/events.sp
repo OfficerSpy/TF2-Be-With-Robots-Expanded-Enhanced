@@ -202,8 +202,12 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
 	
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
+#if defined CORRECT_VISIBLE_RESPAWN_TIME
+	TF2Util_SetPlayerRespawnTimeOverride(client, roboPlayer.NextSpawnTime - GetGameTime() + 0.1);
+#else
 	TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
-#endif
+#endif //CORRECT_VISIBLE_RESPAWN_TIME
+#endif //OVERRIDE_PLAYER_RESPAWN_TIME
 }
 
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)

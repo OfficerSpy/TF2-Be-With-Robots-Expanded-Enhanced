@@ -430,6 +430,8 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 	char fileName[PLATFORM_MAX_PATH];
 	char filePath[PLATFORM_MAX_PATH];
 	
+	g_bRobotSpawning[client] = true;
+	
 	switch (type)
 	{
 		case ROBOT_STANDARD:
@@ -516,7 +518,11 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
-		default:	LogError("TurnPlayerIntoRobot: Unknown robot template type %d", type);
+		default:
+		{
+			g_bRobotSpawning[client] = false;
+			LogError("TurnPlayerIntoRobot: Unknown robot template type %d", type);
+		}
 	}
 }
 
@@ -993,6 +999,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	//For TFBots this is actually checked in CTFBot::PhysicsSimulate
 	if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 		player.AddCond(TFCond_CritCanteen);
+	
+	g_bRobotSpawning[client] = false;
 	
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", strName);
 	
