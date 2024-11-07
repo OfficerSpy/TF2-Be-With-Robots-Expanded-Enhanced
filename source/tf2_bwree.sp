@@ -27,6 +27,7 @@ Author: ★ Officer Spy ★
 #pragma newdecls required
 
 // #define TESTING_ONLY
+// #define DEBUG_DETOURS
 
 #define PLUGIN_NAME	"[TF2] Be With Robots: Expanded & Enhanced"
 #define PLUGIN_PREFIX	"[BWR E&E]"
@@ -206,6 +207,7 @@ ConVar bwr3_min_players_for_giants;
 ConVar bwr3_allow_movement;
 ConVar bwr3_allow_readystate;
 ConVar bwr3_allow_drop_item;
+ConVar bwr3_allow_buyback;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
 ConVar bwr3_robots_cooldown_base;
@@ -802,6 +804,7 @@ public void OnPluginStart()
 	bwr3_allow_movement = CreateConVar("sm_bwr3_allow_movement", "1", _, FCVAR_NOTIFY);
 	bwr3_allow_readystate = CreateConVar("sm_bwr3_allow_readystate", "0", _, FCVAR_NOTIFY);
 	bwr3_allow_drop_item = CreateConVar("sm_bwr3_allow_drop_item", "0", _, FCVAR_NOTIFY);
+	bwr3_allow_buyback = CreateConVar("sm_bwr3_allow_buyback", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_robots_cooldown_base = CreateConVar("sm_bwr3_robots_cooldown_base", "60.0", _, FCVAR_NOTIFY);
@@ -866,6 +869,7 @@ public void OnPluginStart()
 	AddCommandListener(CommandListener_Dropitem, "dropitem");
 	AddCommandListener(CommandListener_Kill, "kill");
 	AddCommandListener(CommandListener_Kill, "explode");
+	AddCommandListener(CommandListener_Buyback, "td_buyback");
 	
 	AddNormalSoundHook(SoundHook_General);
 	
@@ -1184,7 +1188,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		m_bIsWaitingForReload[client] = false;
 		
-		if (iRoundState == RoundState_GameOver)
+		if (iRoundState == RoundState_TeamWin || iRoundState == RoundState_GameOver)
 		{
 			//No spawning at this time
 			return Plugin_Continue;
@@ -2096,6 +2100,24 @@ public Action CommandListener_Dropitem(int client, const char[] command, int arg
 
 public Action CommandListener_Kill(int client, const char[] command, int argc)
 {
+	if (IsPlayingAsRobot(client))
+	{
+		//No suicide during transformation
+		if (g_bRobotSpawning[client])
+			return Plugin_Handled;
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action CommandListener_Buyback(int client, const char[] command, int argc)
+{
+	if (IsPlayingAsRobot(client))
+	{
+		if (!bwr3_allow_buyback.BoolValue)
+			return Plugin_Handled;
+	}
+	
 	return Plugin_Continue;
 }
 
@@ -2794,26 +2816,7 @@ void RobotPlayer_SpawnNow(int client)
 	{
 		/* This is normally handled in CTFPlayer::Event_Killed, but since we are changing robots
 		we are going to respawn, so we decrement our icon here manually */
-		if (IsValidEntity(g_iObjectiveResource))
-		{
-			char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(client, iconName, sizeof(iconName));
-			int iFlags = MvMRobotPlayer(client).GetMission() >= CTFBot_MISSION_DESTROY_SENTRIES ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
-			
-			if (TF2_IsMiniBoss(client))
-				iFlags |= MVM_CLASS_FLAG_MINIBOSS;
-			
-			if (IsClassIconUsedInCurrentWave(iconName))
-			{
-				TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
-			}
-			else
-			{
-				if (MvMRobotPlayer(client).HasAttribute(CTFBot_ALWAYS_CRIT))
-					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
-				
-				TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
-			}
-		}
+		DecrementRobotPlayerClassIcon(client);
 	}
 	
 	TurnPlayerIntoHisNextRobot(client);
@@ -3373,6 +3376,30 @@ void InheritFlagTags(int client, int flag)
 	
 	for (int i = 0; i < splitTagsCount; i++)
 		MvMRobotPlayer(client).AddTag(splitTags[i]);
+}
+
+void DecrementRobotPlayerClassIcon(int client)
+{
+	if (IsValidEntity(g_iObjectiveResource))
+	{
+		char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(client, iconName, sizeof(iconName));
+		int iFlags = MvMRobotPlayer(client).GetMission() >= CTFBot_MISSION_DESTROY_SENTRIES ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
+		
+		if (TF2_IsMiniBoss(client))
+			iFlags |= MVM_CLASS_FLAG_MINIBOSS;
+		
+		if (IsClassIconUsedInCurrentWave(iconName))
+		{
+			TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
+		}
+		else
+		{
+			if (MvMRobotPlayer(client).HasAttribute(CTFBot_ALWAYS_CRIT))
+				iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
+			
+			TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
+		}
+	}
 }
 
 void RemoveAllRobotPlayerOwnedEntities()

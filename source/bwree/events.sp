@@ -34,6 +34,17 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 			
 			//Any robot player changing to a team that's not blue is not a robot
 			SetRobotPlayer(client, false);
+			
+			if (IsPlayerAlive(client))
+			{
+				//CTFPlayer::ChangeTeam calls CBasePlayer::ChangeTeam before CTFPlayer::CommitSuicide
+				
+				if (bwr3_edit_wavebar.BoolValue)
+				{
+					//We won't first die as a robot player so decrement the icon here
+					DecrementRobotPlayerClassIcon(client);
+				}
+			}
 		}
 	}
 }

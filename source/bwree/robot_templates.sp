@@ -9,6 +9,8 @@
 
 #define BOSS_ROBOT_SPAWN_SOUND	")mvm/giant_heavy/giant_heavy_entrance.wav"
 
+#define ROBOT_SPY_MAX_TELEPORT_ATTEMPTS	999
+
 enum eRobotTemplateType
 {
 	ROBOT_STANDARD,
@@ -311,9 +313,20 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 	
 	if (victim == -1)
 	{
-		CreateTimer(1.0, Timer_SpyLeaveSpawnRoom, data, TIMER_FLAG_NO_MAPCHANGE);
-		
 		m_iSpyTeleportAttempt[data]++;
+		
+		if (m_iSpyTeleportAttempt[data] < ROBOT_SPY_MAX_TELEPORT_ATTEMPTS)
+		{
+			//No one to teleport to, try again
+			CreateTimer(1.0, Timer_SpyLeaveSpawnRoom, data, TIMER_FLAG_NO_MAPCHANGE);
+		}
+		else
+		{
+			//Failed too many times, just give up
+			SetPlayerToMove(data, true);
+			PrintToChat(data, "%t", "Spy_Teleport_Failed_MaxTries", m_iSpyTeleportAttempt[data]);
+			LogError("Timer_SpyLeaveSpawnRoom: %L failed to teleport after %d tries!", data, m_iSpyTeleportAttempt[data]);
+		}
 		
 #if defined TESTING_ONLY
 		PrintToChat(data, "[Timer_SpyLeaveSpawnRoom] Failed attempt %d", m_iSpyTeleportAttempt[data]);
@@ -927,6 +940,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		// return Plugin_Stop;
 	}
 	
+	g_bRobotSpawning[client] = false;
+	
 	if (result != SPAWN_LOCATION_NOT_FOUND)
 		TeleportEntity(client, here);
 	else
@@ -999,8 +1014,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	//For TFBots this is actually checked in CTFBot::PhysicsSimulate
 	if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 		player.AddCond(TFCond_CritCanteen);
-	
-	g_bRobotSpawning[client] = false;
 	
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", strName);
 	

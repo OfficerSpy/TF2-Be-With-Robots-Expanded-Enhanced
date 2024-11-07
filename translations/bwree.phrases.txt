@@ -173,6 +173,11 @@
 	{
 		"en"	"Failed to find you a new spawnpoint!"
 	}
+	"Spy_Teleport_Failed_MaxTries"
+	{
+		"#format"	"{1:d}"
+		"en"	"Failed to teleport to a victim after {1} tries!"
+	}
 	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"

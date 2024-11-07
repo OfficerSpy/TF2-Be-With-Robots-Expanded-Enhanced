@@ -226,27 +226,7 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 		if (bwr3_edit_wavebar.BoolValue)
 		{
 			SetAsSupportEnemy(pThis, true);
-			
-			if (IsValidEntity(g_iObjectiveResource))
-			{
-				char iconName[PLATFORM_MAX_PATH]; TF2_GetClassIconName(pThis, iconName, sizeof(iconName));
-				int iFlags = MvMRobotPlayer(pThis).GetMission() >= CTFBot_MISSION_DESTROY_SENTRIES ? MVM_CLASS_FLAG_MISSION : MVM_CLASS_FLAG_NORMAL;
-				
-				if (TF2_IsMiniBoss(pThis))
-					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
-				
-				if (IsClassIconUsedInCurrentWave(iconName))
-				{
-					TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
-				}
-				else
-				{
-					if (MvMRobotPlayer(client).HasAttribute(CTFBot_ALWAYS_CRIT))
-						iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
-					
-					TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
-				}
-			}
+			DecrementRobotPlayerClassIcon(pThis);
 		}
 #else
 		//Don't decrement the class icon in the wavebar
@@ -422,7 +402,13 @@ static MRESReturn DHookCallback_ForceRespawn_Pre(int pThis)
 {
 	//Somewhere, we said this player is not allowed to respawn at this time
 	if (g_bAllowRespawn[pThis] == false)
+	{
+#if defined DEBUG_DETOURS
+		PrintToServer("DHookCallback_ForceRespawn_Pre: BLOCKED RESPAWN ON %N", pThis);
+#endif
+		
 		return MRES_Supercede;
+	}
 	
 	return MRES_Ignored;
 }
