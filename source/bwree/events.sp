@@ -212,6 +212,15 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	
 	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
 	
+	if (roboPlayer.NextSpawnTime == GetGameTime())
+	{
+		/* FIXME: CWave::ActiveWaveUpdate will cause all blue players to suicide when the wave is about to be completed before
+		gamerules can transition to state GR_STATE_BETWEEN_RNDS which means respawn time can never truly be zero or else
+		our system will turn the player into a robot immediately after death keeping them as a robot during intermission!
+		Kind of a stupid fix so find a way to know when the wave is about to end to only affect this death specifically */
+		roboPlayer.NextSpawnTime += 0.001;
+	}
+	
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
 #if defined CORRECT_VISIBLE_RESPAWN_TIME
 	TF2Util_SetPlayerRespawnTimeOverride(client, roboPlayer.NextSpawnTime - GetGameTime() + 0.1);
