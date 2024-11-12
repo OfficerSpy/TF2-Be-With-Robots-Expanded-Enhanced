@@ -53,6 +53,7 @@ Author: ★ Officer Spy ★
 #define SUICIDE_DISTRIBUTE_CURRENCY
 // #define MANUAL_DEATH_WAVEBAR_EDIT
 #define CORRECT_VISIBLE_RESPAWN_TIME
+#define NO_UPGRADE_TELEPORTER
 
 enum
 {
@@ -783,7 +784,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.1.8",
+	version = "1.1.9",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1211,6 +1212,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	//We have spawned in as one of the robots, so we are currently not allowed to respawn ourselves
 	g_bAllowRespawn[client] = false;
+	
+	//Don't do any of this while we're transforming
+	if (g_bRobotSpawning[client])
+		return Plugin_Continue;
 	
 	//Force any input if specified elsewhere
 	if (g_iForcedButtonInput[client] != 0)
@@ -1873,7 +1878,7 @@ public Action Command_PlayAsRobotType(int client, int args)
 	}
 	
 	char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
-	char arg2[3]; GetCmdArg(2, arg2, sizeof(arg2));
+	char arg2[4]; GetCmdArg(2, arg2, sizeof(arg2));
 	
 	g_bSpawningAsBossRobot[client] = false;
 	g_bAllowRespawn[client] = true;
@@ -3659,6 +3664,16 @@ void MapConfig_UpdateSettings()
 			{
 				kv.GetString(keynameSpawnType[i], spawnNameList, sizeof(spawnNameList));
 				count += ExplodeString(spawnNameList, ",", g_sMapSpawnNames[i], sizeof(g_sMapSpawnNames[]), sizeof(g_sMapSpawnNames[][]));
+				
+#if defined TESTING_ONLY
+				for (int j = 0; j < sizeof(g_sMapSpawnNames[]); j++)
+				{
+					if (strlen(g_sMapSpawnNames[i][j]) < 1)
+						break;
+					
+					LogMessage("MapConfig_UpdateSettings: Spawn %s for type %d", g_sMapSpawnNames[i][j], i);
+				}
+#endif
 			}
 			
 			kv.GoBack();

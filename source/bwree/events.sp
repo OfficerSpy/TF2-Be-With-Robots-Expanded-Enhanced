@@ -10,6 +10,7 @@ void InitGameEventHooks()
 	HookEvent("teamplay_flag_event", Event_TeamplayFlagEvent);
 	HookEvent("teamplay_round_start", Event_TeamplayRoundStart);
 	HookEvent("teamplay_round_win", Event_TeamplayRoundWin);
+	HookEvent("player_buyback", Event_PlayerBuyback);
 	HookEvent("post_inventory_application", Event_PostInventoryApplication);
 	
 #if defined FIX_VOTE_CONTROLLER
@@ -152,6 +153,9 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 			{
 				if (BaseEntity_GetTeamNumber(obj) == view_as<int>(TFTeam_Blue))
 				{
+					if (TF2_IsPlacing(obj))
+						continue;
+					
 					bEngineerTeleporterInTheWorld = true;
 					break;
 				}
@@ -307,6 +311,14 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 		return;
 	
 	int client = GetClientOfUserId(event.GetInt("userid"));
+	int entity = event.GetInt("index");
+	TFObjectType objectType = view_as<TFObjectType>(event.GetInt("object"));
+	
+	if (BaseEntity_GetTeamNumber(entity) == view_as<int>(TFTeam_Blue))
+	{
+		if (objectType == TFObject_Teleporter)
+			DHooks_RobotTeleporter(entity);
+	}
 	
 	if (!IsPlayingAsRobot(client))
 		return;
@@ -316,12 +328,8 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	Now that's not really gonna be possible here unless we make things a bit more complicated
 	so instead we'll just check for when it gets built by robot players */
 	
-	TFObjectType objectType = view_as<TFObjectType>(event.GetInt("object"));
-	
 	if (objectType == TFObject_Dispenser)
 		return;
-	
-	int entity = event.GetInt("index");
 	
 	//We don't care about re-deployed buildings
 	if (GetEntProp(entity, Prop_Send, "m_bCarryDeploy") == 1)
@@ -411,7 +419,15 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	
 #if defined TELEPORTER_METHOD_MANUAL
 	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))
-		CreateTimer(0.1, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
+	{
+		//Catch this before uber gets applied in CTFBotMainAction::Update
+		float delay = nb_update_frequency.FloatValue - 0.001;
+		
+		if (delay < 0.0)
+			delay = 0.0;
+		
+		CreateTimer(delay, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
+	}
 #endif
 }
 
@@ -482,6 +498,17 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 			}
 		}
 	}
+}
+
+static void Event_PlayerBuyback(Event event, const char[] name, bool dontBroadcast)
+{
+	int client = event.GetInt("player");
+	
+	if (!IsPlayingAsRobot(client))
+		return;
+	
+	TurnPlayerIntoHisNextRobot(client);
+	SelectPlayerNextRobot(client);
 }
 
 static void Event_PostInventoryApplication(Event event, const char[] name, bool dontBroadcast)

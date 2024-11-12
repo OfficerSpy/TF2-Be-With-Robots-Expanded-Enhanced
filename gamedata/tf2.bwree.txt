@@ -136,6 +136,11 @@
 				"windows"	"336"
 				"linux"		"337"
 			}
+			"CBaseObject::CanBeUpgraded" //CanBeUpgraded( CTFPlayer *pPlayer )
+			{
+				"windows"	"382"
+				"linux"		"383"
+			}
 			//These numbers are used to calculate the actual offset based on the base netprop offset in the Keys section
 			//The calculation formula is base offset + this number
 			"CTFPlayer::m_nDeployingBombState"
@@ -358,6 +363,20 @@
 				"hooktype"	"entity"
 				"return"	"void"
 				"this"		"entity"
+			}
+			"CBaseObject::CanBeUpgraded"
+			{
+				"offset"	"CBaseObject::CanBeUpgraded"
+				"hooktype"	"entity"
+				"return"	"bool"
+				"this"		"entity"
+				"arguments"
+				{
+					"pPlayer"
+					{
+						"type"	"cbaseentity"
+					}
+				}
 			}
 		}
 	}

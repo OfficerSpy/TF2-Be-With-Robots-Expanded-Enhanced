@@ -5,6 +5,10 @@ static DynamicHook m_hShouldGib;
 static DynamicHook m_hAcceptInput;
 static DynamicHook m_hForceRespawn;
 
+#if defined NO_UPGRADE_TELEPORTER
+static DynamicHook m_hCanBeUpgraded;
+#endif
+
 bool InitDHooks(GameData hGamedata)
 {
 	int failCount = 0;
@@ -39,6 +43,11 @@ bool InitDHooks(GameData hGamedata)
 	if (!RegisterHook(hGamedata, m_hForceRespawn, "CBasePlayer::ForceRespawn"))
 		failCount++;
 	
+#if defined NO_UPGRADE_TELEPORTER
+	if (!RegisterHook(hGamedata, m_hCanBeUpgraded, "CBaseObject::CanBeUpgraded"))
+		failCount++;
+#endif
+	
 	if (failCount > 0)
 	{
 		LogError("InitDHooks: found %d problems with gamedata!", failCount);
@@ -66,6 +75,13 @@ public void DHooks_OnClientPutInServer(int client)
 	m_hEventKilled.HookEntity(Hook_Post, client, DHookCallback_EventKilled_Post);
 	m_hShouldGib.HookEntity(Hook_Pre, client, DHookCallback_ShouldGib_Pre);
 	m_hForceRespawn.HookEntity(Hook_Pre, client, DHookCallback_ForceRespawn_Pre);
+}
+
+void DHooks_RobotTeleporter(int entity)
+{
+#if defined NO_UPGRADE_TELEPORTER
+	m_hCanBeUpgraded.HookEntity(Hook_Pre, entity, DHookCallback_CanBeUpgraded_Pre);
+#endif
 }
 
 static MRESReturn DHookCallback_GetEventChangeAttributes_Pre(int pThis, DHookReturn hReturn, DHookParam hParams)
@@ -407,6 +423,20 @@ static MRESReturn DHookCallback_ForceRespawn_Pre(int pThis)
 		PrintToServer("DHookCallback_ForceRespawn_Pre: BLOCKED RESPAWN ON %N", pThis);
 #endif
 		
+		return MRES_Supercede;
+	}
+	
+	return MRES_Ignored;
+}
+
+static MRESReturn DHookCallback_CanBeUpgraded_Pre(int pThis, DHookReturn hReturn, DHookParam hParams)
+{
+	//For now, this is only hooked on blue teleporters
+	
+	if (IsPlayingAsRobot(hParams.Get(1)))
+	{
+		//Robot players cannot upgrade any robot teleporters
+		hReturn.Value = false;
 		return MRES_Supercede;
 	}
 	

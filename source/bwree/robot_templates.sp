@@ -323,7 +323,7 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 		else
 		{
 			//Failed too many times, just give up
-			SetPlayerToMove(data, true);
+			FreezePlayerInput(data, false);
 			PrintToChat(data, "%t", "Spy_Teleport_Failed_MaxTries", m_iSpyTeleportAttempt[data]);
 			LogError("Timer_SpyLeaveSpawnRoom: %L failed to teleport after %d tries!", data, m_iSpyTeleportAttempt[data]);
 		}
@@ -335,7 +335,7 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 		return Plugin_Stop;
 	}
 	
-	SetPlayerToMove(data, true);
+	FreezePlayerInput(data, false);
 	
 	return Plugin_Stop;
 }
@@ -352,7 +352,7 @@ static Action Timer_MvMEngineerTeleportSpawn(Handle timer, DataPack pack)
 	float nestOrigin[3]; pack.ReadFloatArray(nestOrigin, sizeof(nestOrigin));
 	
 	//This should never happen
-	if (IsZeroVector(nestOrigin))
+	if (Vector_IsZero(nestOrigin))
 		return Plugin_Stop;
 	
 	float angles[3]; //angles = GetAbsAngles(hintEntity);
@@ -969,7 +969,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		{
 			//Let him choose how he teleports
 			ShowSpyTeleportMenu(client);
-			SetPlayerToMove(client, false);
+			FreezePlayerInput(client, true);
 		}
 		else
 		{
@@ -983,7 +983,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		{
 			//Let him choose how he teleports
 			ShowEngineerTeleportMenu(client);
-			SetPlayerToMove(client, false);
+			FreezePlayerInput(client, true);
 		}
 		else
 		{
@@ -1698,7 +1698,7 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 	
 	delete adtSpawnPoints;
 	
-	if (IsZeroVector(vSpawnPosition))
+	if (Vector_IsZero(vSpawnPosition))
 		return SPAWN_LOCATION_NOT_FOUND;
 	
 	CNavArea spawnArea = TheNavMesh.GetNearestNavArea(vSpawnPosition);
@@ -2113,7 +2113,7 @@ static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3])
 	for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
 	{
 		//Stop right here, cause the rest are probably empty as well
-		if (IsZeroVector(g_vecMapEngineerHintOrigin[i]))
+		if (Vector_IsZero(g_vecMapEngineerHintOrigin[i]))
 			break;
 		
 		float distance = GetVectorDistance(vec, g_vecMapEngineerHintOrigin[i]);
@@ -2160,7 +2160,7 @@ void SpyLeaveSpawnRoom_OnStart(int client)
 	
 	m_iSpyTeleportAttempt[client] = 0;
 	
-	SetPlayerToMove(client, false);
+	FreezePlayerInput(client, true);
 	
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Spy_Teleporting");
 }
@@ -2186,7 +2186,24 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 			}
 			else
 			{
-				//TODO: find the engineer hint closest to the robot spawn then
+				//No bomb active, just find the one nearest to our spawnroom
+				int visualizer = -1;
+				
+				while ((visualizer = FindEntityByClassname(visualizer, "func_respawnroomvisualizer")) != -1)
+				{
+					if (GetEntProp(visualizer, Prop_Data, "m_iDisabled") == 1)
+						continue;
+					
+					if (BaseEntity_GetTeamNumber(visualizer) != GetClientTeam(client))
+						continue;
+					
+					break;
+				}
+				
+				if (visualizer != -1)
+				{
+					GetNearestEngineerHintPosition(WorldSpaceCenter(visualizer), hintTeleportPos);
+				}
 			}
 		}
 		case ENGINEER_TELEPORT_RANDOM:
@@ -2196,7 +2213,7 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 			for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
 			{
 				//Not valid, the rest won't be either
-				if (IsZeroVector(g_vecMapEngineerHintOrigin[i]))
+				if (Vector_IsZero(g_vecMapEngineerHintOrigin[i]))
 					break;
 				
 				validCount++;
@@ -2218,9 +2235,9 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 	}
 	
 	//When using the menu we disable movement, re-enable it before we teleport
-	SetPlayerToMove(client, true);
+	FreezePlayerInput(client, false);
 	
-	if (IsZeroVector(hintTeleportPos))
+	if (Vector_IsZero(hintTeleportPos))
 	{
 		LogError("MvMEngineerTeleportSpawn: no hint origins could be found for this specific map!");
 		return;
