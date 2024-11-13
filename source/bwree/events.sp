@@ -222,7 +222,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		gamerules can transition to state GR_STATE_BETWEEN_RNDS which means respawn time can never truly be zero or else
 		our system will turn the player into a robot immediately after death keeping them as a robot during intermission!
 		Kind of a stupid fix so find a way to know when the wave is about to end to only affect this death specifically */
-		roboPlayer.NextSpawnTime += 0.001;
+		roboPlayer.NextSpawnTime += 0.016;
 	}
 	
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
@@ -421,7 +421,7 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))
 	{
 		//Catch this before uber gets applied in CTFBotMainAction::Update
-		float delay = nb_update_frequency.FloatValue - 0.001;
+		float delay = nb_update_frequency.FloatValue - 0.002;
 		
 		if (delay < 0.0)
 			delay = 0.0;

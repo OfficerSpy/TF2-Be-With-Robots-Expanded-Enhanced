@@ -914,6 +914,10 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 	}
 	
+	/* This would actually show a different particle effect on the player coming from a teleporter
+	had the developers actually used it, but instead this just gives no particle effect at all */
+	SetEntProp(client, Prop_Send, "m_bIsABot", 1);
+	
 	float rawHere[3];
 	
 	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale > 0.0 ? flScale : 1.0, _, GetRobotPlayerSpawnType(roboPlayer));
@@ -940,12 +944,12 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		// return Plugin_Stop;
 	}
 	
-	g_bRobotSpawning[client] = false;
-	
 	if (result != SPAWN_LOCATION_NOT_FOUND)
 		TeleportEntity(client, here);
 	else
 		LogError("Timer_FinishRobotPlayer: No suitable spawn could be found for %N!", client);
+	
+	g_bRobotSpawning[client] = false;
 	
 #if defined TESTING_ONLY
 	PrintToChatAll("[Timer_FinishRobotPlayer] Spawn Location for %N at %6.1f %6.1f %6.1f", client, here[0], here[1], here[2]);
@@ -1867,6 +1871,14 @@ void ForceAllPlayersToReselectRobot(int excludePlayer = -1)
 void TurnPlayerIntoHisNextRobot(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
+	if ((bwr3_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU && roboPlayer.HasAttribute(CTFBot_TELEPORT_TO_HINT))
+	|| (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU && TF2_GetPlayerClass(client) == TFClass_Spy))
+	{
+		//The teleport menus should never be left open
+		if (GetClientMenu(client) == MenuSource_Normal)
+			CancelClientMenu(client);
+	}
 	
 	g_bAllowRespawn[client] = true;
 	TurnPlayerIntoRobot(client, roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
