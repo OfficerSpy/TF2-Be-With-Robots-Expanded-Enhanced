@@ -2968,7 +2968,7 @@ bool MvMDeployBomb_OnStart(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_DELAY;
-	roboPlayer.DeployBombTimer_Start(tf_deploying_bomb_delay_time.FloatValue);
+	roboPlayer.DeployBombTimer_Start(tf_deploying_bomb_delay_time.FloatValue + nb_update_frequency.FloatValue);
 	
 	GetClientAbsOrigin(client, m_vecDeployPos[client]);
 	FreezePlayerInput(client, true);
@@ -3663,6 +3663,10 @@ void MapConfig_UpdateSettings()
 			for (int i = 0; i < sizeof(keynameSpawnType); i++)
 			{
 				kv.GetString(keynameSpawnType[i], spawnNameList, sizeof(spawnNameList));
+				
+				if (strlen(spawnNameList) < 1)
+					continue;
+				
 				count += ExplodeString(spawnNameList, ",", g_sMapSpawnNames[i], sizeof(g_sMapSpawnNames[]), sizeof(g_sMapSpawnNames[][]));
 				
 #if defined TESTING_ONLY
@@ -3671,7 +3675,7 @@ void MapConfig_UpdateSettings()
 					if (strlen(g_sMapSpawnNames[i][j]) < 1)
 						break;
 					
-					LogMessage("MapConfig_UpdateSettings: Spawn %s for type %d", g_sMapSpawnNames[i][j], i);
+					LogMessage("MapConfig_UpdateSettings: Spawn \"%s\" for type %d", g_sMapSpawnNames[i][j], i);
 				}
 #endif
 			}

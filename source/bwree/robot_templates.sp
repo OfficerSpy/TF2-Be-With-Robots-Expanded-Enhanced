@@ -914,7 +914,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 	}
 	
-	/* This would actually show a different particle effect on the player coming from a teleporter
+	/* Property checked in C_TFPlayer::IsABot called in C_TFPlayer::UpdateRecentlyTeleportedEffect
+	This would actually show a different particle effect on the player coming from a teleporter
 	had the developers actually used it, but instead this just gives no particle effect at all */
 	SetEntProp(client, Prop_Send, "m_bIsABot", 1);
 	
@@ -948,6 +949,12 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		TeleportEntity(client, here);
 	else
 		LogError("Timer_FinishRobotPlayer: No suitable spawn could be found for %N!", client);
+	
+#if defined MOD_EXT_CBASENPC
+	/* Because of the delay, CBasePlayer::PreThink set our area from our initial spawn
+	so make sure we know the area we actually want to start from before checking it */
+	CBaseCombatCharacter(client).UpdateLastKnownArea();
+#endif
 	
 	g_bRobotSpawning[client] = false;
 	
@@ -1872,14 +1879,6 @@ void TurnPlayerIntoHisNextRobot(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
-	if ((bwr3_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU && roboPlayer.HasAttribute(CTFBot_TELEPORT_TO_HINT))
-	|| (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU && TF2_GetPlayerClass(client) == TFClass_Spy))
-	{
-		//The teleport menus should never be left open
-		if (GetClientMenu(client) == MenuSource_Normal)
-			CancelClientMenu(client);
-	}
-	
 	g_bAllowRespawn[client] = true;
 	TurnPlayerIntoRobot(client, roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 	
@@ -2164,6 +2163,12 @@ bool IsSentryBusterRobot(int client)
 
 void SpyLeaveSpawnRoom_OnStart(int client)
 {
+	if (!IsPlayerAlive(client))
+		return;
+	
+	if (TF2_GetPlayerClass(client) != TFClass_Spy)
+		return;
+	
 	TF2_DisguiseAsMemberOfEnemyTeam(client);
 	
 	PressAltFireButton(client);
@@ -2184,6 +2189,15 @@ bool IsValidSpyTeleportVictim(int victim)
 
 void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_TELEPORT_NEAR_BOMB)
 {
+	if (!MvMRobotPlayer(client).HasAttribute(CTFBot_TELEPORT_TO_HINT))
+		return;
+	
+	if (!IsPlayerAlive(client))
+		return;
+	
+	if (TF2_GetPlayerClass(client) != TFClass_Engineer)
+		return;
+	
 	float hintTeleportPos[3];
 	
 	switch (type)
