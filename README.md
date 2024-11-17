@@ -8,4 +8,5 @@ The BWR mod that tries to aim for the most authentic experience and more.
 ## Compilation Only
 - [stocklib_officerspy](https://github.com/OfficerSpy/SM_Stock_OfficerSpy)
 # Notes
+- Multiple robot template configuration contributions by spooky le
 - Bot Arms models from [Operation Osmium Ordinance](https://www.teamfortress.com/post.php?id=224879)
