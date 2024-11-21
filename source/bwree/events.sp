@@ -580,7 +580,7 @@ static Action TeleporterConstructionGetMaxHealth(int entity, int &maxhealth)
 }
 
 #if defined TELEPORTER_METHOD_MANUAL
-static Action Timer_TFBotSpawn(Handle timer, any data)
+static Action Timer_TFBotSpawn(Handle timer, int data)
 {
 	if (!IsClientInGame(data) || !IsPlayerAlive(data) || TF2_GetClientTeam(data) != TFTeam_Blue || !IsTFBotPlayer(data))
 		return Plugin_Stop;
@@ -596,6 +596,14 @@ static Action Timer_TFBotSpawn(Handle timer, any data)
 		spawnPos[2] += TFBOT_STEP_HEIGHT;
 		TeleportEntity(data, spawnPos);
 		OnBotTeleported(data);
+		
+#if defined MOD_EXT_CBASENPC
+		//Updated for the same reason as in Timer_FinishRobotPlayer
+		CBaseCombatCharacter(data).UpdateLastKnownArea();
+		
+		//Reset behavior for bot to recalculate his path
+		// CBaseNPC_GetNextBotOfEntity(data).GetIntentionInterface().Reset();
+#endif
 	}
 	
 	return Plugin_Stop;
