@@ -1,5 +1,5 @@
 # TF2-Be-With-Robots-Expanded-Enhanced
-The BWR mod that tries to aim for the most authentic experience and more.
+Be a Mann vs. Machine robot.
 # Requirements
 - [[TF2] TF2Attributes](https://github.com/FlaminSarge/tf2attributes)
 - [TF2 Utils](https://github.com/nosoop/SM-TFUtils)
