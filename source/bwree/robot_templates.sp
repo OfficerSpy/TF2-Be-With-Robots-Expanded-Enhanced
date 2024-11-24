@@ -2345,12 +2345,17 @@ bool UpdateSentryBusterSpawningCriteria()
 	return bUpdated;
 }
 
-bool BossRobotSystem_UpdateSettings()
+void BossRobotSystem_Reset()
 {
 	g_bRobotBossesAvailable = false;
 	g_flBossDelayDuration = 60.0;
 	g_flBossRespawnDelayDuration = 0.0;
 	g_bBossProportionalHealth = true;
+}
+
+bool BossRobotSystem_UpdateSettings()
+{
+	BossRobotSystem_Reset();
 	
 	char mapName[PLATFORM_MAX_PATH]; GetCurrentMap(mapName, sizeof(mapName));
 	
@@ -2401,8 +2406,6 @@ bool BossRobotSystem_UpdateSettings()
 #if defined TESTING_ONLY
 			LogMessage("BossRobotSystem_UpdateSettings: No data found for wave %d of mission %s", waveNumber, missionName);
 #endif
-			
-			return false;
 		}
 	}
 	else if (kv.JumpToKey("default"))
@@ -2417,7 +2420,6 @@ bool BossRobotSystem_UpdateSettings()
 		else
 		{
 			delete kv;
-			return false;
 		}
 	}
 	else

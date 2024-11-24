@@ -364,12 +364,16 @@ static void Event_MvmWaveFailed(Event event, const char[] name, bool dontBroadca
 {
 	if (!UpdateSentryBusterSpawningCriteria())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
+	
+	BossRobotSystem_Reset();
 }
 
 static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroadcast)
 {
 	if (!UpdateSentryBusterSpawningCriteria())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
+	
+	BossRobotSystem_Reset();
 	
 	for (int i = 1; i <= MaxClients; i++)
 	{
