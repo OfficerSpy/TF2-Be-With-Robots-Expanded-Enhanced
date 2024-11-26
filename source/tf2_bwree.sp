@@ -35,7 +35,7 @@ Author: ★ Officer Spy ★
 #define MAP_CONFIG_DIRECTORY	"configs/bwree/map"
 #define MAX_ROBOT_SPAWN_NAMES	3
 
-#define BOMBRUSH_WATCH_MAX_SECONDS	60.0
+#define BOMBRUSH_WATCH_MAX_SECONDS	120.0
 #define BOMBRUSH_COOLDOWN_MAX_MINUTES	10
 #define BOMBRUSH_COOLDOWN_SEC_PER_MIN	(BOMBRUSH_WATCH_MAX_SECONDS / BOMBRUSH_COOLDOWN_MAX_MINUTES)
 #define ALERT_FLAG_HELD_TOO_LONG_SOUND	"misc/doomsday_lift_warning.wav"
@@ -2781,12 +2781,9 @@ float GetPlayerCalculatedCooldown(int client)
 		return 0.0;
 	
 	if (g_arrRobotPlayerStats[client].iDeaths == 0)
-		return bwr3_robots_cooldown_base.FloatValue;
+		return bwr3_robots_cooldown_base.FloatValue * g_arrRobotPlayerStats[client].iKills;
 	
 	float ratioKD = float(g_arrRobotPlayerStats[client].iKills) / float(g_arrRobotPlayerStats[client].iDeaths);
-	
-	if (ratioKD > 1.0)
-		return bwr3_robots_cooldown_base.FloatValue;
 	
 	return ratioKD * bwr3_robots_cooldown_base.FloatValue;
 }
