@@ -1,4 +1,4 @@
-# TF2-Be-With-Robots-Expanded-Enhanced
+# Be With Robots: Expanded & Enhanced
 Be a Mann vs. Machine robot.
 # Requirements
 - [[TF2] TF2Attributes](https://github.com/FlaminSarge/tf2attributes)
