@@ -167,17 +167,17 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 			if (Vector_IsLengthGreaterThan(toVictim, tf_bot_suicide_bomb_range.FloatValue))
 				continue;
 			
-			if (BaseEntity_IsPlayer(i))
+			if (BaseEntity_IsPlayer(victim))
 			{
 				int colorHIt[4] = {255, 255, 255, 255};
-				UTIL_ScreenFade(i, colorHIt, 1.0, 0.1, FFADE_IN);
+				UTIL_ScreenFade(victim, colorHIt, 1.0, 0.1, FFADE_IN);
 			}
 			
 			if (TF2_IsLineOfFireClear4(this.index, victim))
 			{
 				NormalizeVector(toVictim, toVictim);
 				
-				int damage = MaxInt(BaseEntity_GetMaxHealth(victim), BaseEntity_GetHealth(victim));
+				int damage = MaxInt(TF2Util_GetEntityMaxHealth(victim), BaseEntity_GetHealth(victim));
 				float finalDamage = SentryBuster_GetDamageForVictim(victim, float(damage));
 				
 #if defined MOD_EXT_CBASENPC
