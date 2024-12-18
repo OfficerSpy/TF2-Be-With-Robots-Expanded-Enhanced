@@ -784,7 +784,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.2.2",
+	version = "1.2.3",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -2969,7 +2969,7 @@ bool MvMDeployBomb_OnStart(int client)
 	
 	GetClientAbsOrigin(client, m_vecDeployPos[client]);
 	FreezePlayerInput(client, true);
-	SetBlockPlayerMovementTime(client, 0.1);
+	SetBlockPlayerMovementTime(client, GetClientAvgLatency(client, NetFlow_Outgoing) * 1.3);
 	SetAbsVelocity(client, {0.0, 0.0, 0.0});
 	
 	if (TF2_IsMiniBoss(client))
@@ -3284,6 +3284,10 @@ bool ShouldAutoJump(int client)
 void SetBlockPlayerMovementTime(int client, float value)
 {
 	m_flBlockMovementTime[client] = GetGameTime() + value;
+	
+#if defined TESTING_ONLY
+	PrintToChatAll("[SetBlockPlayerMovementTime] %N blocked for %f seconds!", client, value);
+#endif
 }
 
 bool CanPerformNewBehaviorAction(int client)
