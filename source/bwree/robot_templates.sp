@@ -807,6 +807,13 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	//Standard shit i guess
 	PostInventoryApplication(client);
 	
+	/* NOTE: CTFBotSpawner::Spawn actually checks CTFPlayer::IsMiniBoss
+	but I'd rather just check our attribute array than the actual property */
+	if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
+	{
+		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_GIANT_CALLOUT, view_as<int>(TFTeam_Red));
+	}
+	
 	bool bAddedClassIconToWavebar = false;
 	
 	if (nMission == CTFBot_MISSION_DESTROY_SENTRIES)
@@ -865,10 +872,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		//Only the first sniper is announced by the defenders
 		if (nSniperCount == 1)
 			MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SNIPER_CALLOUT, view_as<int>(TFTeam_Red));
-	}
-	else if (roboPlayer.HasAttribute(CTFBot_MINIBOSS))
-	{
-		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_GIANT_CALLOUT, view_as<int>(TFTeam_Red));
 	}
 	
 	if (nMission >= CTFBot_MISSION_SNIPER && nMission <= CTFBot_MISSION_ENGINEER)
@@ -1180,19 +1183,19 @@ DifficultyType GetSkillFromString(const char[] value)
 {
 	if (strlen(value) > 0)
 	{
-		if (!strcmp(value, "Easy"))
+		if (!strcmp(value, "Easy", false))
 		{
 			return CTFBot_EASY;
 		}
-		else if (!strcmp(value, "Normal"))
+		else if (!strcmp(value, "Normal", false))
 		{
 			return CTFBot_NORMAL;
 		}
-		else if (!strcmp(value, "Hard"))
+		else if (!strcmp(value, "Hard", false))
 		{
 			return CTFBot_HARD;
 		}
-		else if (!strcmp(value, "Expert"))
+		else if (!strcmp(value, "Expert", false))
 		{
 			return CTFBot_EXPERT;
 		}

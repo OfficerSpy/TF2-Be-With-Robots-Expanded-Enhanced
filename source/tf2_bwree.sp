@@ -1643,7 +1643,7 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 		m_bBypassBotCheck[client] = false;
 		
 		//Particle is handled client-side and only shows up on bots, so just do this
-		EmitParticleEffect("bot_radio_waves", "head", client, PATTACH_POINT_FOLLOW);
+		// EmitParticleEffect("bot_radio_waves", "head", client, PATTACH_POINT_FOLLOW);
 	}
 }
 
@@ -1660,7 +1660,7 @@ public void TF2_OnConditionRemoved(int client, TFCond condition)
 	else if (condition == TFCond_MVMBotRadiowave)
 	{
 		//Stop the particle we may have added earlier in TF2_OnConditionAdded
-		StopParticleEffects(client);
+		// StopParticleEffects(client);
 	}
 }
 
@@ -2214,9 +2214,7 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 			if (GameRules_GetRoundState() == RoundState_BetweenRounds && BaseEntity_GetTeamNumber(victim) != GetClientTeam(attacker))
 			{
 				//Can't damage anyone between rounds
-				damage = 0.0;
-				
-				return Plugin_Changed;
+				return Plugin_Handled;
 			}
 			
 			if (MvMRobotPlayer(attacker).HasAttribute(CTFBot_ALWAYS_CRIT))

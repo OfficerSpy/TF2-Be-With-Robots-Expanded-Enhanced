@@ -350,6 +350,10 @@ static MRESReturn DHookCallback_PassesFilterImp1_Pre(int pThis, DHookReturn hRet
 {
 	int entity = hParams.Get(2); //The entity being filtered
 	
+	//Only want to check players
+	if (entity > MaxClients)
+		return MRES_Ignored;
+	
 	//Must be a robot player
 	if (!IsPlayingAsRobot(entity))
 		return MRES_Ignored;
