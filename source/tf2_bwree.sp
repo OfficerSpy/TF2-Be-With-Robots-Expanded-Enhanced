@@ -229,6 +229,7 @@ ConVar bwr3_engineer_teleport_method;
 ConVar bwr3_spy_teleport_method;
 ConVar bwr3_robot_custom_viewmodels;
 
+ConVar tf_mvm_defenders_team_size;
 ConVar nb_update_frequency;
 ConVar tf_deploying_bomb_delay_time;
 ConVar tf_deploying_bomb_time;
@@ -784,7 +785,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.2.3",
+	version = "1.2.4",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -871,6 +872,8 @@ public void OnPluginStart()
 	AddCommandListener(CommandListener_Kill, "kill");
 	AddCommandListener(CommandListener_Kill, "explode");
 	AddCommandListener(CommandListener_Buyback, "td_buyback");
+	AddCommandListener(CommandListener_Jointeam, "jointeam");
+	AddCommandListener(CommandListener_Autoteam, "autoteam");
 	
 	AddNormalSoundHook(SoundHook_General);
 	
@@ -1009,6 +1012,7 @@ public void OnConfigsExecuted()
 {
 	PrepareCustomViewModelAssets(bwr3_robot_custom_viewmodels.IntValue);
 	
+	tf_mvm_defenders_team_size = FindConVar("tf_mvm_defenders_team_size");
 	nb_update_frequency = FindConVar("nb_update_frequency");
 	tf_deploying_bomb_delay_time = FindConVar("tf_deploying_bomb_delay_time");
 	tf_deploying_bomb_time = FindConVar("tf_deploying_bomb_time");
@@ -1868,21 +1872,52 @@ public Action Command_FindUseNewSpawnLocation(int client, int args)
 
 public Action Command_PlayAsRobotType(int client, int args)
 {
-	if (!IsPlayingAsRobot(client))
-		return Plugin_Handled;
-	
-	if (args < 2)
+	if (args < 3)
 	{
 		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Admin_PlayAsRobot_BadArg");
 		return Plugin_Handled;
 	}
 	
-	char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
-	char arg2[4]; GetCmdArg(2, arg2, sizeof(arg2));
+	char arg1[MAX_NAME_LENGTH]; GetCmdArg(1, arg1, sizeof(arg1));
 	
-	g_bSpawningAsBossRobot[client] = false;
-	g_bAllowRespawn[client] = true;
-	TurnPlayerIntoRobot(client, view_as<eRobotTemplateType>(StringToInt(arg1)), StringToInt(arg2));
+	char target_name[MAX_TARGET_LENGTH];
+	int target_list[MAXPLAYERS], target_count;
+	bool tn_is_ml;
+	
+	if ((target_count = ProcessTargetString(
+			arg1,
+			client,
+			target_list,
+			MAXPLAYERS,
+			COMMAND_FILTER_CONNECTED,
+			target_name,
+			sizeof(target_name),
+			tn_is_ml)) <= 0)
+	{
+		ReplyToTargetError(client, target_count);
+		return Plugin_Handled;
+	}
+	
+	char arg2[4]; GetCmdArg(2, arg2, sizeof(arg2));
+	char arg3[4]; GetCmdArg(3, arg3, sizeof(arg3));
+	
+	eRobotTemplateType type = view_as<eRobotTemplateType>(StringToInt(arg2));
+	int numID = StringToInt(arg3);
+	
+	for (int i = 0; i < target_count; i++)
+	{
+		if (IsPlayingAsRobot(target_list[i]))
+		{
+			g_bSpawningAsBossRobot[target_list[i]] = false;
+			g_bAllowRespawn[target_list[i]] = true;
+			TurnPlayerIntoRobot(target_list[i], type, numID);
+		}
+	}
+	
+	char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(type, numID, robotName, sizeof(robotName));
+	
+	ShowActivity2(client, "[SM] ", "%t", "Admin_Forced_BWR_Robot", robotName, target_name);
+	LogAction(client, -1, "%L forced robot template %s (type %d, ID %d) on %s", client, robotName, type, numID, target_name);
 	
 	return Plugin_Handled;
 }
@@ -2122,6 +2157,44 @@ public Action CommandListener_Buyback(int client, const char[] command, int argc
 		if (!bwr3_allow_buyback.BoolValue)
 			return Plugin_Handled;
 	}
+	
+	return Plugin_Continue;
+}
+
+public Action CommandListener_Jointeam(int client, const char[] command, int argc)
+{
+	if (argc < 1)
+		return Plugin_Continue;
+	
+	if (IsPlayingAsRobot(client))
+		return Plugin_Continue;
+	
+	char arg1[8]; GetCmdArg(1, arg1, sizeof(arg1));
+	
+	if (strcmp(arg1, "auto", false) == 0)
+	{
+		if (HandleAutoTeam(client))
+			return Plugin_Handled;
+	}
+	else
+	{
+		//Based on internal team name, should never change
+		if (strcmp(arg1, "Blue", false) == 0)
+		{
+			return Command_JoinBlue(client, 0);
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
+public Action CommandListener_Autoteam(int client, const char[] command, int argc)
+{
+	if (IsPlayingAsRobot(client))
+		return Plugin_Continue;
+	
+	if (HandleAutoTeam(client))
+		return Plugin_Handled;
 	
 	return Plugin_Continue;
 }
@@ -2500,6 +2573,42 @@ public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 			}
 		}
 	}
+}
+
+bool HandleAutoTeam(int client)
+{
+	//Always favor the defenders first
+	if (GetTeamClientCount(view_as<int>(TFTeam_Red)) < tf_mvm_defenders_team_size.IntValue)
+		return false;
+	
+	if (GetRobotPlayerCount() >= bwr3_max_invaders.IntValue)
+		return false;
+	
+	float cooldown = GetBWRCooldownTimeLeft(client);
+	
+	if (cooldown > 0.0)
+		return false;
+	
+	if (GameRules_GetRoundState() == RoundState_RoundRunning)
+	{
+		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
+		
+#if defined OVERRIDE_PLAYER_RESPAWN_TIME
+#if defined CORRECT_VISIBLE_RESPAWN_TIME
+		if (!IsPlayerAlive(client))
+		{
+			SetEntPropFloat(client, Prop_Send, "m_flDeathTime", GetGameTime());
+		}
+		
+		TF2Util_SetPlayerRespawnTimeOverride(client, MvMRobotPlayer(client).NextSpawnTime - GetGameTime() + 0.1);
+#else
+		TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
+#endif //CORRECT_VISIBLE_RESPAWN_TIME
+#endif //OVERRIDE_PLAYER_RESPAWN_TIME
+	}
+	
+	ChangePlayerToTeamInvaders(client);
+	return true;
 }
 
 void PrepareCustomViewModelAssets(int type)

@@ -2,7 +2,7 @@
 {
 	"Admin_PlayAsRobot_BadArg"
 	{
-		"en"	"Specify a robot template type and ID!"
+		"en"	"Specify a player, template type, and template ID!"
 	}
 	"Admin_Forced_BWR_Cooldown"
 	{
@@ -12,6 +12,11 @@
 	"Admin_ViewCooldownData_Empty"
 	{
 		"en"	"There is no one on the cooldown list!"
+	}
+	"Admin_Forced_BWR_Robot"
+	{
+		"#format"	"{1:s},{2:s}"
+		"en"	"Forced robot template {1} on {2}."
 	}
 	"Robot_Menu_Not_Allowed"
 	{
