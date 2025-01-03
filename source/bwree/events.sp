@@ -79,7 +79,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		if (IsPlayingAsRobot(attacker))
 		{
 			if (attacker != client)
-				g_arrRobotPlayerStats[client].iKills++;
+				g_arrRobotPlayerStats[attacker].iKills++;
 		}
 	}
 	
@@ -380,6 +380,7 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
 		{
 			ResetRobotPlayerGameStats(i);
+			ResetPlayerProperties(i);
 			
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
 			/* All BLUE players are killed when the wave is complete

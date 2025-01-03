@@ -530,25 +530,33 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 {
 	if (bWearables)
 	{
-		int ent = -1;
+		static int iMaxEntCount = -1;
 		
-		while ((ent = FindEntityByClassname(ent, "tf_wearable_demoshield")) != -1)
+		if (iMaxEntCount == -1)
+			iMaxEntCount = GetMaxEntities();
+		
+		char classname[PLATFORM_MAX_PATH];
+		
+		for (int i = MaxClients + 1; i <= iMaxEntCount; i++)
 		{
-			if (BaseEntity_GetOwnerEntity(ent) == client)
+			if (IsValidEntity(i))
 			{
-				TF2_RemoveWearable(client, ent);
-				// RemoveEntity(ent);
-			}
-		}
-		
-		ent = -1;
-		
-		while ((ent = FindEntityByClassname(ent, "tf_wearable_razorback")) != -1)
-		{
-			if (BaseEntity_GetOwnerEntity(ent) == client)
-			{
-				TF2_RemoveWearable(client, ent);
-				// RemoveEntity(ent);
+				if (GetEntityClassname(i, classname, sizeof(classname)))
+				{
+					if (StrContains(classname, "tf_wearable", false) != -1)
+					{
+						if (StrEqual(classname, "tf_wearable_demoshield", false)
+						|| StrEqual(classname, "tf_wearable_razorback", false)
+						|| IsWeaponWearableByDefIndex(GetEntProp(i, Prop_Send, "m_iItemDefinitionIndex")))
+						{
+							if (BaseEntity_GetOwnerEntity(i) == client)
+							{
+								TF2_RemoveWearable(client, i);
+								// RemoveEntity(i);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -675,7 +683,7 @@ void RemoveCosmetics(int client)
 		{
 			int index = GetEntProp(ent, Prop_Send, "m_iItemDefinitionIndex");
 			
-			if (!IsWearableAWeapon(index))
+			if (!IsWeaponWearableByDefIndex(index))
 			{
 				TF2_RemoveWearable(client, ent);
 				// RemoveEntity(ent);
@@ -684,7 +692,9 @@ void RemoveCosmetics(int client)
 	}
 }
 
-bool IsWearableAWeapon(int defIndex)
+/* Is the definition index for a wearable that is also usually seen as loadut weapon?
+We manually list these by definition index cause i don't know how to tell otherwise */
+bool IsWeaponWearableByDefIndex(int defIndex)
 {
 	switch (defIndex)
 	{
