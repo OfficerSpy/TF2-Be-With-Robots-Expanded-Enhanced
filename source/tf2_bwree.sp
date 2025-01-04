@@ -568,10 +568,6 @@ methodmap MvMRobotPlayer
 				ModifyMaxHealth(this.index, nMaxHealth, false, false);
 				// BaseEntity_SetHealth(this.index, nHealth);
 				
-				//TODO: remove this when AddItemToPlayer can more reliably replace cosmetics
-				if (bwr3_cosmetic_mode.IntValue == COSMETIC_MODE_NONE)
-					RemoveCosmetics(this.index);
-				
 				ReadEventChangeAttributesForPlayer(this, kv);
 				break;
 			}
