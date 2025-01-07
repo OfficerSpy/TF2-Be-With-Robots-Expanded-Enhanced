@@ -240,7 +240,7 @@ static int m_iSpyTeleportAttempt[MAXPLAYERS + 1];
 
 static Action Timer_SuicideBomberDetonate(Handle timer, int data)
 {
-	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data) && !ShouldCurrentActionBeSuspended(data))
+	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data) && CanStartOrResumeAction(data, ROBOT_ACTION_SUICIDE_BOMBER))
 	{
 		MvMSuicideBomber(data).Detonate();
 		

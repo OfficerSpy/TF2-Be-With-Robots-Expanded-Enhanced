@@ -328,7 +328,7 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	Now that's not really gonna be possible here unless we make things a bit more complicated
 	so instead we'll just check for when it gets built by robot players */
 	
-	if (objectType == TFObject_Dispenser)
+	if (objectType == TFObject_Sapper || objectType == TFObject_Dispenser)
 		return;
 	
 	//We don't care about re-deployed buildings

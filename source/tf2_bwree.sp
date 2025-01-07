@@ -55,6 +55,13 @@ Author: ★ Officer Spy ★
 #define CORRECT_VISIBLE_RESPAWN_TIME
 #define NO_UPGRADE_TELEPORTER
 
+enum eRobotAction
+{
+	ROBOT_ACTION_UPGRADE_BOMB,
+	ROBOT_ACTION_DEPLOY_BOMB,
+	ROBOT_ACTION_SUICIDE_BOMBER
+}
+
 enum
 {
 	BOMB_UPGRADE_DISABLED = 0,
@@ -781,7 +788,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.2.4",
+	version = "1.2.5",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1522,6 +1529,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if (bHasTheFlag)
 			{
+				bool bMoving = buttons & (IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT) != 0;
+				
+				if (bMoving)
+					g_flLastTimeFlagInSpawn[client] = GetGameTime();
+				
 				float timeHoldingFlag = GetGameTime() - g_flLastTimeFlagInSpawn[client];
 				
 				if (timeHoldingFlag >= bwr3_flag_max_hold_time.FloatValue)
@@ -1566,7 +1578,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			//Not idling in spawn
 			g_flLastTimeFlagInSpawn[client] = GetGameTime();
 			
-			if (bHasTheFlag && roboPlayer.BombUpgradeLevel != DONT_UPGRADE && !ShouldCurrentActionBeSuspended(client))
+			if (bHasTheFlag && roboPlayer.BombUpgradeLevel != DONT_UPGRADE && CanStartOrResumeAction(client, ROBOT_ACTION_UPGRADE_BOMB))
 			{
 				//Buff me and all of my teammates near me after first upgrading the bomb
 				if (roboPlayer.BombUpgradeLevel > 0 && roboPlayer.BuffPulseTimer_IsElapsed())
@@ -1595,7 +1607,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							if (UpgradeBomb(client))
 							{
 								//CTFBotTaunt taunts on random interval
-								CreateTimer(GetRandomFloat(0.0, 1.0), Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
+								float interval = GetRandomFloat(0.0, 1.0);
+								
+								CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
+								SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
 							}
 						}
 					}
@@ -2062,12 +2077,12 @@ public Action Command_DebugWaveData(int client, int args)
 
 public Action CommandListener_Voicemenu(int client, const char[] command, int argc)
 {
-	if (argc >= 2 && IsPlayingAsRobot(client) && !ShouldCurrentActionBeSuspended(client))
+	if (argc >= 2 && IsPlayingAsRobot(client))
 	{
 		MvMSuicideBomber roboPlayer = MvMSuicideBomber(client);
 		
 		//Use voice command to trigger detonation sequence
-		if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
+		if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES) && CanStartOrResumeAction(client, ROBOT_ACTION_SUICIDE_BOMBER))
 		{
 			char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 			char arg2[2]; GetCmdArg(2, arg2, sizeof(arg2));
@@ -2098,12 +2113,24 @@ public Action CommandListener_Taunt(int client, const char[] command, int argc)
 {
 	if (IsPlayingAsRobot(client))
 	{
-		if (bwr3_bomb_upgrade_mode.IntValue == BOMB_UPGRADE_MANUAL && MvMRobotPlayer(client).BombUpgradeTimer_IsElapsed() && TF2_HasTheFlag(client))
+		if (TF2_IsTaunting(client))
+			return Plugin_Continue;
+		
+		//Prevent bypassing delayed taunts
+		if (m_flNextActionTime[client] > GetEngineTime())
+			return Plugin_Handled;
+		
+		if (bwr3_bomb_upgrade_mode.IntValue == BOMB_UPGRADE_MANUAL)
 		{
-			if (UpgradeBomb(client))
+			if (CanStartOrResumeAction(client, ROBOT_ACTION_UPGRADE_BOMB) && MvMRobotPlayer(client).BombUpgradeTimer_IsElapsed() && TF2_HasTheFlag(client))
 			{
-				CreateTimer(GetRandomFloat(0.0, 1.0), Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
-				return Plugin_Handled;
+				if (UpgradeBomb(client))
+				{
+					float interval = GetRandomFloat(0.0, 1.0);
+					CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
+					SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
+					return Plugin_Handled;
+				}
 			}
 		}
 	}
@@ -2404,12 +2431,12 @@ public void PlayerRobot_TouchPost(int entity, int other)
 		char otherClassname[PLATFORM_MAX_PATH]; GetEntityClassname(other, otherClassname, sizeof(otherClassname));
 		OSTFPlayer player = OSTFPlayer(entity);
 		
-		if (!ShouldCurrentActionBeSuspended(entity))
+		if (CanStartOrResumeAction(entity, ROBOT_ACTION_DEPLOY_BOMB))
 		{
 			if (StrEqual(otherClassname, "func_capturezone"))
 			{
 				//Start deploying the bomb
-				if (!MvMRobotPlayer(entity).IsDeployingTheBomb() && CanPerformNewBehaviorAction(entity) && player.HasTheFlag())
+				if (!MvMRobotPlayer(entity).IsDeployingTheBomb() && player.HasTheFlag())
 					MvMDeployBomb_OnStart(entity);
 			}
 		}
@@ -3096,7 +3123,7 @@ Return false if we should stop deploying the bomb
 Return true to continue deploying the bomb */
 bool MvMDeployBomb_Update(int client)
 {
-	if (ShouldCurrentActionBeSuspended(client))
+	if (!CanStartOrResumeAction(client, ROBOT_ACTION_DEPLOY_BOMB))
 		return false;
 	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
@@ -3349,20 +3376,6 @@ bool ShouldWeaponBeRestricted(int weapon)
 	return true;
 }
 
-//Determine what we're doing right now can interrupt our "behavior"
-bool ShouldCurrentActionBeSuspended(int client)
-{
-	//Taunting means we suspended our current behavior to do it
-	//Detonating sentry busters don't count since they taunt while doing it
-	if (TF2_IsTaunting(client) && !MvMSuicideBomber(client).DetonateTimer_HasStarted())
-		return true;
-	
-	/* For TFBots, CTFBotTacticalMonitor::Update suspends CTFBotMvMDeployBomb for CTFBotSeekAndDestroy
-	when the round has been won and they are on the winning team, so for the robot players here 
-	just stop the deploy process once the round has already been won */
-	return GameRules_GetRoundState() == RoundState_TeamWin;
-}
-
 bool ShouldAutoJump(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
@@ -3384,6 +3397,50 @@ bool ShouldAutoJump(int client)
 	return false;
 }
 
+bool CanStartOrResumeAction(int client, eRobotAction type)
+{
+	//Next action is delayed
+	if (m_flNextActionTime[client] > GetEngineTime())
+		return false;
+	
+	//Being dead cancels out everything!
+	// if (!IsPlayerAlive(client))
+		// return false;
+	
+	switch (type)
+	{
+		case ROBOT_ACTION_UPGRADE_BOMB:
+		{
+			//Taunting means we suspended our current behavior to do it
+			if (TF2_IsTaunting(client))
+				return false;
+			
+			return GameRules_GetRoundState() != RoundState_TeamWin;
+		}
+		case ROBOT_ACTION_DEPLOY_BOMB:
+		{
+			if (TF2_IsTaunting(client))
+				return false;
+			
+			/* For TFBots, CTFBotTacticalMonitor::Update suspends CTFBotMvMDeployBomb for CTFBotSeekAndDestroy
+			when the round has been won and they are on the winning team, so for the robot players here 
+			just stop the deploy process once the round has already been won */
+			return GameRules_GetRoundState() != RoundState_TeamWin;
+		}
+		case ROBOT_ACTION_SUICIDE_BOMBER:
+		{
+			//Taunting is okay here only if we have started detonating
+			if (TF2_IsTaunting(client) && !MvMSuicideBomber(client).DetonateTimer_HasStarted())
+				return false;
+			
+			return GameRules_GetRoundState() != RoundState_TeamWin;
+		}
+	}
+	
+	LogError("CanStartOrResumeAction: unimplemented case %d", type);
+	return false;
+}
+
 void SetBlockPlayerMovementTime(int client, float value)
 {
 	m_flBlockMovementTime[client] = GetGameTime() + value;
@@ -3391,11 +3448,6 @@ void SetBlockPlayerMovementTime(int client, float value)
 #if defined TESTING_ONLY
 	PrintToChatAll("[SetBlockPlayerMovementTime] %N blocked for %f seconds!", client, value);
 #endif
-}
-
-bool CanPerformNewBehaviorAction(int client)
-{
-	return m_flNextActionTime[client] <= GetEngineTime();
 }
 
 void SetNextBehaviorActionTime(int client, float value)
