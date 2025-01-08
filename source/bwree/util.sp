@@ -433,7 +433,7 @@ void EconItemSpawnGiveTo(int item, int client)
 	}
 	
 	//NOTE: Bot players always have their items visible in PvE modes
-	SetEntProp(item, Prop_Send, "m_bValidatedAttachedEntity", 1);
+	// SetEntProp(item, Prop_Send, "m_bValidatedAttachedEntity", 1);
 }
 
 //TODO: REPLACE ME WITH A CALL TO CEconItemSchema::GetItemDefinitionByName

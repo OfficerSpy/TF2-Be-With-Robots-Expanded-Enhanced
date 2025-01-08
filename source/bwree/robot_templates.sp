@@ -598,6 +598,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				int credits = kv.GetNum("TotalCurrency");
 				char description[ROBOT_DESC_MAX_LENGTH]; kv.GetString("Description", description, sizeof(description));
 				
+				SetEntProp(client, Prop_Send, "m_bIsABot", 1);
 				roboPlayer.ClearEventChangeAttributes();
 				
 				if (kv.JumpToKey("EventChangeAttributes"))
@@ -917,11 +918,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		}
 	}
 	
-	/* Property checked in C_TFPlayer::IsABot called in C_TFPlayer::UpdateRecentlyTeleportedEffect
-	This would actually show a different particle effect on the player coming from a teleporter
-	had the developers actually used it, but instead this just gives no particle effect at all */
-	SetEntProp(client, Prop_Send, "m_bIsABot", 1);
-	
 	float rawHere[3];
 	
 	SpawnLocationResult result = FindSpawnLocation(rawHere, flScale > 0.0 ? flScale : 1.0, _, GetRobotPlayerSpawnType(roboPlayer));
@@ -1053,6 +1049,7 @@ static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool b
 	//Dump the current block of EventChangeAttributes here
 	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "data/bwr3_eventchangeattributes.txt");
 	kv.ExportToFile(filePath);
+	PrintToServer("[BWR E&E] Dumped EventChangeAttributes data to %s", filePath);
 #endif
 	
 	//Default describes what the robot's stats are for when it first spawns in
@@ -1160,7 +1157,7 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 							}
 							else
 							{
-								LogError("ParseEventChangeAttributesForPlayer: %s is not a real item attribute", attributeName);
+								LogError("ReadEventChangeAttributesForPlayer: %s is not a real item attribute", attributeName);
 							}
 						} while (kv.GotoNextKey(false))
 						
