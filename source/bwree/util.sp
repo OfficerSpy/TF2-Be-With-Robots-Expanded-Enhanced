@@ -62,7 +62,7 @@ enum SpawnLocationResult
 	SPAWN_LOCATION_NOT_FOUND = 0,
 	SPAWN_LOCATION_NAV,
 	SPAWN_LOCATION_TELEPORTER
-};
+}
 
 public char g_sClassNamesShort[][] =
 {
@@ -965,6 +965,43 @@ void SetForcedTauntCam(int client, int value)
 		SetEntityModel(vm, modelName);
 } */
 
+bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, int iDebugClient = -1)
+{
+	float scaledVecHullMin[3]; scaledVecHullMin = TF_VEC_HULL_MIN;
+	ScaleVector(scaledVecHullMin, playerScale);
+	
+	float scaledVecHullMax[3]; scaledVecHullMax = TF_VEC_HULL_MAX;
+	ScaleVector(scaledVecHullMax, playerScale);
+	
+	const float bloat = 5.0;
+	
+	float mins[3];
+	float bloatMin[3] = {bloat, bloat, 0.0};
+	SubtractVectors(scaledVecHullMin, bloatMin, mins);
+	
+	float maxs[3];
+	float bloatMax[3] = {bloat, bloat, bloat};
+	AddVectors(scaledVecHullMax, bloatMax, maxs);
+	
+	Handle trace = TR_TraceHullFilterEx(where, where, mins, maxs, MASK_SOLID | CONTENTS_PLAYERCLIP, TraceFilter_RobotSpawn);
+	
+	if (TR_GetFraction(trace) >= 1.0)
+	{
+		CloseHandle(trace);
+		return true;
+	}
+	
+	CloseHandle(trace);
+	
+	if (iDebugClient > 0)
+	{
+		//Draw bounding box on failure
+		DrawBoundingBox(mins, maxs, where, 10.0, {255, 0, 0, 255}, iDebugClient);
+	}
+	
+	return false;
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {
@@ -1435,6 +1472,86 @@ stock bool IsEntityATrigger(int entity)
 		return false;
 	
 	return StrContains(classname, "trigger_", false) != -1;
+}
+
+//Modified function from Parkour Fortress: Redux
+stock void DrawBoundingBox(const float vecMins[3], const float vecMaxs[3], const float vecOrigin[3], float flDuration = 10.0, int rgbColor[4] = {255, 0, 0, 255}, int iShowToWho = -1)
+{
+	float vecRelMinsSub1[3], vecRelMinsSub2[3], vecRelMinsSub3[3], vecRelMinsSub4[3];
+	float vecRelMaxsSub1[3], vecRelMaxsSub2[3], vecRelMaxsSub3[3], vecRelMaxsSub4[3];
+	
+	AddVectors(vecOrigin, vecMins, vecRelMinsSub1);
+	
+	vecRelMinsSub2[0] = vecMins[0];
+	vecRelMinsSub2[1] = -vecMins[1];
+	vecRelMinsSub2[2] = vecMins[2];
+	AddVectors(vecOrigin, vecRelMinsSub2, vecRelMinsSub2);
+	
+	vecRelMinsSub3[0] = -vecMins[0];
+	vecRelMinsSub3[1] = -vecMins[1];
+	vecRelMinsSub3[2] = vecMins[2];
+	AddVectors(vecOrigin, vecRelMinsSub3, vecRelMinsSub3);
+	
+	vecRelMinsSub4[0] = -vecMins[0];
+	vecRelMinsSub4[1] = vecMins[1];
+	vecRelMinsSub4[2] = vecMins[2];
+	AddVectors(vecOrigin, vecRelMinsSub4, vecRelMinsSub4);
+	
+	AddVectors(vecOrigin, vecMaxs, vecRelMaxsSub1);
+	
+	vecRelMaxsSub2[0] = vecMaxs[0];
+	vecRelMaxsSub2[1] = -vecMaxs[1];
+	vecRelMaxsSub2[2] = vecMaxs[2];
+	AddVectors(vecOrigin, vecRelMaxsSub2, vecRelMaxsSub2);
+	
+	vecRelMaxsSub3[0] = -vecMaxs[0];
+	vecRelMaxsSub3[1] = -vecMaxs[1];
+	vecRelMaxsSub3[2] = vecMaxs[2];
+	AddVectors(vecOrigin, vecRelMaxsSub3, vecRelMaxsSub3);
+	
+	vecRelMaxsSub4[0] = -vecMaxs[0];
+	vecRelMaxsSub4[1] = vecMaxs[1];
+	vecRelMaxsSub4[2] = vecMaxs[2];
+	AddVectors(vecOrigin, vecRelMaxsSub4, vecRelMaxsSub4);
+	
+	DrawVectorPoints(vecRelMinsSub1, vecRelMaxsSub3, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMinsSub1, vecRelMaxsSub4, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMinsSub1, vecRelMaxsSub2, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMinsSub1, vecRelMinsSub2, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMinsSub1, vecRelMinsSub3, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMinsSub1, vecRelMinsSub4, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMinsSub2, vecRelMaxsSub1, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMinsSub2, vecRelMaxsSub4, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMinsSub2, vecRelMinsSub3, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMinsSub3, vecRelMaxsSub1, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMinsSub3, vecRelMaxsSub2, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMinsSub3, vecRelMinsSub4, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMinsSub4, vecRelMaxsSub2, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMaxsSub1, vecRelMaxsSub2, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMaxsSub1, vecRelMaxsSub3, flDuration, rgbColor, _, iShowToWho);
+	DrawVectorPoints(vecRelMaxsSub1, vecRelMaxsSub4, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMaxsSub2, vecRelMaxsSub3, flDuration, rgbColor, _, iShowToWho);
+	
+	DrawVectorPoints(vecRelMaxsSub3, vecRelMaxsSub4, flDuration, rgbColor, _, iShowToWho);
+}
+
+//Modified function from Parkour Fortress: Redux
+stock void DrawVectorPoints(float vecOrigin[3], float vecEndpoint[3], float flLifespan, int iColor[4], float flWidth = 3.0, int iSendToWho = -1)
+{
+	TE_SetupBeamPoints(vecOrigin, vecEndpoint, PrecacheModel("materials/sprites/laser.vmt"), 0, 0, 0, flLifespan, flWidth, 3.0, 1, 0.0, iColor, 0);
+	
+	if (iSendToWho > 0)
+		TE_SendToClient(iSendToWho);
+	else
+		TE_SendToAll();
 }
 
 stock bool IsLeftForInvasionMode()

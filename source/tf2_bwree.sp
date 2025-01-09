@@ -1354,7 +1354,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						float telePos[3]; GetCurrentBuildOrigin(teleporter, telePos);
 						telePos[2] += TFBOT_STEP_HEIGHT;
 						
-						if (!IsSpaceToSpawnHere(telePos, tf_mvm_miniboss_scale.FloatValue))
+						if (!IsSpaceToSpawnOnTeleporter(telePos, tf_mvm_miniboss_scale.FloatValue, client))
 						{
 							buttons &= ~IN_ATTACK;
 							
