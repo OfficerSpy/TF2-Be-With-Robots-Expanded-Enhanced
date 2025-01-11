@@ -4,6 +4,8 @@ on:
   push:
     branches:
       main
+    paths:
+      dev/actions/car.txt
 
 env:
   PLUGIN_NAME: tf2_bwree
