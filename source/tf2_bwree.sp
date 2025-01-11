@@ -35,6 +35,7 @@ Author: ★ Officer Spy ★
 #define MAP_CONFIG_DIRECTORY	"configs/bwree/map"
 #define MAX_ROBOT_SPAWN_NAMES	3
 
+#define BAD_TELE_PLACEMENT_SOUND	"buttons/button10.wav"
 #define BOMBRUSH_WATCH_MAX_SECONDS	120.0
 #define BOMBRUSH_COOLDOWN_MAX_MINUTES	10
 #define BOMBRUSH_COOLDOWN_SEC_PER_MIN	(BOMBRUSH_WATCH_MAX_SECONDS / BOMBRUSH_COOLDOWN_MAX_MINUTES)
@@ -958,6 +959,7 @@ public void OnMapStart()
 	g_bCanBotsAttackInSpawn = false;
 	m_adtBWRCooldown.Clear();
 	
+	PrecacheSound(BAD_TELE_PLACEMENT_SOUND);
 	PrecacheSound(ALERT_FLAG_HELD_TOO_LONG_SOUND);
 	PrecacheSound(BOSS_ROBOT_SPAWN_SOUND);
 	ResetRobotSpawnerData();
@@ -1345,8 +1347,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if (myWeapon != -1)
 			{
-				if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter) //TODO: replace this stock
+				if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter && GetEntPropFloat(myWeapon, Prop_Data, "m_flNextPrimaryAttack") <= GetGameTime() + 0.1) //TODO: replace TF2_GetObjectType with builder stock
 				{
+					//Only do this when the weapon can attack again to not spam failed checks
+					//We add 0.1s here to catch held input before CTFWeaponBuilder::ItemPostFrame decides to call CTFWeaponBuilder::PrimaryAttack
 					int teleporter = GetEntPropEnt(myWeapon, Prop_Send, "m_hObjectBeingBuilt");
 					
 					if (teleporter != -1)
@@ -1357,6 +1361,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						if (!IsSpaceToSpawnOnTeleporter(telePos, tf_mvm_miniboss_scale.FloatValue, client))
 						{
 							buttons &= ~IN_ATTACK;
+							
+							//Delay next placement attempt
+							SetEntPropFloat(myWeapon, Prop_Data, "m_flNextPrimaryAttack", GetGameTime() + 0.3);
+							EmitSoundToClient(client, BAD_TELE_PLACEMENT_SOUND);
 							
 #if defined TESTING_ONLY
 							PrintToChat(client, "No space for teleporter at %f %f %f!", telePos[0], telePos[1], telePos[2] - TFBOT_STEP_HEIGHT);
@@ -3551,6 +3559,7 @@ void DecrementRobotPlayerClassIcon(int client)
 		
 		if (IsClassIconUsedInCurrentWave(iconName))
 		{
+			//Take the icon out naturally
 			TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, iconName, iFlags);
 		}
 		else
@@ -3558,6 +3567,7 @@ void DecrementRobotPlayerClassIcon(int client)
 			if (MvMRobotPlayer(client).HasAttribute(CTFBot_ALWAYS_CRIT))
 				iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 			
+			//Take the icon out completely
 			TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
 		}
 	}

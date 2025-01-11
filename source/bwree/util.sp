@@ -996,7 +996,7 @@ bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, i
 	if (iDebugClient > 0)
 	{
 		//Draw bounding box on failure
-		DrawBoundingBox(mins, maxs, where, 10.0, {255, 0, 0, 255}, iDebugClient);
+		DrawBoundingBox(mins, maxs, where, 0.2, {255, 0, 0, 255}, iDebugClient);
 	}
 	
 	return false;
