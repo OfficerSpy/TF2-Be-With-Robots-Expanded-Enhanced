@@ -5,7 +5,7 @@ on:
     branches:
       main
     paths:
-      dev/actions/car.txt
+      car.txt
 
 env:
   PLUGIN_NAME: tf2_bwree
