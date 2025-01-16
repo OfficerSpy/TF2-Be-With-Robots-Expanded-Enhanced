@@ -9,7 +9,7 @@
 
 #define BOSS_ROBOT_SPAWN_SOUND	")mvm/giant_heavy/giant_heavy_entrance.wav"
 
-#define ROBOT_SPY_MAX_TELEPORT_ATTEMPTS	999
+#define SPY_MAX_TELEPORT_ATTEMPTS	999
 
 enum eRobotTemplateType
 {
@@ -34,6 +34,7 @@ int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
 // char g_sRobotTemplateDescription[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][ROBOT_DESC_MAX_LENGTH];
 TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
+char g_sRobotTemplateClassIcon[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
 float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
 float g_vecMapEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
@@ -315,7 +316,7 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 	{
 		m_iSpyTeleportAttempt[data]++;
 		
-		if (m_iSpyTeleportAttempt[data] < ROBOT_SPY_MAX_TELEPORT_ATTEMPTS)
+		if (m_iSpyTeleportAttempt[data] < SPY_MAX_TELEPORT_ATTEMPTS)
 		{
 			//No one to teleport to, try again
 			CreateTimer(1.0, Timer_SpyLeaveSpawnRoom, data, TIMER_FLAG_NO_MAPCHANGE);
@@ -1690,15 +1691,15 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 		return SPAWN_LOCATION_NOT_FOUND;
 	}
 	
-	float origin[3];
 	int maxTries = adtSpawnPoints.Length;
 	
+	//Now look through our list and find a random suitable spawn
 	for (int i = 0; i < maxTries; i++)
 	{
 		int index = GetRandomInt(0, adtSpawnPoints.Length - 1);
 		int spawn = adtSpawnPoints.Get(index);
 		adtSpawnPoints.Erase(index);
-		origin = WorldSpaceCenter(spawn);
+		float origin[3]; origin = WorldSpaceCenter(spawn);
 		
 		if (IsSpaceToSpawnHere(origin, playerScale))
 		{
@@ -2016,6 +2017,7 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 				if (g_nRobotTemplateClass[type][g_iTotalRobotTemplates[type]] <= TFClass_Unknown)
 					LogError("UpdateRobotTemplateDataForType: Template %d (%s) of type %d does not have a valid class set!", g_iTotalRobotTemplates[type], g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], type);
 				
+				kv.GetString("ClassIcon", g_sRobotTemplateClassIcon[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateClassIcon[][]));
 				g_flRobotTemplateCooldown[type][g_iTotalRobotTemplates[type]] = kv.GetFloat("cooldown", 0.0);
 				
 				g_iTotalRobotTemplates[type]++;
@@ -2045,6 +2047,11 @@ int GetRobotTemplateName(eRobotTemplateType type, int templateID, char[] buffer,
 TFClassType GetRobotTemplateClass(eRobotTemplateType type, int templateID)
 {
 	return g_nRobotTemplateClass[type][templateID];
+}
+
+int GetRobotTemplateClassIcon(eRobotTemplateType type, int templateID, char[] buffer, int maxlen)
+{
+	return strcopy(buffer, maxlen, g_sRobotTemplateClassIcon[type][templateID]);
 }
 
 float GetRobotTemplateCooldown(eRobotTemplateType type, int templateID)

@@ -1051,6 +1051,7 @@ public void OnConfigsExecuted()
 	
 	MapConfig_UpdateSettings();
 	UpdateEngineerHintLocations();
+	PrepareRobotCustomFiles();
 }
 
 public void OnEntityCreated(int entity, const char[] classname)
@@ -2640,6 +2641,33 @@ bool HandleAutoTeam(int client)
 	
 	ChangePlayerToTeamInvaders(client);
 	return true;
+}
+
+void PrepareRobotCustomFiles()
+{
+	for (eRobotTemplateType i = ROBOT_STANDARD; i < view_as<eRobotTemplateType>(sizeof(g_iTotalRobotTemplates)); i++)
+	{
+		char sFilePath[PLATFORM_MAX_PATH];
+		
+		for (int j = 0; j < g_iTotalRobotTemplates[i]; j++)
+		{
+			//Add custom robot icons to downloads from any template that specified it
+			GetRobotTemplateClassIcon(i, j, sFilePath, sizeof(sFilePath));
+			Format(sFilePath, sizeof(sFilePath), "materials/hud/leaderboard_class_%s.vmt", sFilePath);
+			
+			//We intentionally skip the valve file system here as we never want to download class icons already in the game files
+			if (FileExists(sFilePath))
+			{
+				AddFileToDownloadsTable(sFilePath);
+				
+				ReplaceString(sFilePath, sizeof(sFilePath), ".vmt", ".vtf");
+				
+				//Not every vtf will be consistently named as the vmt
+				if (FileExists(sFilePath))
+					AddFileToDownloadsTable(sFilePath);
+			}
+		}
+	}
 }
 
 void PrepareCustomViewModelAssets(int type)
