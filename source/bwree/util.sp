@@ -158,8 +158,15 @@ public char g_sRobotArmModels[][] =
 
 public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 {
-	//NOTE: CTraceFilterSimple::ShouldHitEntity does a bit more than this, but this should be fine for now
-	return TFGameRules_ShouldCollide(COLLISION_GROUP_PLAYER_MOVEMENT, BaseEntity_GetCollisionGroup(entity));
+	const int collisionGroup = COLLISION_GROUP_PLAYER_MOVEMENT;
+	
+	//TODO: replace with a call to CBaseEntity::ShouldCollide like in CTraceFilterSimple::ShouldHitEntity
+	if (BaseEntity_IsPlayer(entity))
+	{
+		return false;
+	}
+	
+	return TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity));
 }
 
 bool Player_IsRangeGreaterThanVec(int client, float pos[3], float range)
