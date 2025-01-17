@@ -1807,6 +1807,8 @@ void StartSentryBusterCooldown()
 // Determine the next robot template the player should use on their next spawn
 void SelectPlayerNextRobot(int client)
 {
+	bool bCurrentWaveRobots = bwr3_use_wave_robots.BoolValue;
+	int iSelectedID = ROBOT_TEMPLATE_ID_INVALID;
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
 	if (g_bRobotBossesAvailable && g_flNextBossSpawnTime <= GetGameTime())
@@ -1831,11 +1833,23 @@ void SelectPlayerNextRobot(int client)
 		{
 			if (bShouldBeGatebot)
 			{
-				roboPlayer.SetMyNextRobot(ROBOT_GATEBOT_GIANT, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GATEBOT_GIANT] - 1));
+				if (bCurrentWaveRobots)
+					iSelectedID = GetWaveBasedRobotTemplateID(ROBOT_GATEBOT_GIANT);
+				
+				if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID)
+					iSelectedID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GATEBOT_GIANT] - 1);
+				
+				roboPlayer.SetMyNextRobot(ROBOT_GATEBOT_GIANT, iSelectedID);
 			}
 			else
 			{
-				roboPlayer.SetMyNextRobot(ROBOT_GIANT, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GIANT] - 1));
+				if (bCurrentWaveRobots)
+					iSelectedID = GetWaveBasedRobotTemplateID(ROBOT_GIANT);
+				
+				if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID)
+					iSelectedID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GIANT] - 1);
+				
+				roboPlayer.SetMyNextRobot(ROBOT_GIANT, iSelectedID);
 			}
 			
 			return;
@@ -1844,12 +1858,44 @@ void SelectPlayerNextRobot(int client)
 	
 	if (bShouldBeGatebot)
 	{
-		roboPlayer.SetMyNextRobot(ROBOT_GATEBOT, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GATEBOT] - 1));
+		if (bCurrentWaveRobots)
+			iSelectedID = GetWaveBasedRobotTemplateID(ROBOT_GATEBOT);
+		
+		if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID)
+			iSelectedID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_GATEBOT] - 1);
+		
+		roboPlayer.SetMyNextRobot(ROBOT_GATEBOT, iSelectedID);
 	}
 	else
 	{
-		roboPlayer.SetMyNextRobot(ROBOT_STANDARD, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_STANDARD] - 1));
+		if (bCurrentWaveRobots)
+			iSelectedID = GetWaveBasedRobotTemplateID(ROBOT_STANDARD);
+		
+		if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID)
+			iSelectedID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_STANDARD] - 1);
+		
+		roboPlayer.SetMyNextRobot(ROBOT_STANDARD, iSelectedID);
 	}
+}
+
+// Get a template id of a robot from a group type used in the current mission wave
+int GetWaveBasedRobotTemplateID(eRobotTemplateType type)
+{
+	int total = 0;
+	int[] arrRobotID = new int[g_iTotalRobotTemplates[type]];
+	
+	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
+	{
+		char sIcon[PLATFORM_MAX_PATH]; GetRobotTemplateClassIcon(type, i, sIcon, sizeof(sIcon));
+		
+		if (IsClassIconUsedInCurrentWave(sIcon))
+			arrRobotID[total++] = i;
+	}
+	
+	if (total == 0)
+		return ROBOT_TEMPLATE_ID_INVALID;
+	
+	return arrRobotID[GetRandomInt(0, total - 1)];
 }
 
 bool ForceRandomPlayerToReselectRobot()

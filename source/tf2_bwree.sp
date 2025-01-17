@@ -217,6 +217,7 @@ ConVar bwr3_allow_movement;
 ConVar bwr3_allow_readystate;
 ConVar bwr3_allow_drop_item;
 ConVar bwr3_allow_buyback;
+ConVar bwr3_use_wave_robots;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
 ConVar bwr3_robots_cooldown_base;
@@ -811,6 +812,7 @@ public void OnPluginStart()
 	bwr3_allow_readystate = CreateConVar("sm_bwr3_allow_readystate", "0", _, FCVAR_NOTIFY);
 	bwr3_allow_drop_item = CreateConVar("sm_bwr3_allow_drop_item", "0", _, FCVAR_NOTIFY);
 	bwr3_allow_buyback = CreateConVar("sm_bwr3_allow_buyback", "0", _, FCVAR_NOTIFY);
+	bwr3_use_wave_robots = CreateConVar("sm_bwr3_use_wave_robots", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_robots_cooldown_base = CreateConVar("sm_bwr3_robots_cooldown_base", "60.0", _, FCVAR_NOTIFY);
@@ -862,6 +864,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_bwr3_robots", Command_ListRobots, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_setcooldown", Command_SetCooldownOnPlayer, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_viewcooldowns", Command_ViewCooldownData, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_debug_waveicons", Command_DebugWaveIcons, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_wavedata", Command_DebugWaveData, ADMFLAG_GENERIC);
 	
@@ -2033,6 +2036,18 @@ public Action Command_ViewCooldownData(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_DebugWaveIcons(int client, int args)
+{
+	PrintToConsole(client, "ICONS USED IN CURRENT WAVE");
+	
+	for (int i = 0; i < sizeof(m_sCurrentWaveIconNames); i++)
+	{
+		PrintToConsole(client, m_sCurrentWaveIconNames[i]);
+	}
+	
+	return Plugin_Handled;
+}
+
 public Action Command_DebugSentryBuster(int client, int args)
 {
 	int nDmgLimit = 0;
@@ -2826,8 +2841,11 @@ void UpdateCurrentWaveUsedIcons()
 {
 	for (int i = 0; i < MVM_CLASS_TYPES_PER_WAVE_MAX; i++)
 	{
-		GetEntPropString(g_iObjectiveResource, Prop_Data, "m_iszMannVsMachineWaveClassNames", m_sCurrentWaveIconNames[i], sizeof(m_sCurrentWaveIconNames[]));
-		GetEntPropString(g_iObjectiveResource, Prop_Data, "m_iszMannVsMachineWaveClassNames2", m_sCurrentWaveIconNames[i + MVM_CLASS_TYPES_PER_WAVE_MAX], sizeof(m_sCurrentWaveIconNames[]));
+		//First set stored in indexes 0-11
+		GetEntPropString(g_iObjectiveResource, Prop_Data, "m_iszMannVsMachineWaveClassNames", m_sCurrentWaveIconNames[i], sizeof(m_sCurrentWaveIconNames[]), i);
+		
+		//Second set stored in indexes 12-23
+		GetEntPropString(g_iObjectiveResource, Prop_Data, "m_iszMannVsMachineWaveClassNames2", m_sCurrentWaveIconNames[i + MVM_CLASS_TYPES_PER_WAVE_MAX], sizeof(m_sCurrentWaveIconNames[]), i);
 	}
 }
 
