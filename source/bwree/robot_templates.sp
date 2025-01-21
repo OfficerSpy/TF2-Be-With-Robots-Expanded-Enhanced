@@ -1433,7 +1433,6 @@ static void StartIdleSound(int client, TFClassType class)
 }
 
 //NEW METHOD: heavily based on a function from [TF2] Chaos Mod
-//NOTE: it doesn't seem to always remove conflicting cosmetics...
 int AddItemToPlayer(int client, const char[] szItemName)
 {
 	int iItemDefIndex = GetItemDefinitionIndexByName(szItemName);
@@ -2097,7 +2096,17 @@ TFClassType GetRobotTemplateClass(eRobotTemplateType type, int templateID)
 
 int GetRobotTemplateClassIcon(eRobotTemplateType type, int templateID, char[] buffer, int maxlen)
 {
-	return strcopy(buffer, maxlen, g_sRobotTemplateClassIcon[type][templateID]);
+	if (strlen(g_sRobotTemplateClassIcon[type][templateID]) > 0)
+	{
+		return strcopy(buffer, maxlen, g_sRobotTemplateClassIcon[type][templateID]);
+	}
+	else
+	{
+		//Blank assumes the default icon of the robot's class
+		TFClassType iClass = GetRobotTemplateClass(type, templateID);
+		
+		return strcopy(buffer, maxlen, g_sClassNamesShort[iClass]);
+	}
 }
 
 float GetRobotTemplateCooldown(eRobotTemplateType type, int templateID)

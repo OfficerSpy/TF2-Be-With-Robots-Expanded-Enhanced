@@ -790,7 +790,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.2.6",
+	version = "1.2.7",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -2671,14 +2671,22 @@ void PrepareRobotCustomFiles()
 			Format(sFilePath, sizeof(sFilePath), "materials/hud/leaderboard_class_%s.vmt", sFilePath);
 			
 			//We intentionally skip the valve file system here as we never want to download class icons already in the game files
-			if (FileExists(sFilePath))
+			if (FileExists(sFilePath, false))
 			{
 				AddFileToDownloadsTable(sFilePath);
 				
-				ReplaceString(sFilePath, sizeof(sFilePath), ".vmt", ".vtf");
+				if (StrContains(sFilePath, "_giant.vmt") != -1)
+				{
+					//Giant icons usually refer to a similarly named vtf file without the suffix
+					ReplaceString(sFilePath, sizeof(sFilePath), "_giant.vmt", ".vtf");
+				}
+				else
+				{
+					ReplaceString(sFilePath, sizeof(sFilePath), ".vmt", ".vtf");
+				}
 				
 				//Not every vtf will be consistently named as the vmt
-				if (FileExists(sFilePath))
+				if (FileExists(sFilePath, false))
 					AddFileToDownloadsTable(sFilePath);
 			}
 		}
@@ -2687,6 +2695,8 @@ void PrepareRobotCustomFiles()
 
 void PrepareCustomViewModelAssets(int type)
 {
+	//For custom viewmodels, precache the models, then add their assets to downloads
+	
 	switch (type)
 	{
 		case 1: //Bot arms
