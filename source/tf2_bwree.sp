@@ -85,6 +85,12 @@ enum
 
 enum
 {
+	ROBOT_TEMPLATE_MODE_NONE = 0,
+	ROBOT_TEMPLATE_MODE_WAVE_BOTS
+}
+
+enum
+{
 	CREDITS_DROP_NONE = 0,
 	CREDITS_DROP_NORMAL,
 	CREDITS_DROP_FORCE_DISTRIBUTE
@@ -217,7 +223,7 @@ ConVar bwr3_allow_movement;
 ConVar bwr3_allow_readystate;
 ConVar bwr3_allow_drop_item;
 ConVar bwr3_allow_buyback;
-ConVar bwr3_use_wave_robots;
+ConVar bwr3_player_robot_template_mode;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
 ConVar bwr3_robots_cooldown_base;
@@ -812,7 +818,7 @@ public void OnPluginStart()
 	bwr3_allow_readystate = CreateConVar("sm_bwr3_allow_readystate", "0", _, FCVAR_NOTIFY);
 	bwr3_allow_drop_item = CreateConVar("sm_bwr3_allow_drop_item", "0", _, FCVAR_NOTIFY);
 	bwr3_allow_buyback = CreateConVar("sm_bwr3_allow_buyback", "0", _, FCVAR_NOTIFY);
-	bwr3_use_wave_robots = CreateConVar("sm_bwr3_use_wave_robots", "0", _, FCVAR_NOTIFY);
+	bwr3_player_robot_template_mode = CreateConVar("sm_bwr3_player_robot_template_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_robots_cooldown_base = CreateConVar("sm_bwr3_robots_cooldown_base", "60.0", _, FCVAR_NOTIFY);
@@ -3228,7 +3234,7 @@ bool MvMDeployBomb_Update(int client)
 			if (roboPlayer.DeployBombTimer_IsElapsed())
 			{
 				PlaySpecificSequence(client, "primary_deploybomb");
-				roboPlayer.DeployBombTimer_Start(tf_deploying_bomb_time.FloatValue);
+				roboPlayer.DeployBombTimer_Start(tf_deploying_bomb_time.FloatValue + nb_update_frequency.FloatValue);
 				roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_ANIMATING;
 				
 				EmitGameSoundToAll(TF2_IsMiniBoss(client) ? "MVM.DeployBombGiant" : "MVM.DeployBombSmall", client);
@@ -3243,7 +3249,7 @@ bool MvMDeployBomb_Update(int client)
 				if (pAreaTrigger != -1)
 					CaptureZoneCapture(pAreaTrigger, client);
 				
-				roboPlayer.DeployBombTimer_Start(2.0);
+				roboPlayer.DeployBombTimer_Start(2.0 + nb_update_frequency.FloatValue);
 				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_Robots_Planted");
 				roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_COMPLETE;
 				OSTFPlayer(client).m_takedamage = DAMAGE_NO;
@@ -3475,6 +3481,10 @@ bool CanStartOrResumeAction(int client, eRobotAction type)
 	{
 		case ROBOT_ACTION_UPGRADE_BOMB:
 		{
+			//Deploying the bomb is its own action
+			if (MvMRobotPlayer(client).IsDeployingTheBomb())
+				return false;
+			
 			//Taunting means we suspended our current behavior to do it
 			if (TF2_IsTaunting(client))
 				return false;

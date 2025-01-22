@@ -1806,7 +1806,7 @@ void StartSentryBusterCooldown()
 // Determine the next robot template the player should use on their next spawn
 void SelectPlayerNextRobot(int client)
 {
-	bool bCurrentWaveRobots = bwr3_use_wave_robots.BoolValue;
+	bool bCurrentWaveRobots = bwr3_player_robot_template_mode.IntValue == ROBOT_TEMPLATE_MODE_WAVE_BOTS;
 	int iSelectedID = ROBOT_TEMPLATE_ID_INVALID;
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
