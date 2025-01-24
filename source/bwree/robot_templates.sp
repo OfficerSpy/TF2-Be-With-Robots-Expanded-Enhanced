@@ -1885,9 +1885,7 @@ int GetWaveBasedRobotTemplateID(eRobotTemplateType type)
 	
 	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
 	{
-		char sIcon[PLATFORM_MAX_PATH]; GetRobotTemplateClassIcon(type, i, sIcon, sizeof(sIcon));
-		
-		if (IsClassIconUsedInCurrentWave(sIcon))
+		if (IsRobotTemplateUsableForCurrentWave(type, i))
 			arrRobotID[total++] = i;
 	}
 	
@@ -1895,6 +1893,17 @@ int GetWaveBasedRobotTemplateID(eRobotTemplateType type)
 		return ROBOT_TEMPLATE_ID_INVALID;
 	
 	return arrRobotID[GetRandomInt(0, total - 1)];
+}
+
+// Is the robot template allowed to be used in the current wave for wave-based robot settings
+bool IsRobotTemplateUsableForCurrentWave(eRobotTemplateType type, int templateID)
+{
+	char sIcon[PLATFORM_MAX_PATH]; GetRobotTemplateClassIcon(type, templateID, sIcon, sizeof(sIcon));
+	
+	if (!IsClassIconUsedInCurrentWave(sIcon))
+		return false;
+	
+	return true;
 }
 
 bool ForceRandomPlayerToReselectRobot()

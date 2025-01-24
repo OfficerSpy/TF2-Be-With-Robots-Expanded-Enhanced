@@ -1,7 +1,8 @@
 #define DISPLAY_MENU_DURATION	30
 
-eRobotTemplateType g_nSelectedRobotType[MAXPLAYERS + 1];
+static eRobotTemplateType m_nSelectedRobotType[MAXPLAYERS + 1];
 
+// Show the next robot we are going to spawn as
 void ShowPlayerNextRobotMenu(int client)
 {
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
@@ -25,6 +26,7 @@ void ShowPlayerNextRobotMenu(int client)
 	hMenu.Display(client, DISPLAY_MENU_DURATION);
 }
 
+// List the robot variant type categories that are available
 void ShowRobotVariantTypeMenu(int client, bool bAdmin = false)
 {
 	Menu hMenu = new Menu(MenuHandler_RobotVariantType, MENU_ACTIONS_ALL);
@@ -51,6 +53,7 @@ void ShowRobotVariantTypeMenu(int client, bool bAdmin = false)
 	hMenu.Display(client, bAdmin ? MENU_TIME_FOREVER : DISPLAY_MENU_DURATION);
 }
 
+// List the class names for the robot variant type
 void ShowRobotTemplateClassMenu(int client, eRobotTemplateType type)
 {
 	//Sanity check
@@ -77,21 +80,29 @@ void ShowRobotTemplateClassMenu(int client, eRobotTemplateType type)
 	hMenu.ExitBackButton = true;
 	hMenu.Display(client, MENU_TIME_FOREVER);
 	
-	g_nSelectedRobotType[client] = type;
+	m_nSelectedRobotType[client] = type;
 }
 
+// List the names of robots that are available for the specified class under the specified robot variant type
 bool ShowRobotTemplatesForClassMenu(int client, eRobotTemplateType type, TFClassType class)
 {
+	bool bCurrentWaveRobots = bwr3_player_robot_template_mode.IntValue == ROBOT_TEMPLATE_MODE_WAVE_BOTS;
 	Menu hMenu = new Menu(MenuHandler_RobotTemplatesForClass, MENU_ACTIONS_ALL);
-	char info[4];
 	int count = 0;
 	
 	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
 	{
 		if (GetRobotTemplateClass(type, i) == class)
 		{
+			if (bCurrentWaveRobots)
+			{
+				//We only want to show the robots that are allowed in the current wave
+				if (!IsRobotTemplateUsableForCurrentWave(type, i))
+					continue;
+			}
+			
 			//Store as template ID
-			IntToString(i, info, sizeof(info));
+			char info[4]; IntToString(i, info, sizeof(info));
 			
 			char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(type, i, robotName, sizeof(robotName));
 			
@@ -237,15 +248,15 @@ static int MenuHandler_RobotTemplateClasses(Menu menu, MenuAction action, int pa
 		{
 			switch (param2)
 			{
-				case 0: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Scout);
-				case 1: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Soldier);
-				case 2: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Pyro);
-				case 3: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_DemoMan);
-				case 4: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Heavy);
-				case 5: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Engineer);
-				case 6: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Medic);
-				case 7: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Sniper);
-				case 8: ShowRobotTemplatesForClassMenu(param1, g_nSelectedRobotType[param1], TFClass_Spy);
+				case 0: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Scout);
+				case 1: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Soldier);
+				case 2: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Pyro);
+				case 3: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_DemoMan);
+				case 4: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Heavy);
+				case 5: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Engineer);
+				case 6: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Medic);
+				case 7: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Sniper);
+				case 8: ShowRobotTemplatesForClassMenu(param1, m_nSelectedRobotType[param1], TFClass_Spy);
 			}
 		}
 		case MenuAction_End:
@@ -272,7 +283,7 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 			char info[4]; menu.GetItem(param2, info, sizeof(info));
 			int templateID = StringToInt(info);
 			
-			MvMRobotPlayer(param1).SetMyNextRobot(g_nSelectedRobotType[param1], templateID);
+			MvMRobotPlayer(param1).SetMyNextRobot(m_nSelectedRobotType[param1], templateID);
 			
 			if (GameRules_GetRoundState() == RoundState_RoundRunning)
 				g_bChangeRobotPicked[param1] = true;
@@ -280,9 +291,9 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 			if (MvMRobotPlayer(param1).MyNextRobotTemplateType != ROBOT_BOSS)
 				g_bSpawningAsBossRobot[param1] = false;
 			
-			char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(g_nSelectedRobotType[param1], templateID, robotName, sizeof(robotName));
+			char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(m_nSelectedRobotType[param1], templateID, robotName, sizeof(robotName));
 			
-			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, robotName, g_nSelectedRobotType[param1], templateID);
+			LogAction(param1, -1, "%L selected robot %s (type %d, ID %d)", param1, robotName, m_nSelectedRobotType[param1], templateID);
 		}
 		case MenuAction_End:
 		{
@@ -291,7 +302,7 @@ static int MenuHandler_RobotTemplatesForClass(Menu menu, MenuAction action, int 
 		case MenuAction_Cancel:
 		{
 			if (param2 == MenuCancel_ExitBack)
-				ShowRobotTemplateClassMenu(param1, g_nSelectedRobotType[param1]);
+				ShowRobotTemplateClassMenu(param1, m_nSelectedRobotType[param1]);
 		}
 	}
 	
