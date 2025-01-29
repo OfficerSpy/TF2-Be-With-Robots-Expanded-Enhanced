@@ -796,7 +796,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.2.7",
+	version = "1.2.8",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -3059,11 +3059,11 @@ void RobotPlayer_ChangeRobot(int client, bool bAdmin = false)
 			return;
 		}
 		
-		if (!TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(client), client))
+		/* if (!TF2Util_IsPointInRespawnRoom(WorldSpaceCenter(client), client))
 		{
 			PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Change_Robot_Denied_RespawnRoom");
 			return;
-		}
+		} */
 	}
 	
 	ShowRobotVariantTypeMenu(client, bAdmin);
