@@ -108,6 +108,12 @@ enum
 	SPY_TELEPORT_METHOD_MENU
 }
 
+enum
+{
+	ROBOT_TELEPORTER_MODE_RECENTLY_USED,
+	ROBOT_TELEPORTER_MODE_RANDOM
+}
+
 enum struct esPlayerStats
 {
 	int iKills;
@@ -242,6 +248,7 @@ ConVar bwr3_robot_menu_cooldown;
 ConVar bwr3_robot_menu_giant_cooldown;
 ConVar bwr3_engineer_teleport_method;
 ConVar bwr3_spy_teleport_method;
+ConVar bwr3_robot_teleporter_mode;
 ConVar bwr3_robot_custom_viewmodels;
 
 ConVar tf_mvm_defenders_team_size;
@@ -837,6 +844,7 @@ public void OnPluginStart()
 	bwr3_robot_menu_giant_cooldown = CreateConVar("sm_bwr3_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
 	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "0", _, FCVAR_NOTIFY);
 	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "0", _, FCVAR_NOTIFY);
+	bwr3_robot_teleporter_mode = CreateConVar("sm_bwr3_robot_teleporter_mode", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_custom_viewmodels = CreateConVar("sm_bwr3_robot_custom_viewmodels", "0", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_allow_movement, ConVarChanged_AllowMovement);

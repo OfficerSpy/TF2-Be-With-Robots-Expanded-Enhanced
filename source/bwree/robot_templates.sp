@@ -1614,13 +1614,16 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 	
 	if (!bIgnoreTeleporter)
 	{
-		int activeTeleporter = EntRefToEntIndex(g_iRefLastTeleporter);
-		
-		if (activeTeleporter != INVALID_ENT_REFERENCE && IsTeleporterUsableByRobots(activeTeleporter))
+		if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_RECENTLY_USED)
 		{
-			//Just use the teleporter we're already aware of
-			vSpawnPosition = WorldSpaceCenter(activeTeleporter);
-			return SPAWN_LOCATION_TELEPORTER;
+			int activeTeleporter = EntRefToEntIndex(g_iRefLastTeleporter);
+			
+			if (activeTeleporter != INVALID_ENT_REFERENCE && IsTeleporterUsableByRobots(activeTeleporter))
+			{
+				//Just use the teleporter we're already aware of
+				vSpawnPosition = WorldSpaceCenter(activeTeleporter);
+				return SPAWN_LOCATION_TELEPORTER;
+			}
 		}
 		
 		ArrayList adtTeleporter = new ArrayList();
