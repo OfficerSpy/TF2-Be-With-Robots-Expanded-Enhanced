@@ -125,7 +125,7 @@ enum struct esPlayerStats
 	int iKillAssists;
 	int iTeleports;
 	int iHealing;
-	float flDamage;
+	int iDamage;
 }
 
 esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
@@ -803,7 +803,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.2.8",
+	version = "1.2.9",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -2893,7 +2893,7 @@ void ResetRobotPlayerGameStats(int client)
 	g_arrRobotPlayerStats[client].iKillAssists = 0;
 	g_arrRobotPlayerStats[client].iTeleports = 0;
 	g_arrRobotPlayerStats[client].iHealing = 0;
-	g_arrRobotPlayerStats[client].flDamage = 0.0;
+	g_arrRobotPlayerStats[client].iDamage = 0;
 }
 
 float GetBWRCooldownTimeLeft(int client)
@@ -2965,35 +2965,43 @@ void BWRCooldown_PurgeExpired()
 //Returns the cooldown duration the player should get based on certain statistics
 float GetPlayerCalculatedCooldown(int client)
 {
-	if (g_arrRobotPlayerStats[client].iFlagCaptures > 0)
-	{
-		float duration = bwr3_robots_cooldown_base.FloatValue;
-		
-		if (duration > 0.0)
-		{
-			float roundLength = GetGameTime() - g_flTimeRoundStarted;
-			
-			if (roundLength < BOMBRUSH_WATCH_MAX_SECONDS)
-			{
-				float penalTimeLeft = BOMBRUSH_WATCH_MAX_SECONDS - roundLength;
-				duration += (penalTimeLeft / BOMBRUSH_COOLDOWN_SEC_PER_MIN) * 60;
-				
-				LogAction(client, -1, "%L deployed the bomb in %f seconds (ban time: %f)", client, roundLength, duration);
-			}
-		}
-		
-		return duration;
-	}
+	float flTotalDuration = bwr3_robots_cooldown_base.FloatValue;
 	
-	if (g_arrRobotPlayerStats[client].iKills == 0)
+	if (flTotalDuration <= 0.0)
 		return 0.0;
 	
-	if (g_arrRobotPlayerStats[client].iDeaths == 0)
-		return bwr3_robots_cooldown_base.FloatValue * g_arrRobotPlayerStats[client].iKills;
+	if (g_arrRobotPlayerStats[client].iFlagCaptures > 0)
+	{
+		float roundLength = GetGameTime() - g_flTimeRoundStarted;
+		
+		if (roundLength < BOMBRUSH_WATCH_MAX_SECONDS)
+		{
+			float penalTimeLeft = BOMBRUSH_WATCH_MAX_SECONDS - roundLength;
+			float extraSeconds = (penalTimeLeft / BOMBRUSH_COOLDOWN_SEC_PER_MIN) * 60;
+			
+			flTotalDuration += extraSeconds;
+			LogAction(client, -1, "%L deployed the bomb in %f seconds (added ban time: %f)", client, roundLength, extraSeconds);
+		}
+		
+		flTotalDuration += bwr3_robots_cooldown_base.FloatValue;
+	}
 	
-	float ratioKD = float(g_arrRobotPlayerStats[client].iKills) / float(g_arrRobotPlayerStats[client].iDeaths);
+	if (g_arrRobotPlayerStats[client].iKills > 0)
+	{
+		if (g_arrRobotPlayerStats[client].iDeaths > 0)
+		{
+			float ratioKD = float(g_arrRobotPlayerStats[client].iKills) / float(g_arrRobotPlayerStats[client].iDeaths);
+			
+			flTotalDuration += ratioKD * bwr3_robots_cooldown_base.FloatValue;
+		}
+		else
+		{
+			//No deaths, add a minute for each kill obtained
+			flTotalDuration += bwr3_robots_cooldown_base.FloatValue * g_arrRobotPlayerStats[client].iKills;
+		}
+	}
 	
-	return ratioKD * bwr3_robots_cooldown_base.FloatValue;
+	return flTotalDuration;
 }
 
 void RobotPlayer_SpawnNow(int client)
