@@ -32,13 +32,11 @@ Author: ★ Officer Spy ★
 #define PLUGIN_NAME	"[TF2] Be With Robots: Expanded & Enhanced"
 #define PLUGIN_PREFIX	"[BWR E&E]"
 
+#define PLUGIN_CONFIG_DIRECTORY	"configs/bwree/"
 #define MAP_CONFIG_DIRECTORY	"configs/bwree/map"
 #define MAX_ROBOT_SPAWN_NAMES	3
 
 #define BAD_TELE_PLACEMENT_SOUND	"buttons/button10.wav"
-#define BOMBRUSH_WATCH_MAX_SECONDS	120.0
-#define BOMBRUSH_COOLDOWN_MAX_MINUTES	10
-#define BOMBRUSH_COOLDOWN_SEC_PER_MIN	(BOMBRUSH_WATCH_MAX_SECONDS / BOMBRUSH_COOLDOWN_MAX_MINUTES)
 #define ALERT_FLAG_HELD_TOO_LONG_SOUND	"misc/doomsday_lift_warning.wav"
 
 // #define MOD_BUY_A_ROBOT_3
@@ -98,6 +96,13 @@ enum
 
 enum
 {
+	COOLDOWN_MODE_DISABLED = 0,
+	COOLDOWN_MODE_BASIC,
+	COOLDOWN_MODE_DYNAMIC_PERFORMANCE
+}
+
+enum
+{
 	ENGINEER_TELEPORT_METHOD_NONE = 0,
 	ENGINEER_TELEPORT_METHOD_MENU
 }
@@ -128,7 +133,17 @@ enum struct esPlayerStats
 	int iDamage;
 }
 
-esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
+enum struct esCSProperties
+{
+	float flDefaultDuration;
+	float flFastCapWatchMaxSeconds;
+	float flFastCapMaxMinutes;
+	float flKDSecMultiplicand;
+	float flSecPerKill;
+	float flSecPerCapFlag;
+	int iDmgPerSec;
+	float flDmgPerSecMult;
+}
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 enum struct eDisguisedStruct
@@ -162,6 +177,8 @@ bool g_bCanBotsAttackInSpawn;
 Handle g_hHudText;
 float g_flTimeRoundStarted;
 
+esCSProperties g_arrCooldownSystem;
+
 // PRESERVED ENTITIES
 int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
@@ -172,6 +189,7 @@ char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MA
 
 static StringMap m_adtBWRCooldown;
 
+esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
 int g_iForcedButtonInput[MAXPLAYERS + 1];
 bool g_bRobotSpawning[MAXPLAYERS + 1];
 int g_nForcedTauntCam[MAXPLAYERS + 1];
@@ -232,7 +250,7 @@ ConVar bwr3_allow_buyback;
 ConVar bwr3_player_robot_template_mode;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
-ConVar bwr3_robots_cooldown_base;
+ConVar bwr3_robots_cooldown_mode;
 ConVar bwr3_flag_max_hold_time;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
@@ -828,7 +846,7 @@ public void OnPluginStart()
 	bwr3_player_robot_template_mode = CreateConVar("sm_bwr3_player_robot_template_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
-	bwr3_robots_cooldown_base = CreateConVar("sm_bwr3_robots_cooldown_base", "60.0", _, FCVAR_NOTIFY);
+	bwr3_robots_cooldown_mode = CreateConVar("sm_bwr3_robots_cooldown_mode", "2", _, FCVAR_NOTIFY);
 	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
@@ -1066,6 +1084,7 @@ public void OnConfigsExecuted()
 	for (eRobotTemplateType i = ROBOT_STANDARD; i < ROBOT_TEMPLATE_TYPE_COUNT; i++)
 		UpdateRobotTemplateDataForType(i);
 	
+	MainConfig_UpdateSettings();
 	MapConfig_UpdateSettings();
 	UpdateEngineerHintLocations();
 	PrepareRobotCustomFiles();
@@ -2965,25 +2984,33 @@ void BWRCooldown_PurgeExpired()
 //Returns the cooldown duration the player should get based on certain statistics
 float GetPlayerCalculatedCooldown(int client)
 {
-	float flTotalDuration = bwr3_robots_cooldown_base.FloatValue;
-	
-	if (flTotalDuration <= 0.0)
+	if (bwr3_robots_cooldown_mode.IntValue == COOLDOWN_MODE_DISABLED)
+	{
 		return 0.0;
+	}
+	else if (bwr3_robots_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
+	{
+		//TODO: factor time based on when the cooldown is applied (during round or round win?)
+		return 0.0;
+	}
+	
+	float flTotalDuration;
 	
 	if (g_arrRobotPlayerStats[client].iFlagCaptures > 0)
 	{
 		float roundLength = GetGameTime() - g_flTimeRoundStarted;
 		
-		if (roundLength < BOMBRUSH_WATCH_MAX_SECONDS)
+		if (roundLength < g_arrCooldownSystem.flFastCapWatchMaxSeconds)
 		{
-			float penalTimeLeft = BOMBRUSH_WATCH_MAX_SECONDS - roundLength;
-			float extraSeconds = (penalTimeLeft / BOMBRUSH_COOLDOWN_SEC_PER_MIN) * 60;
+			float penalTimeLeft = g_arrCooldownSystem.flFastCapWatchMaxSeconds - roundLength;
+			float secPerMin = g_arrCooldownSystem.flFastCapWatchMaxSeconds / g_arrCooldownSystem.flFastCapMaxMinutes;
+			float extraSeconds = (penalTimeLeft / secPerMin) * 60;
 			
 			flTotalDuration += extraSeconds;
 			LogAction(client, -1, "%L deployed the bomb in %f seconds (added ban time: %f)", client, roundLength, extraSeconds);
 		}
 		
-		flTotalDuration += bwr3_robots_cooldown_base.FloatValue;
+		flTotalDuration += g_arrCooldownSystem.flSecPerCapFlag;
 	}
 	
 	if (g_arrRobotPlayerStats[client].iKills > 0)
@@ -2992,13 +3019,18 @@ float GetPlayerCalculatedCooldown(int client)
 		{
 			float ratioKD = float(g_arrRobotPlayerStats[client].iKills) / float(g_arrRobotPlayerStats[client].iDeaths);
 			
-			flTotalDuration += ratioKD * bwr3_robots_cooldown_base.FloatValue;
+			flTotalDuration += g_arrCooldownSystem.flKDSecMultiplicand * ratioKD;
 		}
 		else
 		{
 			//No deaths, add a minute for each kill obtained
-			flTotalDuration += bwr3_robots_cooldown_base.FloatValue * g_arrRobotPlayerStats[client].iKills;
+			flTotalDuration += g_arrCooldownSystem.flSecPerKill * g_arrRobotPlayerStats[client].iKills;
 		}
+	}
+	
+	if (g_arrRobotPlayerStats[client].iDamage > 0)
+	{
+		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iDamage) / float(g_arrCooldownSystem.iDmgPerSec)) * g_arrCooldownSystem.flDmgPerSecMult;
 	}
 	
 	return flTotalDuration;
@@ -3875,6 +3907,63 @@ bool IsPlayerNoticedByRobot(int client, int subject)
 	return true;
 }
 #endif
+
+void MainConfig_UpdateSettings()
+{
+	//Reset data
+	g_arrCooldownSystem.flDefaultDuration = 60.0;
+	g_arrCooldownSystem.flFastCapWatchMaxSeconds = 120.0;
+	g_arrCooldownSystem.flFastCapMaxMinutes = 10.0;
+	g_arrCooldownSystem.flKDSecMultiplicand = 60.0;
+	g_arrCooldownSystem.flSecPerKill = 60.0;
+	g_arrCooldownSystem.flSecPerCapFlag = 60.0;
+	g_arrCooldownSystem.iDmgPerSec = 500;
+	g_arrCooldownSystem.flDmgPerSecMult = 1.0;
+	
+	char sFilePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, sFilePath, sizeof(sFilePath), "%s/general.cfg", PLUGIN_CONFIG_DIRECTORY);
+	KeyValues kv = new KeyValues("MainConfig");
+	
+	if (!kv.ImportFromFile(sFilePath))
+	{
+		//TODO: create a file here automatically with initialized default values
+		CloseHandle(kv);
+		
+		LogError("MainConfig_UpdateSettings: File not found (%s)", sFilePath);
+		return;
+	}
+	
+	if (kv.JumpToKey("CooldownSystem"))
+	{
+		//If no keyvalue was found, assume default from the value it was originally set to
+		g_arrCooldownSystem.flDefaultDuration = kv.GetFloat("default_duration", g_arrCooldownSystem.flDefaultDuration);
+		
+		if (kv.JumpToKey("DynamicPerformanceMode"))
+		{
+			if (kv.JumpToKey("BombCaptureRush"))
+			{
+				g_arrCooldownSystem.flFastCapWatchMaxSeconds = kv.GetFloat("watch_max_seconds", g_arrCooldownSystem.flFastCapWatchMaxSeconds);
+				g_arrCooldownSystem.flFastCapMaxMinutes = kv.GetFloat("cooldown_max_minutes", g_arrCooldownSystem.flFastCapMaxMinutes);
+				kv.GoBack();
+			}
+			
+			g_arrCooldownSystem.flKDSecMultiplicand = kv.GetFloat("kd_seconds_multiplicand", g_arrCooldownSystem.flKDSecMultiplicand);
+			g_arrCooldownSystem.flSecPerKill = kv.GetFloat("seconds_per_kill", g_arrCooldownSystem.flSecPerKill);
+			g_arrCooldownSystem.flSecPerCapFlag = kv.GetFloat("seconds_per_capture_flag", g_arrCooldownSystem.flSecPerCapFlag);
+			g_arrCooldownSystem.iDmgPerSec = kv.GetNum("damage_for_one_second", g_arrCooldownSystem.iDmgPerSec);
+			g_arrCooldownSystem.flDmgPerSecMult = kv.GetFloat("damage_for_one_second_multiplier", g_arrCooldownSystem.flDmgPerSecMult);
+			kv.GoBack();
+		}
+		
+		kv.GoBack();
+	}
+	
+	CloseHandle(kv);
+	
+#if defined TESTING_ONLY
+	LogMessage("MainConfig_UpdateSettings: CS DEFAULT DURATION = %f", g_arrCooldownSystem.flDefaultDuration);
+	LogMessage("MainConfig_UpdateSettings: FAST CAP MAX WATCH SECONDS = %f, MAX COOLDOWN MINUTES = %f", g_arrCooldownSystem.flFastCapWatchMaxSeconds, g_arrCooldownSystem.flFastCapMaxMinutes);
+#endif
+}
 
 void MapConfig_UpdateSettings()
 {
