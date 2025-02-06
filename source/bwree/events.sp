@@ -427,7 +427,7 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))
 	{
 		//Catch this before uber gets applied in CTFBotMainAction::Update
-		float delay = nb_update_frequency.FloatValue - 0.004;
+		float delay = nb_update_frequency.FloatValue - 0.005;
 		
 		if (delay < 0.0)
 			delay = 0.0;

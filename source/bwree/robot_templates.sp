@@ -1639,6 +1639,51 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 		
 		if (adtTeleporter.Length > 0)
 		{
+			switch (bwr3_robot_teleporter_mode.IntValue)
+			{
+				case ROBOT_TELEPORTER_MODE_CLOSEST_BOMB, ROBOT_TELEPORTER_MODE_CLOSEST_BOMB_HATCH:
+				{
+					int flag = -1;
+					
+					if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_CLOSEST_BOMB)
+					{
+						//TODO: get random flag to teleport near
+					}
+					else if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_CLOSEST_BOMB_HATCH)
+					{
+						flag = FindBombNearestToHatch();
+					}
+					
+					if (flag != -1)
+					{
+						float bombPosition[3]; bombPosition = WorldSpaceCenter(flag);
+						float bestDistance = 999999.0;
+						int bestTeleporter = -1;
+						
+						for (int i = 0; i < adtTeleporter.Length; i++)
+						{
+							int entTeleporter = adtTeleporter.Get(i);
+							float telePos[3]; telePos = WorldSpaceCenter(entTeleporter);
+							float distance = GetVectorDistance(bombPosition, telePos);
+							
+							if (distance <= bestDistance)
+							{
+								bestDistance = distance;
+								bestTeleporter = entTeleporter;
+								vSpawnPosition = telePos;
+							}
+						}
+						
+						delete adtTeleporter;
+						
+						g_iRefLastTeleporter = EntIndexToEntRef(bestTeleporter);
+						
+						return SPAWN_LOCATION_TELEPORTER;
+					}
+				}
+			}
+			
+			//Fall back to ROBOT_TELEPORTER_MODE_RANDOM if the above checks did not work
 			int which = GetRandomInt(0, adtTeleporter.Length - 1);
 			int chosenTeleporter = adtTeleporter.Get(which);
 			delete adtTeleporter;

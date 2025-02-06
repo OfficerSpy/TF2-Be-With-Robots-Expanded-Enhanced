@@ -116,7 +116,9 @@ enum
 enum
 {
 	ROBOT_TELEPORTER_MODE_RECENTLY_USED,
-	ROBOT_TELEPORTER_MODE_RANDOM
+	ROBOT_TELEPORTER_MODE_RANDOM,
+	ROBOT_TELEPORTER_MODE_CLOSEST_BOMB,
+	ROBOT_TELEPORTER_MODE_CLOSEST_BOMB_HATCH
 }
 
 enum struct esPlayerStats
@@ -141,8 +143,8 @@ enum struct esCSProperties
 	float flKDSecMultiplicand;
 	float flSecPerKill;
 	float flSecPerCapFlag;
-	int iDmgPerSec;
-	float flDmgPerSecMult;
+	int iDmgForSec;
+	float flDmgForSecMult;
 }
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
@@ -3030,7 +3032,7 @@ float GetPlayerCalculatedCooldown(int client)
 	
 	if (g_arrRobotPlayerStats[client].iDamage > 0)
 	{
-		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iDamage) / float(g_arrCooldownSystem.iDmgPerSec)) * g_arrCooldownSystem.flDmgPerSecMult;
+		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iDamage) / float(g_arrCooldownSystem.iDmgForSec)) * g_arrCooldownSystem.flDmgForSecMult;
 	}
 	
 	return flTotalDuration;
@@ -3917,8 +3919,8 @@ void MainConfig_UpdateSettings()
 	g_arrCooldownSystem.flKDSecMultiplicand = 60.0;
 	g_arrCooldownSystem.flSecPerKill = 60.0;
 	g_arrCooldownSystem.flSecPerCapFlag = 60.0;
-	g_arrCooldownSystem.iDmgPerSec = 500;
-	g_arrCooldownSystem.flDmgPerSecMult = 1.0;
+	g_arrCooldownSystem.iDmgForSec = 750;
+	g_arrCooldownSystem.flDmgForSecMult = 1.0;
 	
 	char sFilePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, sFilePath, sizeof(sFilePath), "%s/general.cfg", PLUGIN_CONFIG_DIRECTORY);
 	KeyValues kv = new KeyValues("MainConfig");
@@ -3949,8 +3951,8 @@ void MainConfig_UpdateSettings()
 			g_arrCooldownSystem.flKDSecMultiplicand = kv.GetFloat("kd_seconds_multiplicand", g_arrCooldownSystem.flKDSecMultiplicand);
 			g_arrCooldownSystem.flSecPerKill = kv.GetFloat("seconds_per_kill", g_arrCooldownSystem.flSecPerKill);
 			g_arrCooldownSystem.flSecPerCapFlag = kv.GetFloat("seconds_per_capture_flag", g_arrCooldownSystem.flSecPerCapFlag);
-			g_arrCooldownSystem.iDmgPerSec = kv.GetNum("damage_for_one_second", g_arrCooldownSystem.iDmgPerSec);
-			g_arrCooldownSystem.flDmgPerSecMult = kv.GetFloat("damage_for_one_second_multiplier", g_arrCooldownSystem.flDmgPerSecMult);
+			g_arrCooldownSystem.iDmgForSec = kv.GetNum("damage_for_one_second", g_arrCooldownSystem.iDmgForSec);
+			g_arrCooldownSystem.flDmgForSecMult = kv.GetFloat("damage_for_one_second_multiplier", g_arrCooldownSystem.flDmgForSecMult);
 			kv.GoBack();
 		}
 		
