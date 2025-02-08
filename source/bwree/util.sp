@@ -1009,6 +1009,18 @@ bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, i
 	return false;
 }
 
+//Get the amount of players that are not TFBots on this team
+/* int GetTeamNonTFBotCount(TFTeam team)
+{
+	int count = 0;
+	
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i) && !IsTFBotPlayer(i) && TF2_GetClientTeam(i) == team)
+			count++;
+	
+	return count;
+} */
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {
@@ -1559,6 +1571,17 @@ stock void DrawVectorPoints(float vecOrigin[3], float vecEndpoint[3], float flLi
 		TE_SendToClient(iSendToWho);
 	else
 		TE_SendToAll();
+}
+
+stock int GetTeamHumanClientCount(TFTeam team)
+{
+	int count = 0;
+	
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i) && !IsFakeClient(i) && TF2_GetClientTeam(i) == team)
+			count++;
+	
+	return count;
 }
 
 stock bool IsLeftForInvasionMode()

@@ -126,12 +126,6 @@ enum struct esPlayerStats
 	int iKills;
 	int iDeaths;
 	int iFlagCaptures;
-	int iPointCaptures;
-	int iObjectsKilled;
-	int iInvulns;
-	int iKillAssists;
-	int iTeleports;
-	int iHealing;
 	int iDamage;
 }
 
@@ -150,11 +144,11 @@ enum struct esCSProperties
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 enum struct eDisguisedStruct
 {
-	int g_iDisguisedTeam; // The spy's disguised team
-	int g_iDisguisedClass; // The spy's disguised class
+	int nDisguisedTeam; // The spy's disguised team
+	int nDisguisedClass; // The spy's disguised class
 }
 
-eDisguisedStruct g_nDisguised[MAXPLAYERS + 1];
+eDisguisedStruct g_arrDisguised[MAXPLAYERS + 1];
 #else
 enum struct esSuspectedSpyInfo
 {
@@ -252,7 +246,7 @@ ConVar bwr3_allow_buyback;
 ConVar bwr3_player_robot_template_mode;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
-ConVar bwr3_robots_cooldown_mode;
+ConVar bwr3_invader_cooldown_mode;
 ConVar bwr3_flag_max_hold_time;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
@@ -848,7 +842,7 @@ public void OnPluginStart()
 	bwr3_player_robot_template_mode = CreateConVar("sm_bwr3_player_robot_template_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
-	bwr3_robots_cooldown_mode = CreateConVar("sm_bwr3_robots_cooldown_mode", "2", _, FCVAR_NOTIFY);
+	bwr3_invader_cooldown_mode = CreateConVar("sm_bwr3_invader_cooldown_mode", "2", _, FCVAR_NOTIFY);
 	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
@@ -899,6 +893,7 @@ public void OnPluginStart()
 	RegAdminCmd("sm_bwr3_setcooldown", Command_SetCooldownOnPlayer, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_viewcooldowns", Command_ViewCooldownData, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_waveicons", Command_DebugWaveIcons, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_debug_playerstats", Command_DebugPlayerStats, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_debug_wavedata", Command_DebugWaveData, ADMFLAG_GENERIC);
 	
@@ -1174,12 +1169,12 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 		if (IsPlayerAlive(client))
 		{
-			if (TF2_GetPlayerClass(client) == TFClass_Spy)
+			if (TF2_GetPlayerClass(client) == TFClass_Spy && GetPopFileEventType(g_iPopulationManager) != MVM_EVENT_POPFILE_HALLOWEEN)
 			{
 				int iDisguisedClass = view_as<int>(TF2_GetDisguiseClass(client));
 				int iDisguisedTeam = GetEntProp(client, Prop_Send, "m_nDisguiseTeam");
 				
-				if (g_nDisguised[client].g_iDisguisedClass != iDisguisedClass || g_nDisguised[client].g_iDisguisedTeam != iDisguisedTeam)
+				if (g_arrDisguised[client].nDisguisedClass != iDisguisedClass || g_arrDisguised[client].nDisguisedTeam != iDisguisedTeam)
 				{
 					if (iDisguisedClass == 0 && iDisguisedTeam == 0)
 					{
@@ -1189,8 +1184,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					{
 						SpyDisguiseThink(client, iDisguisedClass, iDisguisedTeam);
 						
-						g_nDisguised[client].g_iDisguisedClass = iDisguisedClass;
-						g_nDisguised[client].g_iDisguisedTeam = iDisguisedTeam;
+						g_arrDisguised[client].nDisguisedClass = iDisguisedClass;
+						g_arrDisguised[client].nDisguisedTeam = iDisguisedTeam;
 					}
 				}
 			}
@@ -2083,6 +2078,46 @@ public Action Command_DebugWaveIcons(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_DebugPlayerStats(int client, int args)
+{
+	if (args < 1)
+	{
+		ReplyToCommand(client, "[SM] Usage: sm_bwr3_debug_playerstats <#userid|name>");
+		return Plugin_Handled;
+	}
+	
+	char arg1[MAX_NAME_LENGTH]; GetCmdArg(1, arg1, sizeof(arg1));
+	
+	char target_name[MAX_TARGET_LENGTH];
+	int target_list[MAXPLAYERS], target_count;
+	bool tn_is_ml;
+	
+	if ((target_count = ProcessTargetString(
+			arg1,
+			client,
+			target_list,
+			MAXPLAYERS,
+			COMMAND_FILTER_CONNECTED,
+			target_name,
+			sizeof(target_name),
+			tn_is_ml)) <= 0)
+	{
+		ReplyToTargetError(client, target_count);
+		return Plugin_Handled;
+	}
+	
+	for (int i = 0; i < target_count; i++)
+	{
+		ReplyToCommand(client, "STATS OF PLAYER %N", target_list[i]);
+		ReplyToCommand(client, "KILLS: %d", g_arrRobotPlayerStats[target_list[i]].iKills);
+		ReplyToCommand(client, "DEATHS: %d", g_arrRobotPlayerStats[target_list[i]].iDeaths);
+		ReplyToCommand(client, "FLAG CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iFlagCaptures);
+		ReplyToCommand(client, "DAMAGE: %d", g_arrRobotPlayerStats[target_list[i]].iDamage);
+	}
+	
+	return Plugin_Handled;
+}
+
 public Action Command_DebugSentryBuster(int client, int args)
 {
 	int nDmgLimit = 0;
@@ -2908,12 +2943,6 @@ void ResetRobotPlayerGameStats(int client)
 	g_arrRobotPlayerStats[client].iKills = 0;
 	g_arrRobotPlayerStats[client].iDeaths = 0;
 	g_arrRobotPlayerStats[client].iFlagCaptures = 0;
-	g_arrRobotPlayerStats[client].iPointCaptures = 0;
-	g_arrRobotPlayerStats[client].iObjectsKilled = 0;
-	g_arrRobotPlayerStats[client].iInvulns = 0;
-	g_arrRobotPlayerStats[client].iKillAssists = 0;
-	g_arrRobotPlayerStats[client].iTeleports = 0;
-	g_arrRobotPlayerStats[client].iHealing = 0;
 	g_arrRobotPlayerStats[client].iDamage = 0;
 }
 
@@ -2986,14 +3015,21 @@ void BWRCooldown_PurgeExpired()
 //Returns the cooldown duration the player should get based on certain statistics
 float GetPlayerCalculatedCooldown(int client)
 {
-	if (bwr3_robots_cooldown_mode.IntValue == COOLDOWN_MODE_DISABLED)
+	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_DISABLED)
 	{
 		return 0.0;
 	}
-	else if (bwr3_robots_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
+	
+	if (GetTeamHumanClientCount(TFTeam_Red) < 1)
+	{
+		//No human defenders, do not bother with a cooldown
+		return 0.0;
+	}
+	
+	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
 	{
 		//TODO: factor time based on when the cooldown is applied (during round or round win?)
-		return 0.0;
+		return g_arrCooldownSystem.flDefaultDuration;
 	}
 	
 	float flTotalDuration;
@@ -3763,56 +3799,30 @@ int GetRandomRobotPlayer(int excludePlayer = -1)
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 void SpyDisguiseClear(int client)
 {
-	for (int i = 0; i < 4; i++)
-		SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", 0, _, i);
+	BaseEntity_ClearModelIndexOverrides(client);
 	
-	g_nDisguised[client].g_iDisguisedClass = 0;
-	g_nDisguised[client].g_iDisguisedTeam = 0;
+	g_arrDisguised[client].nDisguisedClass = 0;
+	g_arrDisguised[client].nDisguisedTeam = 0;
 }
 
 void SpyDisguiseThink(int client, int disguiseclass, int disguiseteam)
 {
-	int team = GetClientTeam(client);
-	
-	// m_nModelIndexOverrides works differently on MvM
-	// it seems index 0 is used for both RED and BLU teams.
-	
-	switch (team)
+	switch (TF2_GetClientTeam(client))
 	{
-		case 2: // RED
+		case TFTeam_Red:
 		{
-			if (disguiseteam == view_as<int>(TFTeam_Red))
+			if (disguiseteam == view_as<int>(TFTeam_Blue))
 			{
-				// RED spy disguised as a RED team member, should look like a RED human
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
-			}
-			else if (GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN)
-			{
-				// RED spy disguised as a BLU team member, should look like a BLU human on wave 666
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
-			}
-			else
-			{
-				// RED spy disguised as a BLU team member, should look like a BLU robot
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
+				//Appear as robot when disguised as BLUE player
+				BaseEntity_SetModelIndexOverride(client, VISION_MODE_NONE, g_iModelIndexRobots[disguiseclass]);
 			}
 		}
-		case 3: // BLU
+		case TFTeam_Blue:
 		{
-			if (disguiseteam == view_as<int>(TFTeam_Red))
+			if (disguiseteam == view_as<int>(TFTeam_Blue))
 			{
-				// BLU spy disguised as a RED team member, should look like a RED human
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);
-			}
-			else if (GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN)
-			{
-				// BLU spy disguised as a BLU team member, should look like a BLU human on wave 666
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexHumans[disguiseclass], _, 0);				
-			}
-			else
-			{
-				// BLU spy disguised as a BLU team member, should look like a BLU robot
-				SetEntProp(client, Prop_Send, "m_nModelIndexOverrides", g_iModelIndexRobots[disguiseclass], _, 0);
+				//Appear as robot when disguised as BLUE player
+				BaseEntity_SetModelIndexOverride(client, VISION_MODE_NONE, g_iModelIndexRobots[disguiseclass]);
 			}
 		}
 	}
