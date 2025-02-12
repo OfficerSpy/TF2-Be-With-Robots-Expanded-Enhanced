@@ -848,7 +848,7 @@ void RemovePowerupBottle(int client)
 	int bottle = GetPowerupBottle(client);
 	
 	if (bottle != -1)
-		RemoveEntity(bottle);
+		TF2_RemoveWearable(client, bottle);
 }
 
 int GetSpellbook(int client)

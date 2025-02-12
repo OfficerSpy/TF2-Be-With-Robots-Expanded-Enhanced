@@ -4,7 +4,7 @@
 #define TELEPORTWHERE_NAME_EACH_MAX_LENGTH	12
 #define ROBOT_DESC_MAX_LENGTH	PLATFORM_MAX_PATH
 #define MAX_ROBOT_TEMPLATES	145
-#define MAX_ENGINEER_NEST_HINT_LOCATIONS	22
+#define MAX_ENGINEER_NEST_HINT_LOCATIONS	23
 #define ROBOT_TEMPLATE_MEDIEVAL_SUFFIX	"_medieval"
 
 #define BOSS_ROBOT_SPAWN_SOUND	")mvm/giant_heavy/giant_heavy_entrance.wav"
@@ -1109,7 +1109,7 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 	{
 		if (kv.GotoFirstSubKey(false))
 		{
-			char attributeName[PLATFORM_MAX_PATH];
+			char attributeName[MAX_ATTRIBUTE_DESCRIPTION_LENGTH];
 			char attributeValue[PLATFORM_MAX_PATH];
 			
 			do
@@ -1143,7 +1143,7 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 				{
 					if (kv.GotoFirstSubKey(false))
 					{
-						char attributeName[PLATFORM_MAX_PATH];
+						char attributeName[MAX_ATTRIBUTE_DESCRIPTION_LENGTH];
 						char attributeValue[PLATFORM_MAX_PATH];
 						
 						do
