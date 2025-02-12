@@ -562,12 +562,19 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				Player_JoinClass(client, playerClass);
 				
 				//After joining a class, remove their weapons and cosmetics
-				StripWeapons(client, true, TFWeaponSlot_Building);
-				RemovePowerupBottle(client);
-				RemoveSpellbook(client);
+				StripWeapons(client, true, TFWeaponSlot_Building, true);
 				
-				if (bwr3_cosmetic_mode.IntValue == COSMETIC_MODE_NONE)
-					RemoveCosmetics(client);
+				switch (bwr3_cosmetic_mode.IntValue)
+				{
+					case COSMETIC_MODE_NONE:
+					{
+						RemoveEquippedWearables(client, FLAG_REW_COSMETIC | FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
+					}
+					case COSMETIC_MODE_ALLOW_ALWAYS:
+					{
+						RemoveEquippedWearables(client, FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
+					}
+				}
 				
 				MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 				

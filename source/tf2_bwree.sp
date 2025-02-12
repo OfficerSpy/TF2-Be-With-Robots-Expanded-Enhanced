@@ -29,7 +29,7 @@ Author: ★ Officer Spy ★
 // #define TESTING_ONLY
 // #define DEBUG_DETOURS
 
-#define PLUGIN_NAME	"[TF2] Be With Robots: Expanded & Enhanced"
+#define PLUGIN_NAME	"Be With Robots: Expanded & Enhanced"
 #define PLUGIN_PREFIX	"[BWR E&E]"
 
 #define PLUGIN_CONFIG_DIRECTORY	"configs/bwree/"

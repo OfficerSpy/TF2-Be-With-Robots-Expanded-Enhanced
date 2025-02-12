@@ -293,38 +293,6 @@ void EmitParticleEffect(const char[] particleName, const char[] attachmentName, 
 	TE_TFParticleEffect(0.0, particleName, attachType, entity, LookupEntityAttachment(entity, attachmentName));
 }
 
-/* bool IsInFieldOfView(int client, int subject)
-{
-	if (IsInFieldOfViewVec(client, WorldSpaceCenter(subject)))
-		return true;
-	
-	float eyePosition[3]; BaseEntity_EyePosition(subject, eyePosition);
-	
-	return IsInFieldOfViewVec(client, eyePosition);
-}
-
-//This may not be as accurate to IVision
-bool IsInFieldOfViewVec(int client, const float pos[3])
-{
-	//All the basic requested variables and functions
-	float m_FOV = float(GetEntProp(client, Prop_Send, "m_iFOV"));
-	float m_cosHalfFOV = Cosine(0.5 * m_FOV * FLOAT_PI / 180.0);
-	float eyePosition[3]; GetClientEyePosition(client, eyePosition); //PlayerBody::GetEyePosition
-	float viewVector[3]; BasePlayer_EyeVectors(client, viewVector); //PlayerBody::GetViewVector
-	
-	bool bCheck = PointWithinViewAngle(eyePosition, pos, viewVector, m_cosHalfFOV);
-	
-	float to[3]; SubtractVectors(pos, eyePosition, to);
-	NormalizeVector(to, to);
-	
-	float cosDiff = GetVectorDotProduct(viewVector, to);
-	
-	if ((cosDiff > m_cosHalfFOV) != bCheck)
-		bool bCheck2 = PointWithinViewAngle(eyePosition, pos, viewVector, m_cosHalfFOV);
-	
-	return cosDiff > m_cosHalfFOV;
-} */
-
 bool Player_IsVisibleInFOVNow(int client, int entity)
 {
 	//TODO: do a trace, this only checks if they're within our FOV
@@ -443,71 +411,6 @@ void EconItemSpawnGiveTo(int item, int client)
 	// SetEntProp(item, Prop_Send, "m_bValidatedAttachedEntity", 1);
 }
 
-//TODO: REPLACE ME WITH A CALL TO CEconItemSchema::GetItemDefinitionByName
-//because this is kind of dumb
-/* int GetItemDefinitionFromName(const char[] pszDefName)
-{
-	static KeyValues m_kvItemsGame;
-	
-	if (m_kvItemsGame == null)
-	{
-		m_kvItemsGame = new KeyValues("items_game");
-		m_kvItemsGame.ImportFromFile("scripts/items/items_game.txt")
-	}
-	
-	// The section in question can look like this
-	// "0"
-	// {
-		// "name"	"TF_WEAPON_BAT"
-		// "first_sale_date"	"2010/09/29"
-		// "prefab"	"weapon_bat"
-		// "baseitem" "1"
-	// }
-	if (m_kvItemsGame.JumpToKey("items") && m_kvItemsGame.GotoFirstSubKey())
-	{
-		char itemName[PLATFORM_MAX_PATH];
-		
-		do
-		{
-			m_kvItemsGame.GetString("name", itemName, sizeof(itemName));
-			
-			if (StrEqual(itemName, pszDefName, false))
-			{
-				char itemDefIndex[9]; m_kvItemsGame.GetSectionName(itemDefIndex, sizeof(itemDefIndex));
-				
-				return StringToInt(itemDefIndex);
-			}
-		} while (m_kvItemsGame.GotoNextKey())
-	}
-	
-	return -1;
-} */
-
-/* void RemoveWearablesConflictingWith(int client, const int itemDefIndex)
-{
-	int newItemReigonMask = TF2Econ_GetItemEquipRegionMask(itemDefIndex);
-	
-	for (int i = 0; i < TF2Util_GetPlayerWearableCount(client); i++)
-	{
-		int wearable = TF2Util_GetPlayerWearable(client, i);
-		
-		if (wearable == -1)
-			continue;
-		
-		int wearableDefIndex = GetEntProp(wearable, Prop_Send, "m_iItemDefinitionIndex");
-		
-		//I still don't know why it would ever be invalid
-		if (!TF2Econ_IsValidItemDefinition(wearableDefIndex))
-			continue;
-		
-		int wearableRegionMask = TF2Econ_GetItemEquipRegionMask(wearableDefIndex);
-		
-		//If these bits are > 0, then they're conflicting
-		if (wearableRegionMask & newItemReigonMask)
-			TF2_RemoveWearable(client, wearable);
-	}
-} */
-
 bool DoPlayerWearablesConflictWith(int client, const int itemDefIndex)
 {
 	int newItemReigonMask = TF2Econ_GetItemEquipRegionMask(itemDefIndex);
@@ -533,7 +436,7 @@ bool DoPlayerWearablesConflictWith(int client, const int itemDefIndex)
 	return false;
 }
 
-void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponSlot_PDA)
+void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponSlot_PDA, bool bActionSlot = false)
 {
 	if (bWearables)
 	{
@@ -554,7 +457,7 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 					{
 						if (StrEqual(classname, "tf_wearable_demoshield", false)
 						|| StrEqual(classname, "tf_wearable_razorback", false)
-						|| IsWeaponWearableByDefIndex(GetEntProp(i, Prop_Send, "m_iItemDefinitionIndex")))
+						|| IsDefIndexForWearableWeapon(GetEntProp(i, Prop_Send, "m_iItemDefinitionIndex")))
 						{
 							if (BaseEntity_GetOwnerEntity(i) == client)
 							{
@@ -570,6 +473,22 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 	
 	for (int i = TFWeaponSlot_Primary; i <= upperLimit; i++)
 		TF2_RemoveWeaponSlot(client, i);
+	
+	//If desired, remove action slot weapons (like spellbooks)
+	if (bActionSlot)
+	{
+		/* Fuck, this is not ideal! While this does remove weapons like spellbooks, it also removes builder weapons making engineer unable to build
+		Alternatively we can go through each one with GetPlayerWeaponSlot and filter out by certain weapon classnames
+		Another option is to loop through every entity and see which of the classname filtered entities are owned by this player */
+		// TF2_RemoveWeaponSlot(client, TFWeaponSlot_PDA);
+		
+		int weapon = TF2Util_GetPlayerLoadoutEntity(client, LOADOUT_POSITION_ACTION, false);
+		
+		if (weapon != -1)
+		{
+			RemoveEntity(weapon);
+		}
+	}
 }
 
 // Taken from [TF2] Chaos Mod
@@ -680,20 +599,52 @@ void TeleportEffect(int client)
 	TF2_AddCondition(client, TFCond_TeleportedGlow, 30.0);
 }
 
-void RemoveCosmetics(int client)
+#define FLAG_REW_COSMETIC	(1 << 0)
+#define FLAG_REW_CANTEEN	(1 << 1)
+#define FLAG_REW_CONTRACKER	(1 << 2)
+
+void RemoveEquippedWearables(int client, int iFilterFlags)
 {
-	int ent = -1;
+	static int iMaxEntCount = -1;
 	
-	while ((ent = FindEntityByClassname(ent, "tf_wearable")) != -1)
+	if (iMaxEntCount == -1)
+		iMaxEntCount = GetMaxEntities();
+	
+	for (int i = MaxClients + 1; i <= iMaxEntCount; i++)
 	{
-		if (BaseEntity_GetOwnerEntity(ent) == client)
+		if (IsValidEntity(i))
 		{
-			int index = GetEntProp(ent, Prop_Send, "m_iItemDefinitionIndex");
+			char classname[PLATFORM_MAX_PATH];
 			
-			if (!IsWeaponWearableByDefIndex(index))
+			if (GetEntityClassname(i, classname, sizeof(classname)))
 			{
-				TF2_RemoveWearable(client, ent);
-				// RemoveEntity(ent);
+				if (iFilterFlags & FLAG_REW_COSMETIC && StrEqual(classname, "tf_wearable", false))
+				{
+					if (!IsDefIndexForWearableWeapon(GetEntProp(i, Prop_Send, "m_iItemDefinitionIndex")))
+					{
+						if (BaseEntity_GetOwnerEntity(i) == client)
+						{
+							TF2_RemoveWearable(client, i);
+							// RemoveEntity(i);
+						}
+					}
+				}
+				else if (iFilterFlags & FLAG_REW_CANTEEN && StrEqual(classname, "tf_powerup_bottle", false))
+				{
+					if (BaseEntity_GetOwnerEntity(i) == client)
+					{
+						TF2_RemoveWearable(client, i);
+						// RemoveEntity(i);
+					}
+				}
+				else if (iFilterFlags & FLAG_REW_CONTRACKER && StrEqual(classname, "tf_wearable_campaign_item", false))
+				{
+					if (BaseEntity_GetOwnerEntity(i) == client)
+					{
+						TF2_RemoveWearable(client, i);
+						// RemoveEntity(i);
+					}
+				}
 			}
 		}
 	}
@@ -701,7 +652,7 @@ void RemoveCosmetics(int client)
 
 /* Is the definition index for a wearable that is also usually seen as loadut weapon?
 We manually list these by definition index cause i don't know how to tell otherwise */
-bool IsWeaponWearableByDefIndex(int defIndex)
+bool IsDefIndexForWearableWeapon(int defIndex)
 {
 	switch (defIndex)
 	{
@@ -832,44 +783,6 @@ float[] GetAbsVelocity(int entity)
 	return vec;
 }
 
-int GetPowerupBottle(int client)
-{
-	int ent = -1;
-	
-	while ((ent = FindEntityByClassname(ent, "tf_powerup_bottle")) != -1)
-		if (BaseEntity_GetOwnerEntity(ent) == client)
-			return ent;
-	
-	return -1;
-}
-
-void RemovePowerupBottle(int client)
-{
-	int bottle = GetPowerupBottle(client);
-	
-	if (bottle != -1)
-		TF2_RemoveWearable(client, bottle);
-}
-
-int GetSpellbook(int client)
-{
-	int ent = -1;
-	
-	while ((ent = FindEntityByClassname(ent, "tf_weapon_spellbook")) != -1)
-		if (BaseEntity_GetOwnerEntity(ent) == client)
-			return ent;
-	
-	return -1;
-}
-
-void RemoveSpellbook(int client)
-{
-	int book = GetSpellbook(client);
-	
-	if (book != -1)
-		RemoveEntity(book);
-}
-
 int GetDefendablePointTrigger(TFTeam team)
 {
 	int trigger = -1;
@@ -956,14 +869,6 @@ void SetForcedTauntCam(int client, int value)
 	AcceptEntityInput(client, "SetForcedTauntCam");
 }
 
-/* void EquipWeaponSlot(int client, int slot)
-{
-	int weapon = GetPlayerWeaponSlot(client, slot);
-	
-	if (weapon != -1)
-		TF2Util_SetPlayerActiveWeapon(client, weapon);
-} */
-
 /* void SetPlayerViewModel(int client, const char[] modelName)
 {
 	int vm = GetEntPropEnt(client, Prop_Send, "m_hViewModel");
@@ -1008,18 +913,6 @@ bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, i
 	
 	return false;
 }
-
-//Get the amount of players that are not TFBots on this team
-/* int GetTeamNonTFBotCount(TFTeam team)
-{
-	int count = 0;
-	
-	for (int i = 1; i <= MaxClients; i++)
-		if (IsClientInGame(i) && !IsTFBotPlayer(i) && TF2_GetClientTeam(i) == team)
-			count++;
-	
-	return count;
-} */
 
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
