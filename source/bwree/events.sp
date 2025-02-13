@@ -13,6 +13,7 @@ void InitGameEventHooks()
 	HookEvent("player_buyback", Event_PlayerBuyback);
 	HookEvent("post_inventory_application", Event_PostInventoryApplication);
 	HookEvent("player_hurt", Event_PlayerHurt);
+	HookEvent("npc_hurt", Event_NpcHurt);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -555,6 +556,24 @@ static void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			int client = GetClientOfUserId(event.GetInt("userid"));
 			
 			if (TF2_GetClientTeam(client) == TFTeam_Red)
+			{
+				g_arrRobotPlayerStats[attacker].iDamage += event.GetInt("damageamount");
+			}
+		}
+	}
+}
+
+static void Event_NpcHurt(Event event, const char[] name, bool dontBroadcast)
+{
+	int attacker = GetClientOfUserId(event.GetInt("attacker_player"));
+	
+	if (attacker > 0)
+	{
+		if (IsPlayingAsRobot(attacker))
+		{
+			int entNPC = event.GetInt("entindex");
+			
+			if (BaseEntity_GetTeamNumber(entNPC) == view_as<int>(TFTeam_Red) && BaseEntity_IsBaseObject(entNPC))
 			{
 				g_arrRobotPlayerStats[attacker].iDamage += event.GetInt("damageamount");
 			}

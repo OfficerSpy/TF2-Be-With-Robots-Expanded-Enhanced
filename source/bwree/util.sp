@@ -486,6 +486,7 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 		
 		if (weapon != -1)
 		{
+			RemovePlayerItem(client, weapon);
 			RemoveEntity(weapon);
 		}
 	}
