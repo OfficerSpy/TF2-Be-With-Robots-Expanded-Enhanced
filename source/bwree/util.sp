@@ -482,12 +482,12 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 		Another option is to loop through every entity and see which of the classname filtered entities are owned by this player */
 		// TF2_RemoveWeaponSlot(client, TFWeaponSlot_PDA);
 		
-		int weapon = TF2Util_GetPlayerLoadoutEntity(client, LOADOUT_POSITION_ACTION, false);
+		int item = TF2Util_GetPlayerLoadoutEntity(client, LOADOUT_POSITION_ACTION, false);
 		
-		if (weapon != -1)
+		if (item != -1 && !TF2Util_IsEntityWearable(item))
 		{
-			RemovePlayerItem(client, weapon);
-			RemoveEntity(weapon);
+			RemovePlayerItem(client, item);
+			RemoveEntity(item);
 		}
 	}
 }
