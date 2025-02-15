@@ -1039,6 +1039,16 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	LogAction(client, -1, "%3.2f: %L spawned as robot %s", GetGameTime(), client, strName);
 #endif
 	
+	if (bwr3_player_change_name.BoolValue)
+	{
+		SaveRobotPlayerName(client, false);
+		
+		//Avoid broadcasting name change in CTFGameRules::ChangePlayerName
+		SetClientAsBot(client, true);
+		SetClientName(client, strName);
+		SetClientAsBot(client, false);
+	}
+	
 	if (strlen(strDescription) > 0)
 		PrintToChat(client, strDescription);
 	

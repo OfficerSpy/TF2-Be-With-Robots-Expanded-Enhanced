@@ -382,6 +382,7 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
 		{
 			ResetRobotPlayerGameStats(i);
+			ResetRobotPlayerName(i);
 			ResetPlayerProperties(i);
 			
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME

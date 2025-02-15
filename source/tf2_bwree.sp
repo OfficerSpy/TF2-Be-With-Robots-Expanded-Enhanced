@@ -197,6 +197,7 @@ bool g_bAllowRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
+static char m_sPlayerName[MAXPLAYERS + 1][MAX_NAME_LENGTH];
 static float m_flBlockMovementTime[MAXPLAYERS + 1];
 static float m_flNextActionTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
@@ -244,6 +245,7 @@ ConVar bwr3_allow_readystate;
 ConVar bwr3_allow_drop_item;
 ConVar bwr3_allow_buyback;
 ConVar bwr3_player_robot_template_mode;
+ConVar bwr3_player_change_name;
 ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
 ConVar bwr3_invader_cooldown_mode;
@@ -840,6 +842,7 @@ public void OnPluginStart()
 	bwr3_allow_drop_item = CreateConVar("sm_bwr3_allow_drop_item", "0", _, FCVAR_NOTIFY);
 	bwr3_allow_buyback = CreateConVar("sm_bwr3_allow_buyback", "0", _, FCVAR_NOTIFY);
 	bwr3_player_robot_template_mode = CreateConVar("sm_bwr3_player_robot_template_mode", "0", _, FCVAR_NOTIFY);
+	bwr3_player_change_name = CreateConVar("sm_bwr3_player_change_name", "0", _, FCVAR_NOTIFY);
 	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_invader_cooldown_mode = CreateConVar("sm_bwr3_invader_cooldown_mode", "2", _, FCVAR_NOTIFY);
@@ -862,6 +865,7 @@ public void OnPluginStart()
 	bwr3_robot_custom_viewmodels = CreateConVar("sm_bwr3_robot_custom_viewmodels", "0", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_allow_movement, ConVarChanged_AllowMovement);
+	HookConVarChange(bwr3_player_change_name, ConVarChanged_PlayerChangeName);
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_gatebot_template_file, ConVarChanged_RobotTemplateFile);
@@ -1729,6 +1733,20 @@ public void ConVarChanged_AllowMovement(ConVar convar, const char[] oldValue, co
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
 			SetPlayerToMove(i, StringToInt(newValue) ? true : false);
+}
+
+public void ConVarChanged_PlayerChangeName(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	//Only matters when turning it off
+	if (StringToInt(newValue))
+		return;
+	
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return;
+	
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i) && IsPlayingAsRobot(i))
+			ResetRobotPlayerName(i);
 }
 
 public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -3226,6 +3244,7 @@ void SetRobotPlayer(int client, bool enabled)
 		SDKUnhook(client, SDKHook_WeaponCanSwitchTo, PlayerRobot_WeaponCanSwitchTo);
 		SDKUnhook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
 		
+		ResetRobotPlayerName(client);
 		ResetPlayerProperties(client);
 		
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
@@ -3238,6 +3257,24 @@ void SetRobotPlayer(int client, bool enabled)
 		TF2Attrib_RemoveByName(client, "appear as mvm robot");
 #endif
 	}
+}
+
+void ResetRobotPlayerName(int client)
+{
+	if (strlen(m_sPlayerName[client]) > 0)
+	{
+		SetClientName(client, m_sPlayerName[client]);
+		m_sPlayerName[client] = NULL_STRING;
+	}
+}
+
+void SaveRobotPlayerName(int client, bool bOverwiteSaved)
+{
+	//Don't overwrite existing name
+	if (!bOverwiteSaved && strlen(m_sPlayerName[client]) > 0)
+		return;
+	
+	GetClientName(client, m_sPlayerName[client], sizeof(m_sPlayerName[]));
 }
 
 void ResetPlayerProperties(int client)
