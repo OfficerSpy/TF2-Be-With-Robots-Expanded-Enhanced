@@ -127,6 +127,8 @@ enum struct esPlayerStats
 	int iDeaths;
 	int iFlagCaptures;
 	int iDamage;
+	int iHealing;
+	int iPointCaptures;
 }
 
 enum struct esCSProperties
@@ -139,6 +141,8 @@ enum struct esCSProperties
 	float flSecPerCapFlag;
 	int iDmgForSec;
 	float flDmgForSecMult;
+	int iHealingForSec;
+	float flHealingForSecMult;
 }
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
@@ -819,7 +823,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.0",
+	version = "1.3.1",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1152,6 +1156,11 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+	}
+	else if (StrEqual(classname, "func_regenerate"))
+	{
+		SDKHook(entity, SDKHook_Touch, RegenerateZone_Touch);
+		SDKHook(entity, SDKHook_Touch, BaseTrigger_Touch);
 	}
 	
 	if (StrEqual(classname, "trigger") || StrContains(classname, "trigger_") != -1)
@@ -2131,6 +2140,8 @@ public Action Command_DebugPlayerStats(int client, int args)
 		ReplyToCommand(client, "DEATHS: %d", g_arrRobotPlayerStats[target_list[i]].iDeaths);
 		ReplyToCommand(client, "FLAG CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iFlagCaptures);
 		ReplyToCommand(client, "DAMAGE: %d", g_arrRobotPlayerStats[target_list[i]].iDamage);
+		ReplyToCommand(client, "HEALING: %d", g_arrRobotPlayerStats[target_list[i]].iHealing);
+		ReplyToCommand(client, "POINT CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iPointCaptures);
 	}
 	
 	return Plugin_Handled;
@@ -2503,6 +2514,18 @@ public Action CaptureFlag_Touch(int entity, int other)
 	
 	//This robot is currently ignoring the flag
 	if (MvMRobotPlayer(other).HasAttribute(CTFBot_IGNORE_FLAG))
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public Action RegenerateZone_Touch(int entity, int other)
+{
+	if (!BaseEntity_IsPlayer(other))
+		return Plugin_Continue;
+	
+	//Robots should never use resupply lockers
+	if (IsPlayingAsRobot(other))
 		return Plugin_Handled;
 	
 	return Plugin_Continue;
@@ -2962,6 +2985,8 @@ void ResetRobotPlayerGameStats(int client)
 	g_arrRobotPlayerStats[client].iDeaths = 0;
 	g_arrRobotPlayerStats[client].iFlagCaptures = 0;
 	g_arrRobotPlayerStats[client].iDamage = 0;
+	g_arrRobotPlayerStats[client].iHealing = 0;
+	g_arrRobotPlayerStats[client].iPointCaptures = 0;
 }
 
 float GetBWRCooldownTimeLeft(int client)
@@ -3038,14 +3063,25 @@ float GetPlayerCalculatedCooldown(int client)
 		return 0.0;
 	}
 	
+#if !defined TESTING_ONLY
 	if (GetTeamHumanClientCount(TFTeam_Red) < 1)
 	{
 		//No human defenders, do not bother with a cooldown
 		return 0.0;
 	}
+#endif
 	
 	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
 	{
+		switch (GameRules_GetRoundState())
+		{
+			case RoundState_BetweenRounds:
+			{
+				//Do nothing between waves
+				return 0.0;
+			}
+		}
+		
 		//TODO: factor time based on when the cooldown is applied (during round or round win?)
 		return g_arrCooldownSystem.flDefaultDuration;
 	}
@@ -3089,6 +3125,11 @@ float GetPlayerCalculatedCooldown(int client)
 		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iDamage) / float(g_arrCooldownSystem.iDmgForSec)) * g_arrCooldownSystem.flDmgForSecMult;
 	}
 	
+	if (g_arrRobotPlayerStats[client].iHealing > 0)
+	{
+		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iHealing) / float(g_arrCooldownSystem.iHealingForSec)) * g_arrCooldownSystem.flHealingForSecMult;
+	}
+	
 	return flTotalDuration;
 }
 
@@ -3106,6 +3147,16 @@ void RobotPlayer_SpawnNow(int client)
 		return;
 	}
 	
+	if (IsClientObserver(client))
+	{
+		//We allow spawning while dead but not if we are spectating
+		if (BasePlayer_GetObserverMode(client) != OBS_MODE_DEATHCAM)
+		{
+			PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Cannot_Spawn_Now");
+			return;
+		}
+	}
+	
 	if (IsBotSpawningPaused(g_iPopulationManager))
 	{
 		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Cannot_Spawn_Now");
@@ -3120,9 +3171,10 @@ void RobotPlayer_SpawnNow(int client)
 	
 	if (bwr3_edit_wavebar.BoolValue)
 	{
-		/* This is normally handled in CTFPlayer::Event_Killed, but since we are changing robots
-		we are going to respawn, so we decrement our icon here manually */
-		DecrementRobotPlayerClassIcon(client);
+		/* This is normally handled in CTFPlayer::Event_Killed when we die, but since we are changing robots now
+		we are going to respawn, so decrement the icon here manually if we haven't already died */
+		if (IsPlayerAlive(client))
+			DecrementRobotPlayerClassIcon(client);
 	}
 	
 	TurnPlayerIntoHisNextRobot(client);
@@ -3964,10 +4016,12 @@ void MainConfig_UpdateSettings()
 	g_arrCooldownSystem.flFastCapWatchMaxSeconds = 120.0;
 	g_arrCooldownSystem.flFastCapMaxMinutes = 10.0;
 	g_arrCooldownSystem.flKDSecMultiplicand = 60.0;
-	g_arrCooldownSystem.flSecPerKill = 60.0;
+	g_arrCooldownSystem.flSecPerKill = 66.0;
 	g_arrCooldownSystem.flSecPerCapFlag = 60.0;
 	g_arrCooldownSystem.iDmgForSec = 750;
 	g_arrCooldownSystem.flDmgForSecMult = 1.0;
+	g_arrCooldownSystem.iHealingForSec = 600;
+	g_arrCooldownSystem.flHealingForSecMult = 1.0;
 	
 	char sFilePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, sFilePath, sizeof(sFilePath), "%s/general.cfg", PLUGIN_CONFIG_DIRECTORY);
 	KeyValues kv = new KeyValues("MainConfig");
@@ -4000,6 +4054,8 @@ void MainConfig_UpdateSettings()
 			g_arrCooldownSystem.flSecPerCapFlag = kv.GetFloat("seconds_per_capture_flag", g_arrCooldownSystem.flSecPerCapFlag);
 			g_arrCooldownSystem.iDmgForSec = kv.GetNum("damage_for_one_second", g_arrCooldownSystem.iDmgForSec);
 			g_arrCooldownSystem.flDmgForSecMult = kv.GetFloat("damage_for_one_second_multiplier", g_arrCooldownSystem.flDmgForSecMult);
+			g_arrCooldownSystem.iHealingForSec = kv.GetNum("healing_for_one_second", g_arrCooldownSystem.iHealingForSec);
+			g_arrCooldownSystem.flHealingForSecMult = kv.GetFloat("healing_for_one_second_multiplier", g_arrCooldownSystem.flHealingForSecMult);
 			kv.GoBack();
 		}
 		

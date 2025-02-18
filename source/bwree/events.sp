@@ -14,6 +14,7 @@ void InitGameEventHooks()
 	HookEvent("post_inventory_application", Event_PostInventoryApplication);
 	HookEvent("player_hurt", Event_PlayerHurt);
 	HookEvent("npc_hurt", Event_NpcHurt);
+	HookEvent("player_healed", Event_PlayerHealed);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -577,6 +578,25 @@ static void Event_NpcHurt(Event event, const char[] name, bool dontBroadcast)
 			if (BaseEntity_GetTeamNumber(entNPC) == view_as<int>(TFTeam_Red) && BaseEntity_IsBaseObject(entNPC))
 			{
 				g_arrRobotPlayerStats[attacker].iDamage += event.GetInt("damageamount");
+			}
+		}
+	}
+}
+
+static void Event_PlayerHealed(Event event, const char[] name, bool dontBroadcast)
+{
+	int healer = GetClientOfUserId(event.GetInt("healer"));
+	
+	if (healer > 0)
+	{
+		if (IsPlayingAsRobot(healer))
+		{
+			int patient = GetClientOfUserId(event.GetInt("patient"));
+			
+			//Only count healing of actual teammates, enemy spies do not count
+			if (TF2_GetClientTeam(patient) == TFTeam_Blue)
+			{
+				g_arrRobotPlayerStats[healer].iHealing += event.GetInt("amount");
 			}
 		}
 	}
