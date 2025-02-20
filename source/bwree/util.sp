@@ -16,8 +16,6 @@
 #include <stocklib_officerspy/tf/tf_weaponbase>
 #include <stocklib_officerspy/tf/entity_capture_flag>
 
-#define IsEmptyString(%1) (%1[0] == 0)
-
 //CTFBotDeliverFlag
 #define DONT_UPGRADE	-1
 
@@ -37,13 +35,6 @@
 #define BONUS_ROUND_TIME_MVM	5
 
 #define BWR_FAKE_SPAWN_DURATION_EXTRA	34.0
-
-#define SOUND_GIANT_SCOUT_LOOP	"mvm/giant_scout/giant_scout_loop.wav"
-#define SOUND_GIANT_SOLDIER_LOOP	"mvm/giant_soldier/giant_soldier_loop.wav"
-#define SOUND_GIANT_PYRO_LOOP	"mvm/giant_pyro/giant_pyro_loop.wav"
-#define SOUND_GIANT_DEMOMAN_LOOP	"mvm/giant_demoman/giant_demoman_loop.wav"
-#define SOUND_GIANT_HEAVY_LOOP	")mvm/giant_heavy/giant_heavy_loop.wav"
-#define SOUND_SENTRYBUSTER_LOOP	"mvm/sentrybuster/mvm_sentrybuster_loop.wav"
 
 #if !defined __tf_econ_data_included
 #define TF_ITEMDEF_DEFAULT	-1

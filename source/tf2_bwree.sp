@@ -973,18 +973,6 @@ public void OnPluginStart()
 				OnEntityCreated(i, classname);
 		}
 	}
-
-#if defined MOD_EXT_TF2_ECON_DYNAMIC
-	TF2EconDynAttribute hAttr = new TF2EconDynAttribute();
-	hAttr.SetClass("appear_as_mvm_robot");
-	hAttr.SetName("appear as mvm robot");
-	hAttr.SetDescriptionFormat("value_is_additive");
-	hAttr.SetCustom("hidden", "1");
-	hAttr.SetCustom("effect_type", "positive");
-	hAttr.Register();
-	
-	delete hAttr;
-#endif
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -3275,10 +3263,6 @@ void SetRobotPlayer(int client, bool enabled)
 		SDKHook(client, SDKHook_OnTakeDamage, PlayerRobot_OnTakeDamage);
 		SDKHook(client, SDKHook_WeaponCanSwitchTo, PlayerRobot_WeaponCanSwitchTo);
 		SDKHook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
-		
-#if defined MOD_EXT_TF2_ECON_DYNAMIC
-		TF2Attrib_SetByName(client, "appear as mvm robot", 1.0);
-#endif
 	}
 	else
 	{
@@ -3303,10 +3287,6 @@ void SetRobotPlayer(int client, bool enabled)
 		//In case we switched off during a game, don't let us be stuck with a long respawn time
 		if (GameRules_GetRoundState() == RoundState_RoundRunning)
 			TF2Util_SetPlayerRespawnTimeOverride(client, -1.0);
-#endif
-		
-#if defined MOD_EXT_TF2_ECON_DYNAMIC
-		TF2Attrib_RemoveByName(client, "appear as mvm robot");
 #endif
 	}
 }
