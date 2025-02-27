@@ -49,6 +49,16 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 					DecrementRobotPlayerClassIcon(client);
 				}
 			}
+			
+			if (team == TFTeam_Red)
+			{
+				if (GameRules_GetProp("m_bInSetup") == 0)
+				{
+					//Reset desired player class so he can freshly choose a new class
+					//Class selection menu will be invoked in CTFPlayer::HandleCommand_JoinTeam
+					TF2_SetDesiredPlayerClassIndex(client, TFClass_Unknown);
+				}
+			}
 		}
 	}
 }

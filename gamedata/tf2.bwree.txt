@@ -24,12 +24,12 @@
 		{
 			"CTFPlayer::PlaySpecificSequence"
 			{
-				"windows"	"\x55\x8B\xEC\x53\x56\x8B\x75\x2A\x57\x56\x8B\xF9\xE8\x2A\x2A\x2A\x2A\x8B\xD8"
+				"windows"	"\x55\x8B\xEC\x56\xFF\x75\x08\x8B\xF1\xE8\x2A\x2A\x2A\x2A\x8B\xCE\x83\xF8\xFF"
 				"linux"		"@_ZN9CTFPlayer20PlaySpecificSequenceEPKc"
 			}
 			"CTFPlayer::DoAnimationEvent"
 			{
-				"windows"	"\x55\x8B\xEC\x51\x53\x56\x8B\x35\x2A\x2A\x2A\x2A\x8B\xD9\x8B\xCE"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x2C\x53\x56\x8B\x35\x2A\x2A\x2A\x2A"
 				"linux"   	"@_ZN9CTFPlayer16DoAnimationEventE17PlayerAnimEvent_ti"
 			}
 			"CCaptureZone::Capture"
@@ -44,7 +44,7 @@
 			}
 			"CTFPlayer::PostInventoryApplication"
 			{
-				"windows"	"\x55\x8B\xEC\x83\xEC\x40\x53\x8B\xD9\x56\x57\x89\x5D\x2A\x8D\x8B"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x3C\x53\x8B\xD9\x56\x57"
 				"linux"		"@_ZN9CTFPlayer24PostInventoryApplicationEv"
 			}
 			"CPopulationManager::GetSentryBusterDamageAndKillThreshold"
@@ -79,7 +79,7 @@
 			}
 			"CBaseObject::FindSnapToBuildPos"
 			{
-				"windows"	"\x55\x8B\xEC\x83\xEC\x5C\x53\x57\x8B\xF9\x89\x7D\xF4"
+				"windows"	"\x55\x8B\xEC\x83\xEC\x58\x53\x57\x8B\xF9\x89\x7D\xF4"
 				"linux"		"@_ZN11CBaseObject18FindSnapToBuildPosEPS_"
 			}
 			"CTFPlayer::CanBuild"

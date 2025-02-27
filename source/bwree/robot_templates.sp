@@ -200,7 +200,7 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		delete adtVictims;
 		
 		//SM NOTE: bForce is always set to true in SM 1.12
-		ForcePlayerSuicide(this.index);
+		ForcePlayerSuicide(this.index, false);
 		
 		/* if (IsPlayerAlive(this.index))
 			VS_ForceChangeTeam(this.index, TFTeam_Spectator); */
@@ -1800,16 +1800,7 @@ void OnBotTeleported(int client)
 	}
 	
 	//Have us face the direction specified by the teleporter
-	float vForward[3];
-	float teleporterAngles[3]; teleporterAngles = GetAbsAngles(teleporter);
-	GetAngleVectors(teleporterAngles, vForward, NULL_VECTOR, NULL_VECTOR);
-	
-	float vecFaceTowards[3]; GetClientAbsOrigin(client, vecFaceTowards);
-	vecFaceTowards[0] = vecFaceTowards[0] + 50 * vForward[0];
-	vecFaceTowards[1] = vecFaceTowards[1] + 50 * vForward[1];
-	vecFaceTowards[2] = vecFaceTowards[2] + 50 * vForward[2];
-	
-	SnapViewToPosition(client, vecFaceTowards);
+	VS_SnapEyeAngles(client, GetAbsAngles(teleporter));
 	
 	if (!TF2_IsClass(client, TFClass_Spy))
 	{
