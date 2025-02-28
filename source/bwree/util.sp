@@ -1125,7 +1125,7 @@ stock bool IsMeleeWeapon(int entity)
 	return HasEntProp(entity, Prop_Data, "CTFWeaponBaseMeleeSmack");
 }
 
-stock int GetEnemyPlayerNearestToMe(int client, float max_distance = 999999.0)
+stock int GetEnemyPlayerNearestToMe(int client, float max_distance = 999999.0, bool bIgnoreCloak = false)
 {
 	float vecOrigin[3]; GetClientAbsOrigin(client, vecOrigin);
 	
@@ -1145,6 +1145,9 @@ stock int GetEnemyPlayerNearestToMe(int client, float max_distance = 999999.0)
 			continue;
 		
 		if (GetClientTeam(i) == GetClientTeam(client))
+			continue;
+		
+		if (bIgnoreCloak && TF2_IsStealthed(i))
 			continue;
 		
 		GetClientAbsOrigin(i, vecEnemyOrigin);

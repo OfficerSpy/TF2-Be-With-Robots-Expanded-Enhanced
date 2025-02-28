@@ -336,7 +336,11 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 		return Plugin_Stop;
 	}
 	
+	//We successfully teleported near someone
 	FreezePlayerInput(data, false);
+	
+	//Now we hide and might tease the victim later
+	MvMRobotPlayer(data).TalkTimer_Start(GetRandomFloat(5.0, 10.0));
 	
 	return Plugin_Stop;
 }

@@ -63,6 +63,14 @@ enum eRobotAction
 
 enum
 {
+	TAUNTING_MODE_NONE = 0,
+	TAUNTING_MODE_BEHAVORIAL_ON_KILL,
+	TAUNTING_MODE_BEHAVORIAL_BOMB,
+	TAUNTING_MODE_BEHAVORIAL_ALL
+}
+
+enum
+{
 	BOMB_UPGRADE_DISABLED = 0,
 	BOMB_UPGRADE_MANUAL,
 	BOMB_UPGRADE_AUTO
@@ -240,6 +248,7 @@ static ArrayList m_adtSuspectedSpyInfo[MAXPLAYERS + 1];
 
 ConVar bwr3_robot_spawn_time_min;
 ConVar bwr3_robot_spawn_time_max;
+ConVar bwr3_robot_taunt_mode;
 ConVar bwr3_bomb_upgrade_mode;
 ConVar bwr3_cosmetic_mode;
 ConVar bwr3_max_invaders;
@@ -297,7 +306,7 @@ ConVar tf_bot_suicide_bomb_friendly_fire;
 #endif
 
 //I wish i could put these somewhere else
-#define MAX_BOT_TAG_CHECKS	10 //Maximum amount of tags we will look for
+#define MAX_BOT_TAG_CHECKS	8 //Maximum amount of tags we will look for
 #define BOT_TAGS_BUFFER_MAX_LENGTH	PLATFORM_MAX_PATH //How long the whole string list of tags can be
 #define BOT_TAG_EACH_MAX_LENGTH	16 //How long each named tag can be
 
@@ -837,6 +846,7 @@ public void OnPluginStart()
 	
 	bwr3_robot_spawn_time_min = CreateConVar("sm_bwr3_robot_spawn_time_min", "12", _, FCVAR_NOTIFY);
 	bwr3_robot_spawn_time_max = CreateConVar("sm_bwr3_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
+	bwr3_robot_taunt_mode = CreateConVar("sm_bwr3_robot_taunt_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "2", _, FCVAR_NOTIFY);
 	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
@@ -1500,14 +1510,23 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	float myAbsOrigin[3]; GetClientAbsOrigin(client, myAbsOrigin);
 	
 	//Heehee I'm a spy!
-	if (player.IsClass(TFClass_Spy) && roboPlayer.ChuckleTimer_IsElapsed())
+	if (player.IsClass(TFClass_Spy))
 	{
-		if (myWeapon != -1 && IsMeleeWeapon(myWeapon))
+		bool bSpyHiding = true;
+		
+		if (myWeapon != -1 && IsMeleeWeapon(myWeapon) && !player.IsStealthed())
 		{
-			int threat = GetEnemyPlayerNearestToMe(client);
+			int threat = GetEnemyPlayerNearestToMe(client, roboPlayer.GetMaxVisionRange(), true);
 			
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+			//Spies aren't real threats unless we know they're a spy
+			if (threat != -1 && Player_IsVisibleInFOVNow(client, threat) && (roboPlayer.IsKnownSpy(threat) || !TF2_IsPlayerInCondition(threat, TFCond_Disguised)))
+#else
 			if (threat != -1 && Player_IsVisibleInFOVNow(client, threat))
+#endif
 			{
+				bSpyHiding = false;
+				
 				float threatAbsOrigin[3]; GetClientAbsOrigin(threat, threatAbsOrigin);
 				float toPlayerThreat[3]; SubtractVectors(threatAbsOrigin, myAbsOrigin, toPlayerThreat);
 				
@@ -1533,6 +1552,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						}
 					}
 				}
+			}
+		}
+		
+		if (bSpyHiding)
+		{
+			if (roboPlayer.TalkTimer_IsElapsed())
+			{
+				roboPlayer.TalkTimer_Start(GetRandomFloat(5.0, 10.0));
+				EmitGameSoundToAll("Spy.TeaseVictim", client);
 			}
 		}
 	}
@@ -1654,6 +1682,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 								
 								CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
 								SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
+								
+								if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL || bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_BOMB)
+									FreezePlayerInput(client, true);
 							}
 						}
 					}
@@ -2240,9 +2271,24 @@ public Action CommandListener_Taunt(int client, const char[] command, int argc)
 					float interval = GetRandomFloat(0.0, 1.0);
 					CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
 					SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
+					
+					if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL || bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_BOMB)
+						FreezePlayerInput(client, true);
+					
 					return Plugin_Handled;
 				}
 			}
+		}
+		
+		if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL)
+		{
+			//Every taunting we do is delayed
+			float interval = GetRandomFloat(0.0, 1.0);
+			CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
+			SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
+			FreezePlayerInput(client, true);
+			
+			return Plugin_Handled;
 		}
 	}
 	
@@ -2360,6 +2406,9 @@ public Action Timer_Taunt(Handle timer, int data)
 	
 	VS_HandleTauntCommand(data);
 	
+	if (bwr3_robot_taunt_mode.IntValue >= TAUNTING_MODE_BEHAVORIAL_ON_KILL)
+		FreezePlayerInput(data, false);
+	
 	return Plugin_Stop;
 }
 
@@ -2431,7 +2480,7 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 				For our robot players, allow their arrows to deal critical damage if their robot allows it */
 				if (inflictor > 0 && IsProjectileArrow(inflictor))
 				{
-					damagetype |= DMG_CRITICAL;
+					damagetype |= DMG_CRIT;
 					
 					return Plugin_Changed;
 				}
@@ -3051,6 +3100,12 @@ float GetPlayerCalculatedCooldown(int client)
 		return 0.0;
 	}
 	
+	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+	{
+		//Do nothing between rounds
+		return 0.0;
+	}
+	
 #if !defined TESTING_ONLY
 	if (GetTeamHumanClientCount(TFTeam_Red) < 1)
 	{
@@ -3061,15 +3116,6 @@ float GetPlayerCalculatedCooldown(int client)
 	
 	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
 	{
-		switch (GameRules_GetRoundState())
-		{
-			case RoundState_BetweenRounds:
-			{
-				//Do nothing between waves
-				return 0.0;
-			}
-		}
-		
 		//TODO: factor time based on when the cooldown is applied (during round or round win?)
 		return g_arrCooldownSystem.flDefaultDuration;
 	}
