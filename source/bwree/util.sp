@@ -55,6 +55,13 @@ enum SpawnLocationResult
 	SPAWN_LOCATION_TELEPORTER
 }
 
+enum struct BombInfo_t
+{
+	float vPosition[3];
+	float flMinBattleFront;
+	float flMaxBattleFront
+}
+
 public char g_sClassNamesShort[][] =
 {
 	"undefined",
@@ -1004,30 +1011,65 @@ bool TeleportNearVictim(int client, int victim, int attempt)
 	return false;
 }
 
-/* bool FindEngineerBotHint(bool bShouldCheckForBlockingObjects, bool bAllowOutOfRangeNest, int &iFoundNest)
+bool GetBombInfo(BombInfo_t arrBombInfo)
 {
-	ArrayList adtActiveEngineerNest = new ArrayList();
+	float battlefront = 0.0;
+	
+	for (int i = 0; i < TheNavAreas.Count; i++)
+	{
+		CTFNavArea area = view_as<CTFNavArea>(TheNavAreas.Get(i));
+		
+		if (area.HasAttributeTF(BLUE_SPAWN_ROOM | RED_SPAWN_ROOM))
+			continue;
+		
+		float areaDistanceToTarget = GetTravelDistanceToBombTarget(area);
+		
+		if (areaDistanceToTarget > battlefront && areaDistanceToTarget > 0.0)
+			battlefront = areaDistanceToTarget;
+	}
+	
+	int flag = -1;
+	float vBombSpot[3] = {0.0, 0.0, 0.0};
 	
 	int iEnt = -1;
-	while ((iEnt = FindEntityByClassname(iEnt, "bot_hint_engineer_nest")) != -1)
+	while ((iEnt = FindEntityByClassname(iEnt, "item_teamflag")) != -1)
 	{
-		if (GetEntProp(iEnt, Prop_Data, "m_isDisabled") != 1 && BaseEntity_GetOwnerEntity(iEnt) == -1)
-			adtActiveEngineerNest.Push(iEnt);
-	}
-	
-	if (adtActiveEngineerNest.Length == 0)
-	{
-		if (iFoundNest != -1)
-			iFoundNest = -1
+		float vTempBombSpot[3];
+		int carrier = BaseEntity_GetOwnerEntity(iEnt);
 		
-		return false;
+		if (carrier != -1 && BaseEntity_IsPlayer(carrier))
+		{
+			vTempBombSpot = GetAbsOrigin(carrier);
+		}
+		else
+		{
+			vTempBombSpot = WorldSpaceCenter(iEnt);
+		}
+		
+		CTFNavArea flagArea = view_as<CTFNavArea>(TheNavMesh.GetNearestNavArea(vTempBombSpot, false, 1000.0));
+		
+		if (flagArea)
+		{
+			float flagDistanceToTarget = GetTravelDistanceToBombTarget(flagArea);
+			
+			if (flagDistanceToTarget < battlefront && flagDistanceToTarget >= 0.0)
+			{
+				battlefront = flagDistanceToTarget;
+				flag = iEnt;
+				vBombSpot = vTempBombSpot;
+			}
+		}
 	}
 	
-	//TODO: replace me with GetBombInfo stuff and JSONObject
-	iFoundNest = adtActiveEngineerNest.Get(GetRandomInt(0, adtActiveEngineerNest.Length - 1));
+	float flMaxBattleFront = battlefront + tf_bot_engineer_mvm_sentry_hint_bomb_backward_range.FloatValue;
+	float flMinBattleFront = battlefront - tf_bot_engineer_mvm_sentry_hint_bomb_forward_range.FloatValue;
 	
-	return true;
-} */
+	arrBombInfo.vPosition = vBombSpot;
+	arrBombInfo.flMinBattleFront = flMinBattleFront;
+	arrBombInfo.flMaxBattleFront = flMaxBattleFront;
+	
+	return flag != -1 ? true : false;
+}
 #else
 //TODO: alternative method
 #endif

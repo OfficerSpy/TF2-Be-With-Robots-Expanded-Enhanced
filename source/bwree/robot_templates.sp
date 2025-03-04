@@ -26,7 +26,8 @@ enum eEngineerTeleportType
 {
 	ENGINEER_TELEPORT_NEAR_BOMB,
 	ENGINEER_TELEPORT_RANDOM,
-	ENGINEER_TELEPORT_NEAR_TEAMMATE
+	ENGINEER_TELEPORT_NEAR_TEAMMATE,
+	ENGINEER_TELEPORT_FROM_BOMB_INFO
 }
 
 // Robot template property arrays
@@ -2270,6 +2271,118 @@ static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3])
 	//TODO: angles
 }
 
+//Similar to CTFBotMvMEngineerHintFinder::FindHint, but adjusted for mod-defined hint locations
+static bool FindEngineerBotHintLocation(bool bShouldCheckForBlockingObjects, bool bAllowOutOfRangeNest, float vecFoundNestLocation[3] = NULL_VECTOR)
+{
+	//If first element is NULL_VECTOR, then there are no hint locations for the current map
+	if (Vector_IsZero(g_vecMapEngineerHintOrigin[0]))
+	{
+		vecFoundNestLocation = NULL_VECTOR;
+		return false;
+	}
+	
+	BombInfo_t bombInfo;
+	GetBombInfo(bombInfo);
+	
+	ArrayList adtForwardOutOfRangeHint = new ArrayList(3);
+	ArrayList adtBackwardOutOfRangeHint = new ArrayList(3);
+	ArrayList adtFreeAtFrontHint = new ArrayList(3);
+	
+	for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
+	{
+		//Run into NULL_VECTOR? that means there's no value there or the rest
+		if (Vector_IsZero(g_vecMapEngineerHintOrigin[i]))
+			break;
+		
+		CTFNavArea hintArea = view_as<CTFNavArea>(TheNavMesh.GetNearestNavArea(g_vecMapEngineerHintOrigin[i], false, 1000.0));
+		
+		if (!hintArea)
+		{
+			LogError("FindEngineerBotHintLocation: NULL nav area (%f, %f, %f)", g_vecMapEngineerHintOrigin[i][0], g_vecMapEngineerHintOrigin[i][1], g_vecMapEngineerHintOrigin[i][2]);
+			continue;
+		}
+		
+		float hintDistanceToTarget = GetTravelDistanceToBombTarget(hintArea);
+		
+		if (hintDistanceToTarget > bombInfo.flMinBattleFront && hintDistanceToTarget < bombInfo.flMaxBattleFront)
+		{
+			if (bShouldCheckForBlockingObjects)
+			{
+				//TODO
+			}
+			
+			//NOTE: for now, assume every hint area is not stale
+			float vecSubPositions[3]; SubtractVectors(bombInfo.vPosition, g_vecMapEngineerHintOrigin[i], vecSubPositions);
+			
+			if (GetVectorLength(vecSubPositions) < tf_bot_engineer_mvm_hint_min_distance_from_bomb.FloatValue)
+			{
+				//This hint location is too close to the bomb
+				continue;
+			}
+			
+			adtFreeAtFrontHint.PushArray(g_vecMapEngineerHintOrigin[i]);
+		}
+		else if (hintDistanceToTarget > bombInfo.flMaxBattleFront)
+		{
+			adtForwardOutOfRangeHint.PushArray(g_vecMapEngineerHintOrigin[i]);
+		}
+		else
+		{
+			adtBackwardOutOfRangeHint.PushArray(g_vecMapEngineerHintOrigin[i]);
+		}
+	}
+	
+	float hintPosition[3];
+	
+	if (adtFreeAtFrontHint.Length == 0)
+	{
+		if (bAllowOutOfRangeNest)
+		{
+			SelectOutOfRangeNestLocation(adtForwardOutOfRangeHint, hintPosition);
+			
+			if (Vector_IsZero(hintPosition))
+			{
+				//Nothing found forward, try backward
+				SelectOutOfRangeNestLocation(adtBackwardOutOfRangeHint, hintPosition);
+			}
+		}
+		
+		//No hint locations in range
+		vecFoundNestLocation = hintPosition;
+	}
+	else
+	{
+		//NOTE: we currently don't care about stale nest locations
+		if (adtFreeAtFrontHint.Length)
+		{
+			int whichHint = GetRandomInt(0, adtFreeAtFrontHint.Length - 1);
+			adtFreeAtFrontHint.GetArray(whichHint, hintPosition);
+		}
+		
+		vecFoundNestLocation = hintPosition;
+	}
+	
+	adtForwardOutOfRangeHint.Close();
+	adtBackwardOutOfRangeHint.Close();
+	adtFreeAtFrontHint.Close();
+	
+	return !Vector_IsZero(vecFoundNestLocation);
+}
+
+static bool SelectOutOfRangeNestLocation(ArrayList nestList, float nestPosition[3])
+{
+	if (nestList.Length)
+	{
+		//NOTE: don't currently care about stale nest locations
+		
+		int which = GetRandomInt(0, nestList.Length - 1);
+		nestList.GetArray(which, nestPosition);
+		return true;
+	}
+	
+	return false;
+}
+
 void StopIdleSound(int client)
 {
 	if (strlen(m_sIdleSound[client]) > 0)
@@ -2388,6 +2501,14 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 				float allyPos[3]; GetClientAbsOrigin(ally, allyPos);
 				GetNearestEngineerHintPosition(allyPos, hintTeleportPos);
 			}
+		}
+		case ENGINEER_TELEPORT_FROM_BOMB_INFO:
+		{
+			/* Check for blocking objects as we have not teleported and want to teleport to hint
+			Do not allow out of range nest locations as we want to teleport to hint
+			For reference on what i mean, see CTFBotMvMEngineerIdle::Update
+			Note how it uses CTFBotMvMEngineerHintFinder::FindHint */
+			FindEngineerBotHintLocation(true, false, hintTeleportPos);
 		}
 	}
 	

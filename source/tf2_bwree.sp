@@ -296,6 +296,9 @@ ConVar tf_mvm_engineer_teleporter_uber_duration;
 ConVar tf_bot_suicide_bomb_range;
 ConVar tf_bot_engineer_building_health_multiplier;
 ConVar phys_pushscale;
+ConVar tf_bot_engineer_mvm_sentry_hint_bomb_backward_range;
+ConVar tf_bot_engineer_mvm_sentry_hint_bomb_forward_range;
+ConVar tf_bot_engineer_mvm_hint_min_distance_from_bomb;
 
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
 ConVar tf_bot_suspect_spy_touch_interval;
@@ -532,7 +535,11 @@ methodmap MvMRobotPlayer
 	
 	public float GetMaxVisionRange()
 	{
-		return m_flMaxVisionRange[this.index];
+		if (m_flMaxVisionRange[this.index] > 0.0)
+			return m_flMaxVisionRange[this.index];
+		
+		//Custom value is -1, use default range
+		return 6000.0;
 	}
 	
 	public void SetTeleportWhere(const ArrayList teleportWhereName)
@@ -832,7 +839,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.1",
+	version = "1.3.2",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1071,6 +1078,9 @@ public void OnConfigsExecuted()
 	tf_bot_suicide_bomb_range = FindConVar("tf_bot_suicide_bomb_range");
 	tf_bot_engineer_building_health_multiplier = FindConVar("tf_bot_engineer_building_health_multiplier");
 	phys_pushscale = FindConVar("phys_pushscale");
+	tf_bot_engineer_mvm_sentry_hint_bomb_backward_range = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_backward_range");
+	tf_bot_engineer_mvm_sentry_hint_bomb_forward_range = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_forward_range");
+	tf_bot_engineer_mvm_hint_min_distance_from_bomb = FindConVar("tf_bot_engineer_mvm_hint_min_distance_from_bomb");
 	
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
 	tf_bot_suspect_spy_touch_interval = FindConVar("tf_bot_suspect_spy_touch_interval");
@@ -2508,14 +2518,8 @@ public Action Actor_SetTransmit(int entity, int client)
 		if (BaseEntity_IsBaseObject(entity) && TF2_GetObjectType(entity) == TFObject_Teleporter)
 			return Plugin_Handled;
 		
-		float maxSightRange = MvMRobotPlayer(client).GetMaxVisionRange();
-		
-		//If not specified, use default max vision range
-		if (maxSightRange <= 0.0)
-			maxSightRange = TFBOT_MAX_VISION_RANGE;
-		
 		//If it's farther than our current vision range, then we can't actually see it
-		if (Player_IsRangeGreaterThanEntity(client, entity, maxSightRange))
+		if (Player_IsRangeGreaterThanEntity(client, entity, MvMRobotPlayer(client).GetMaxVisionRange()))
 			return Plugin_Handled;
 		
 		if (BaseEntity_IsPlayer(entity))

@@ -5,6 +5,7 @@ static StringMap m_adtOffsets;
 static int m_iOffsetSentryBustersSpawned;
 static int m_iOffsetNumEngineersTeleportSpawned;
 static int m_iOffsetNumSentryBustersKilled;
+static int m_iOffsetDistanceToBombTarget;
 
 void InitOffsets(GameData hGamedata)
 {
@@ -24,6 +25,7 @@ void InitOffsets(GameData hGamedata)
 	m_iOffsetSentryBustersSpawned = hGamedata.GetOffset("CWave::m_nSentryBustersSpawned");
 	m_iOffsetNumEngineersTeleportSpawned = hGamedata.GetOffset("CWave::m_nNumEngineersTeleportSpawned");
 	m_iOffsetNumSentryBustersKilled = hGamedata.GetOffset("CWave::m_nNumSentryBustersKilled");
+	m_iOffsetDistanceToBombTarget = hGamedata.GetOffset("CTFNavArea::m_distanceToBombTarget");
 	
 #if defined TESTING_ONLY
 	//Dump offsets
@@ -39,6 +41,7 @@ void InitOffsets(GameData hGamedata)
 	LogMessage("InitOffsets: CWave->m_nSentryBustersSpawned = %d", m_iOffsetSentryBustersSpawned);
 	LogMessage("InitOffsets: CWave->m_nNumEngineersTeleportSpawned = %d", m_iOffsetNumEngineersTeleportSpawned);
 	LogMessage("InitOffsets: CWave->m_nNumSentryBustersKilled = %d", m_iOffsetNumSentryBustersKilled);
+	LogMessage("InitOffsets: CTFNavArea->m_distanceToBombTarget = %d", m_iOffsetDistanceToBombTarget);
 #endif
 }
 
@@ -167,4 +170,9 @@ int GetNumSentryBustersKilled(Address wave)
 void SetNumSentryBustersKilled(Address wave, int iValue)
 {
 	StoreToAddress(wave + view_as<Address>(m_iOffsetNumSentryBustersKilled), iValue, NumberType_Int32);
+}
+
+float GetTravelDistanceToBombTarget(CTFNavArea area)
+{
+	return LoadFromAddress(view_as<Address>(area) + view_as<Address>(m_iOffsetDistanceToBombTarget), NumberType_Int32);
 }
