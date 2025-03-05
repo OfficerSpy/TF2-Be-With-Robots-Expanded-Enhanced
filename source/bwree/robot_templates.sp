@@ -27,6 +27,7 @@ enum eEngineerTeleportType
 	ENGINEER_TELEPORT_NEAR_BOMB,
 	ENGINEER_TELEPORT_RANDOM,
 	ENGINEER_TELEPORT_NEAR_TEAMMATE,
+	ENGINEER_TELEPORT_NEAR_BOMB_SAFE,
 	ENGINEER_TELEPORT_FROM_BOMB_INFO
 }
 
@@ -2247,10 +2248,19 @@ void UpdateEngineerHintLocations()
 	LogMessage("UpdateEngineerHintLocations: Found %d locations for this map", index);
 }
 
-// Finds an origin nearest to the specified position vector
-static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3])
+// Finds a hint origin nearest to the specified position vector
+// Can specify a flag entity to check its proximity to hint origins
+static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3], int flagToCheckDistance = -1)
 {
 	float bestDistance = 999999.0;
+	float flagPos[3];
+	
+	if (flagToCheckDistance != -1)
+	{
+		int carrier = BaseEntity_GetOwnerEntity(flagToCheckDistance);
+		
+		flagPos = carrier != -1 ? GetAbsOrigin(carrier) : WorldSpaceCenter(flagToCheckDistance);
+	}
 	
 	//Cycle through all the stored hint positions
 	for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
@@ -2263,6 +2273,15 @@ static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3])
 		
 		if (distance <= bestDistance)
 		{
+			if (flagToCheckDistance != -1)
+			{
+				if (GetVectorDistance(flagPos, g_vecMapEngineerHintOrigin[i]) < tf_bot_engineer_mvm_hint_min_distance_from_bomb.FloatValue)
+				{
+					//Too close to the flag
+					continue;
+				}
+			}
+			
 			bestDistance = distance;
 			outputOrigin = g_vecMapEngineerHintOrigin[i];
 		}
@@ -2284,13 +2303,19 @@ static bool FindEngineerBotHintLocation(bool bShouldCheckForBlockingObjects, boo
 	BombInfo_t bombInfo;
 	GetBombInfo(bombInfo);
 	
+#if defined TESTING_ONLY
+	LogMessage("FindEngineerBotHintLocation: BombInfo_t vPosition (%f, %f, %f)", bombInfo.vPosition[0], bombInfo.vPosition[1], bombInfo.vPosition[2]);
+	LogMessage("FindEngineerBotHintLocation: BombInfo_t flMinBattleFront = %f", bombInfo.flMinBattleFront);
+	LogMessage("FindEngineerBotHintLocation: BombInfo_t flMaxBattleFront = %f", bombInfo.flMaxBattleFront);
+#endif
+	
 	ArrayList adtForwardOutOfRangeHint = new ArrayList(3);
 	ArrayList adtBackwardOutOfRangeHint = new ArrayList(3);
 	ArrayList adtFreeAtFrontHint = new ArrayList(3);
 	
 	for (int i = 0; i < sizeof(g_vecMapEngineerHintOrigin); i++)
 	{
-		//Run into NULL_VECTOR? that means there's no value there or the rest
+		//Run into NULL_VECTOR? that means there's no value there nor the rest
 		if (Vector_IsZero(g_vecMapEngineerHintOrigin[i]))
 			break;
 		
@@ -2308,7 +2333,20 @@ static bool FindEngineerBotHintLocation(bool bShouldCheckForBlockingObjects, boo
 		{
 			if (bShouldCheckForBlockingObjects)
 			{
-				//TODO
+				float vecAddMins[3]; AddVectors(g_vecMapEngineerHintOrigin[i], TF_VEC_HULL_MIN, vecAddMins);
+				float vecAddMaxs[3]; AddVectors(g_vecMapEngineerHintOrigin[i], TF_VEC_HULL_MAX, vecAddMaxs);
+				ArrayList adtEntities = new ArrayList();
+				
+				TR_EnumerateEntitiesBox(vecAddMins, vecAddMaxs, PARTITION_NON_STATIC_EDICTS, TraceEnumerator_EngineerBotHint, adtEntities);
+				
+				if (adtEntities.Length > 0)
+				{
+					//Something is blocking this area
+					adtEntities.Close();
+					continue;
+				}
+				
+				adtEntities.Close();
 			}
 			
 			//NOTE: for now, assume every hint area is not stale
@@ -2362,11 +2400,15 @@ static bool FindEngineerBotHintLocation(bool bShouldCheckForBlockingObjects, boo
 		vecFoundNestLocation = hintPosition;
 	}
 	
+#if defined TESTING_ONLY
+	LogMessage("FindEngineerBotHintLocation: ForwardOutOfRange %d, BackwardOutOfRange %d, FreeAtFront %d", adtForwardOutOfRangeHint.Length, adtBackwardOutOfRangeHint.Length, adtFreeAtFrontHint.Length);
+#endif
+	
 	adtForwardOutOfRangeHint.Close();
 	adtBackwardOutOfRangeHint.Close();
 	adtFreeAtFrontHint.Close();
 	
-	return !Vector_IsZero(vecFoundNestLocation);
+	return !Vector_IsZero(hintPosition);
 }
 
 static bool SelectOutOfRangeNestLocation(ArrayList nestList, float nestPosition[3])
@@ -2502,13 +2544,63 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 				GetNearestEngineerHintPosition(allyPos, hintTeleportPos);
 			}
 		}
+		case ENGINEER_TELEPORT_NEAR_BOMB_SAFE:
+		{
+			int flag = FindBombNearestToHatch();
+			
+			if (flag != -1)
+			{
+				GetNearestEngineerHintPosition(WorldSpaceCenter(flag), hintTeleportPos, flag);
+			}
+			else
+			{
+				int visualizer = -1;
+				
+				while ((visualizer = FindEntityByClassname(visualizer, "func_respawnroomvisualizer")) != -1)
+				{
+					if (GetEntProp(visualizer, Prop_Data, "m_iDisabled") == 1)
+						continue;
+					
+					if (BaseEntity_GetTeamNumber(visualizer) != GetClientTeam(client))
+						continue;
+					
+					break;
+				}
+				
+				if (visualizer != -1)
+				{
+					GetNearestEngineerHintPosition(WorldSpaceCenter(visualizer), hintTeleportPos);
+				}
+			}
+		}
 		case ENGINEER_TELEPORT_FROM_BOMB_INFO:
 		{
 			/* Check for blocking objects as we have not teleported and want to teleport to hint
 			Do not allow out of range nest locations as we want to teleport to hint
-			For reference on what i mean, see CTFBotMvMEngineerIdle::Update
-			Note how it uses CTFBotMvMEngineerHintFinder::FindHint */
-			FindEngineerBotHintLocation(true, false, hintTeleportPos);
+			For reference on what i mean, see CTFBotMvMEngineerIdle::Update and how it uses CTFBotMvMEngineerHintFinder::FindHint */
+			if (!FindEngineerBotHintLocation(true, false, hintTeleportPos))
+			{
+				/* What should really be happening here is that the player should be waiting for an opportunity to teleport in
+				however this would be boring for the player that wants to be an engineer right now so instead let's just teleport
+				somewhere near our spawn room */
+				int visualizer = -1;
+				
+				while ((visualizer = FindEntityByClassname(visualizer, "func_respawnroomvisualizer")) != -1)
+				{
+					if (GetEntProp(visualizer, Prop_Data, "m_iDisabled") == 1)
+						continue;
+					
+					if (BaseEntity_GetTeamNumber(visualizer) != GetClientTeam(client))
+						continue;
+					
+					break;
+				}
+				
+				if (visualizer != -1)
+				{
+					GetNearestEngineerHintPosition(WorldSpaceCenter(visualizer), hintTeleportPos);
+				}
+			}
 		}
 	}
 	

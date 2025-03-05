@@ -167,6 +167,17 @@ public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 	return TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity));
 }
 
+public bool TraceEnumerator_EngineerBotHint(int entity, ArrayList data)
+{
+	//int count = UTIL_EntitiesInBox( pList, ARRAYSIZE( pList ), vNestPosition + VEC_HULL_MIN, vNestPosition + VEC_HULL_MAX, FL_CLIENT|FL_OBJECT );
+	if (GetEntityFlags(entity) & (FL_CLIENT | FL_OBJECT))
+		return false;
+	
+	data.Push(entity);
+	
+	return true;
+}
+
 bool Player_IsRangeGreaterThanVec(int client, float pos[3], float range)
 {
 	float clientPosition[3]; GetClientAbsOrigin(client, clientPosition);
@@ -1039,10 +1050,12 @@ bool GetBombInfo(BombInfo_t arrBombInfo)
 		
 		if (carrier != -1 && BaseEntity_IsPlayer(carrier))
 		{
+			//Get position of flag carrier
 			vTempBombSpot = GetAbsOrigin(carrier);
 		}
 		else
 		{
+			//Get position of flag
 			vTempBombSpot = WorldSpaceCenter(iEnt);
 		}
 		

@@ -69,6 +69,14 @@
 	{
 		"en"	"Near Teammate"
 	}
+	"Menu_EngineerTeleport_NearBombSafe"
+	{
+		"en"	"Near Bomb (Safe)"
+	}
+	"Menu_EngineerTeleport_UseBombInfo"
+	{
+		"en"	"Use Bomb Information"
+	}
 	"Menu_SpyTeleport"
 	{
 		"en"	"Choose a teleport type"

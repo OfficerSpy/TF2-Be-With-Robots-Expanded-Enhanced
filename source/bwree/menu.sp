@@ -139,6 +139,14 @@ void ShowEngineerTeleportMenu(int client)
 	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_EngineerTeleport_NearTeammate");
 	hMenu.AddItem("2", textFormatBuffer);
 	
+	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_EngineerTeleport_NearBombSafe");
+	hMenu.AddItem("3", textFormatBuffer);
+	
+#if defined TESTING_ONLY
+	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_EngineerTeleport_UseBombInfo");
+	hMenu.AddItem("4", textFormatBuffer);
+#endif
+	
 	hMenu.Display(client, DISPLAY_MENU_DURATION);
 }
 
@@ -320,6 +328,8 @@ static int MenuHandler_EngineerTeleport(Menu menu, MenuAction action, int param1
 				case 0:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_NEAR_BOMB);
 				case 1:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_RANDOM);
 				case 2:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_NEAR_TEAMMATE);
+				case 3:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_NEAR_BOMB_SAFE);
+				case 4:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_FROM_BOMB_INFO);
 			}
 		}
 		case MenuAction_Cancel:

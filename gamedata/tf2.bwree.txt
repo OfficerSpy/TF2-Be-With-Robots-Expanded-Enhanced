@@ -204,6 +204,11 @@
 				"windows"	"52"
 				"linux"		"52"
 			}
+			"CTFNavArea::m_distanceToBombTarget"
+			{
+				"windows"	"548"
+				"linux"		"552"
+			}
 		}
 		"Functions"
 		{
