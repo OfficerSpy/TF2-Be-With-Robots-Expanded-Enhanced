@@ -142,10 +142,8 @@ void ShowEngineerTeleportMenu(int client)
 	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_EngineerTeleport_NearBombSafe");
 	hMenu.AddItem("3", textFormatBuffer);
 	
-#if defined TESTING_ONLY
 	FormatEx(textFormatBuffer, sizeof(textFormatBuffer), "%t", "Menu_EngineerTeleport_UseBombInfo");
 	hMenu.AddItem("4", textFormatBuffer);
-#endif
 	
 	hMenu.Display(client, DISPLAY_MENU_DURATION);
 }

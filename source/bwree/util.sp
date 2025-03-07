@@ -167,10 +167,15 @@ public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 	return TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity));
 }
 
+//int count = UTIL_EntitiesInBox( pList, ARRAYSIZE( pList ), vNestPosition + VEC_HULL_MIN, vNestPosition + VEC_HULL_MAX, FL_CLIENT|FL_OBJECT );
 public bool TraceEnumerator_EngineerBotHint(int entity, ArrayList data)
 {
-	//int count = UTIL_EntitiesInBox( pList, ARRAYSIZE( pList ), vNestPosition + VEC_HULL_MIN, vNestPosition + VEC_HULL_MAX, FL_CLIENT|FL_OBJECT );
-	if (GetEntityFlags(entity) & (FL_CLIENT | FL_OBJECT))
+	//Skip entities that do not meet our criteria
+	if (GetEntityFlags(entity) & (FL_CLIENT | FL_OBJECT) == 0)
+		return true;
+	
+	//We only want to store up to a maximum
+	if (data.Length >= 256)
 		return false;
 	
 	data.Push(entity);
@@ -1051,7 +1056,7 @@ bool GetBombInfo(BombInfo_t arrBombInfo)
 		if (carrier != -1 && BaseEntity_IsPlayer(carrier))
 		{
 			//Get position of flag carrier
-			vTempBombSpot = GetAbsOrigin(carrier);
+			GetClientAbsOrigin(carrier, vTempBombSpot);
 		}
 		else
 		{

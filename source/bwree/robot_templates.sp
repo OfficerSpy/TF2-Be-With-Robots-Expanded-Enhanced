@@ -2259,7 +2259,14 @@ static void GetNearestEngineerHintPosition(float vec[3], float outputOrigin[3], 
 	{
 		int carrier = BaseEntity_GetOwnerEntity(flagToCheckDistance);
 		
-		flagPos = carrier != -1 ? GetAbsOrigin(carrier) : WorldSpaceCenter(flagToCheckDistance);
+		if (carrier != -1)
+		{
+			GetClientAbsOrigin(carrier, flagPos);
+		}
+		else
+		{
+			flagPos = WorldSpaceCenter(flagToCheckDistance);
+		}
 	}
 	
 	//Cycle through all the stored hint positions
@@ -2473,7 +2480,7 @@ bool IsValidSpyTeleportVictim(int victim)
 	return IsClientInGame(victim) && IsPlayerAlive(victim);
 }
 
-void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_TELEPORT_NEAR_BOMB)
+void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_TELEPORT_FROM_BOMB_INFO)
 {
 	if (!MvMRobotPlayer(client).HasAttribute(CTFBot_TELEPORT_TO_HINT))
 		return;
