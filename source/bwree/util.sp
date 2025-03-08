@@ -1292,12 +1292,6 @@ stock void SetClientAsBot(int client, bool bValue)
 	SetEntityFlags(client, bValue ? flags | FL_FAKECLIENT : flags & ~FL_FAKECLIENT);
 }
 
-stock void StopParticleEffects(int entity)
-{
-	SetVariantString("ParticleEffectStop");
-	AcceptEntityInput(entity, "DispatchEffect");
-}
-
 stock bool IsItemDefIndexSapper(int itemDefIndex)
 {
 	switch (itemDefIndex)
