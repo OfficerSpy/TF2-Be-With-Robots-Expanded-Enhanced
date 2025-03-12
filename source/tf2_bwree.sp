@@ -839,7 +839,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.2",
+	version = "1.3.3",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -3839,7 +3839,7 @@ void DecrementRobotPlayerClassIcon(int client)
 				iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 			
 			//Take the icon out completely
-			TF2_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
+			OSLib_DecrementWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 1, false);
 		}
 	}
 }

@@ -336,8 +336,8 @@ static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 					iFlags |= MVM_CLASS_FLAG_MINIBOSS;
 				
 				//Remove our class icon from the wavebar entirely if it wasn't originally part of it and has zero count
-				if (!IsClassIconUsedInCurrentWave(iconName) && TF2_GetWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags) == 0)
-					TF2_SetWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 0, false);
+				if (!IsClassIconUsedInCurrentWave(iconName) && OSLib_GetWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags) == 0)
+					OSLib_SetWaveIconSpawnCount(g_iObjectiveResource, iconName, iFlags, 0, false);
 			}
 		}
 #endif

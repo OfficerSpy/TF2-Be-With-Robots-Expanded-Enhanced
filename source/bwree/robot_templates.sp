@@ -28,7 +28,7 @@ enum eEngineerTeleportType
 	ENGINEER_TELEPORT_RANDOM,
 	ENGINEER_TELEPORT_NEAR_TEAMMATE,
 	ENGINEER_TELEPORT_NEAR_BOMB_SAFE,
-	ENGINEER_TELEPORT_FROM_BOMB_INFO
+	ENGINEER_TELEPORT_BOMB_INFO
 }
 
 // Robot template property arrays
@@ -852,7 +852,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 				
-				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
+				OSLib_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
 				bAddedClassIconToWavebar = true;
 			}
 		}
@@ -906,7 +906,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 				
-				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
+				OSLib_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
 				bAddedClassIconToWavebar = true;
 			}
 		}
@@ -926,7 +926,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 				if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 					iFlags |= MVM_CLASS_FLAG_ALWAYSCRIT;
 				
-				TF2_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
+				OSLib_IncrementWaveIconSpawnCount(g_iObjectiveResource, strClassIcon, iFlags, _, false);
 				bAddedClassIconToWavebar = true;
 			}
 		}
@@ -2340,11 +2340,11 @@ static bool FindEngineerBotHintLocation(bool bShouldCheckForBlockingObjects, boo
 		{
 			if (bShouldCheckForBlockingObjects)
 			{
-				float vecAddMins[3]; AddVectors(g_vecMapEngineerHintOrigin[i], TF_VEC_HULL_MIN, vecAddMins);
-				float vecAddMaxs[3]; AddVectors(g_vecMapEngineerHintOrigin[i], TF_VEC_HULL_MAX, vecAddMaxs);
+				float vecMins[3]; AddVectors(g_vecMapEngineerHintOrigin[i], TF_VEC_HULL_MIN, vecMins);
+				float vecMaxs[3]; AddVectors(g_vecMapEngineerHintOrigin[i], TF_VEC_HULL_MAX, vecMaxs);
 				ArrayList adtEntities = new ArrayList();
 				
-				TR_EnumerateEntitiesBox(vecAddMins, vecAddMaxs, PARTITION_NON_STATIC_EDICTS, TraceEnumerator_EngineerBotHint, adtEntities);
+				TR_EnumerateEntitiesBox(vecMins, vecMaxs, PARTITION_NON_STATIC_EDICTS, TraceEnumerator_EngineerBotHint, adtEntities);
 				
 				if (adtEntities.Length > 0)
 				{
@@ -2357,9 +2357,9 @@ static bool FindEngineerBotHintLocation(bool bShouldCheckForBlockingObjects, boo
 			}
 			
 			//NOTE: for now, assume every hint area is not stale
-			float vecSubPositions[3]; SubtractVectors(bombInfo.vPosition, g_vecMapEngineerHintOrigin[i], vecSubPositions);
+			float vecSubtracted[3]; SubtractVectors(bombInfo.vPosition, g_vecMapEngineerHintOrigin[i], vecSubtracted);
 			
-			if (GetVectorLength(vecSubPositions) < tf_bot_engineer_mvm_hint_min_distance_from_bomb.FloatValue)
+			if (GetVectorLength(vecSubtracted) < tf_bot_engineer_mvm_hint_min_distance_from_bomb.FloatValue)
 			{
 				//This hint location is too close to the bomb
 				continue;
@@ -2480,7 +2480,7 @@ bool IsValidSpyTeleportVictim(int victim)
 	return IsClientInGame(victim) && IsPlayerAlive(victim);
 }
 
-void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_TELEPORT_FROM_BOMB_INFO)
+void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_TELEPORT_BOMB_INFO)
 {
 	if (!MvMRobotPlayer(client).HasAttribute(CTFBot_TELEPORT_TO_HINT))
 		return;
@@ -2580,7 +2580,7 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 				}
 			}
 		}
-		case ENGINEER_TELEPORT_FROM_BOMB_INFO:
+		case ENGINEER_TELEPORT_BOMB_INFO:
 		{
 			/* Check for blocking objects as we have not teleported and want to teleport to hint
 			Do not allow out of range nest locations as we want to teleport to hint

@@ -327,7 +327,7 @@ static int MenuHandler_EngineerTeleport(Menu menu, MenuAction action, int param1
 				case 1:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_RANDOM);
 				case 2:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_NEAR_TEAMMATE);
 				case 3:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_NEAR_BOMB_SAFE);
-				case 4:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_FROM_BOMB_INFO);
+				case 4:	MvMEngineerTeleportSpawn(param1, ENGINEER_TELEPORT_BOMB_INFO);
 			}
 		}
 		case MenuAction_Cancel:

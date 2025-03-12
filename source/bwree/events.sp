@@ -15,6 +15,7 @@ void InitGameEventHooks()
 	HookEvent("player_hurt", Event_PlayerHurt);
 	HookEvent("npc_hurt", Event_NpcHurt);
 	HookEvent("player_healed", Event_PlayerHealed);
+	HookEvent("teamplay_point_captured", Event_TeamplayPointCaptured);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -36,9 +37,6 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 			if (GetBWRCooldownTimeLeft(client) <= 0.0)
 				SetBWRCooldownTimeLeft(client, GetPlayerCalculatedCooldown(client));
 			
-			//Any robot player changing to a team that's not blue is not a robot
-			SetRobotPlayer(client, false);
-			
 			if (IsPlayerAlive(client))
 			{
 				//CTFPlayer::ChangeTeam calls CBasePlayer::ChangeTeam before CTFPlayer::CommitSuicide
@@ -46,9 +44,13 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 				if (bwr3_edit_wavebar.BoolValue)
 				{
 					//We won't first die as a robot player so decrement the icon here
+					//Do this before our data is reset or else we forget what kind of robot it was
 					DecrementRobotPlayerClassIcon(client);
 				}
 			}
+			
+			//Any robot player changing to a team that's not blue is not a robot
+			SetRobotPlayer(client, false);
 			
 			if (team == TFTeam_Red)
 			{
@@ -311,7 +313,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 			if (!IsClassIconUsedInCurrentWave(TFOR_TELEPORTER_STRING))
 			{
 				//TODO: how about you put this in the wavebar without actually setting a count > 0?
-				TF2_SetWaveIconSpawnCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION, 1, false);
+				OSLib_SetWaveIconSpawnCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION, 1, false);
 				TF2_DecrementMannVsMachineWaveClassCount(g_iObjectiveResource, TFOR_TELEPORTER_STRING, MVM_CLASS_FLAG_MISSION);
 			}
 		}
@@ -608,6 +610,25 @@ static void Event_PlayerHealed(Event event, const char[] name, bool dontBroadcas
 			{
 				g_arrRobotPlayerStats[healer].iHealing += event.GetInt("amount");
 			}
+		}
+	}
+}
+
+static void Event_TeamplayPointCaptured(Event event, const char[] name, bool dontBroadcast)
+{
+	TFTeam iCapTeam = view_as<TFTeam>(event.GetInt("team"));
+	
+	if (iCapTeam == TFTeam_Blue)
+	{
+		char sCappers[TCP_CAPPERS_MAX_LENGTH]; event.GetString("cappers", sCappers, sizeof(sCappers));
+		int len = strlen(sCappers);
+		
+		for (int i = 0; i < len; i++)
+		{
+			int iPlayerIndex = sCappers[i];
+			
+			if (IsPlayingAsRobot(iPlayerIndex))
+				g_arrRobotPlayerStats[iPlayerIndex].iPointCaptures++;
 		}
 	}
 }

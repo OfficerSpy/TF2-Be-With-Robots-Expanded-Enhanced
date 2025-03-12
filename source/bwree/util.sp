@@ -34,6 +34,9 @@
 //Raw value found in CTFGameRules::GetBonusRoundTime
 #define BONUS_ROUND_TIME_MVM	5
 
+//The char it allocates in CTeamControlPoint::SendCapString
+#define TCP_CAPPERS_MAX_LENGTH	9
+
 #define BWR_FAKE_SPAWN_DURATION_EXTRA	34.0
 
 #if !defined __tf_econ_data_included
@@ -963,7 +966,7 @@ void CalculateMeleeDamageForce(float baseDamage, const float vecMeleeDir[3], flo
 #if defined MOD_EXT_CBASENPC
 bool TeleportNearVictim(int client, int victim, int attempt)
 {
-	if (!IsValidEntity(victim))
+	if (!IsClientInGame(victim))
 		return false;
 	
 	CNavArea lastKnownArea = CBaseCombatCharacter(victim).GetLastKnownArea();
