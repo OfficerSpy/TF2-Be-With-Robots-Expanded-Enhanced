@@ -157,7 +157,7 @@ public char g_sRobotArmModels[][] =
 	"models/mvm/weapons/c_models/c_engineer_bot_arms.mdl"
 };
 
-public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
+static bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 {
 	//CTraceFilterSimple
 	const int collisionGroup = COLLISION_GROUP_PLAYER_MOVEMENT;
@@ -166,6 +166,41 @@ public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 		return false;
 	
 	return TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity));
+}
+
+static bool TraceFilter_TFBot(int entity, int contentsMask, int data)
+{
+	//NextBotTraceFilterIgnoreActors
+#if defined MOD_EXT_CBASENPC
+	if (CBaseEntity(entity).IsCombatCharacter())
+		return false;
+#else
+	if (OSLib_IsBaseCombatCharacter(entity))
+		return false;
+#endif
+	
+	//CTraceFilterIgnoreFriendlyCombatItems
+	int ignoreTeam = data;
+	
+	if (BaseEntity_IsCombatItem(entity))
+	{
+		if (BaseEntity_GetTeamNumber(entity) == ignoreTeam)
+			return false;
+		
+		//m_bCallerIsProjectile is false here
+	}
+	
+	//CTraceFilterSimple as BaseClass of CTraceFilterIgnoreFriendlyCombatItems
+	const int collisionGroup = COLLISION_GROUP_NONE;
+	
+	if (!ShouldCollide(entity, collisionGroup, contentsMask))
+		return false;
+	
+	if (!TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity)))
+		return false;
+	
+	//CTraceFilterChain checks if both filters are true
+	return true;
 }
 
 //int count = UTIL_EntitiesInBox( pList, ARRAYSIZE( pList ), vNestPosition + VEC_HULL_MIN, vNestPosition + VEC_HULL_MAX, FL_CLIENT|FL_OBJECT );
@@ -499,7 +534,7 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 		
 		int item = TF2Util_GetPlayerLoadoutEntity(client, LOADOUT_POSITION_ACTION, false);
 		
-		if (item != -1 && !TF2Util_IsEntityWearable(item))
+		if (item != -1 && TF2Util_IsEntityWeapon(item))
 		{
 			RemovePlayerItem(client, item);
 			RemoveEntity(item);
@@ -928,6 +963,18 @@ bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, i
 	}
 	
 	return false;
+}
+
+//bool CTFBot::IsLineOfFireClear( const Vector &from, const Vector &to ) const
+bool IsLineOfFireClear(int client, const float from[3], const float to[3])
+{
+	//Only passing the player team number here as it is the only piece of data that matters for our filter
+	Handle hTrace = TR_TraceRayFilterEx(from, to, MASK_SOLID_BRUSHONLY, RayType_EndPoint, TraceFilter_TFBot, GetClientTeam(client));
+	bool bResult = !TR_DidHit(hTrace);
+	
+	hTrace.Close();
+	
+	return bResult;
 }
 
 #if defined MOD_EXT_CBASENPC

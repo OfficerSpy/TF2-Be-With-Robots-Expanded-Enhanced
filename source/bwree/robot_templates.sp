@@ -176,7 +176,9 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 				UTIL_ScreenFade(victim, colorHIt, 1.0, 0.1, FFADE_IN);
 			}
 			
-			if (TF2_IsLineOfFireClear4(this.index, victim))
+			float myEyePos[3]; GetClientEyePosition(this.index, myEyePos);
+			
+			if (IsLineOfFireClear(this.index, myEyePos, WorldSpaceCenter(victim)))
 			{
 				NormalizeVector(toVictim, toVictim);
 				

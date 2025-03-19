@@ -1883,7 +1883,7 @@ public Action Command_JoinBlue(int client, int args)
 
 public Action Command_JoinRed(int client, int args)
 {
-	TF2_ChangeClientTeam(client, TFTeam_Red);
+	FakeClientCommand(client, "jointeam red");
 	
 	return Plugin_Handled;
 }
