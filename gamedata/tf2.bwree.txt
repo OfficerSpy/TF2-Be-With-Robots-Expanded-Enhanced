@@ -106,6 +106,13 @@
 				"windows"	"231"
 				"linux"		"269"
 			}
+			"CBaseEntity::ShouldCollide"
+			{
+				"windows"	"17"
+				"windows64"	"17"
+				"linux"		"18"
+				"linux64"	"18"
+			}
 			"CBaseEntity::ShouldTransmit"		
 			{
 				"windows"	"20"

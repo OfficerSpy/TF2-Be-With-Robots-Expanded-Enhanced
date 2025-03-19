@@ -54,6 +54,7 @@ static Handle m_hDropCurrencyPack;
 static Handle m_hDistributeCurrencyAmount;
 static Handle m_hClip1;
 static Handle m_hPickup;
+static Handle m_hShouldCollide;
 
 bool InitSDKCalls(GameData hGamedata)
 {
@@ -180,6 +181,17 @@ bool InitSDKCalls(GameData hGamedata)
 		failCount++;
 	}
 	
+	StartPrepSDKCall(SDKCall_Entity);
+	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CBaseEntity::ShouldCollide");
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	if ((m_hShouldCollide = EndPrepSDKCall()) == null)
+	{
+		LogError("Failed to create SDKCall for CBaseEntity::ShouldCollide!");
+		failCount++;
+	}
+	
 	if (failCount > 0)
 	{
 		LogError("InitSDKCalls: GameData file has %d problems!", failCount);
@@ -252,4 +264,9 @@ int Clip1(int weapon)
 void CTFItemPickup(int item, int pPlayer, bool bInvisible)
 {
 	SDKCall(m_hPickup, item, pPlayer, bInvisible);
+}
+
+bool ShouldCollide(int entity, int collisionGroup, int contentsMask)
+{
+	return SDKCall(m_hShouldCollide, entity, collisionGroup, contentsMask);
 }

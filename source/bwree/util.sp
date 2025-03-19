@@ -159,13 +159,11 @@ public char g_sRobotArmModels[][] =
 
 public bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 {
+	//CTraceFilterSimple
 	const int collisionGroup = COLLISION_GROUP_PLAYER_MOVEMENT;
 	
-	//TODO: replace with a call to CBaseEntity::ShouldCollide like in CTraceFilterSimple::ShouldHitEntity
-	if (BaseEntity_IsPlayer(entity))
-	{
+	if (!ShouldCollide(entity, collisionGroup, contentsMask))
 		return false;
-	}
 	
 	return TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity));
 }
