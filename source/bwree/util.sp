@@ -965,12 +965,12 @@ bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, i
 	return false;
 }
 
-//bool CTFBot::IsLineOfFireClear( const Vector &from, const Vector &to ) const
-bool IsLineOfFireClear(int client, const float from[3], const float to[3])
+//bool CTFBot::IsLineOfFireClear( const Vector &from, CBaseEntity *who ) const
+bool IsLineOfFireClearEntity(int client, const float from[3], int who)
 {
 	//Only passing the player team number here as it is the only piece of data that matters for our filter
-	Handle hTrace = TR_TraceRayFilterEx(from, to, MASK_SOLID_BRUSHONLY, RayType_EndPoint, TraceFilter_TFBot, GetClientTeam(client));
-	bool bResult = !TR_DidHit(hTrace);
+	Handle hTrace = TR_TraceRayFilterEx(from, WorldSpaceCenter(who), MASK_SOLID_BRUSHONLY, RayType_EndPoint, TraceFilter_TFBot, GetClientTeam(client));
+	bool bResult = !TR_DidHit(hTrace) || TR_GetEntityIndex(hTrace) == who;
 	
 	hTrace.Close();
 	
@@ -1474,13 +1474,7 @@ stock int GetLivingClientCountOnTeam(TFTeam team)
 
 stock bool IsEntityATrigger(int entity)
 {
-	//TODO: this isn't a reliable way to check for CBaseTrigger
-	char classname[PLATFORM_MAX_PATH];
-	
-	if (!GetEdictClassname(entity, classname, sizeof(classname)))
-		return false;
-	
-	return StrContains(classname, "trigger_", false) != -1;
+	return HasEntProp(entity, Prop_Data, "m_hTouchingEntities");
 }
 
 //Modified function from Parkour Fortress: Redux

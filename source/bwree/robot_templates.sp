@@ -178,7 +178,7 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 			
 			float myEyePos[3]; GetClientEyePosition(this.index, myEyePos);
 			
-			if (IsLineOfFireClear(this.index, myEyePos, WorldSpaceCenter(victim)))
+			if (IsLineOfFireClearEntity(this.index, myEyePos, victim))
 			{
 				NormalizeVector(toVictim, toVictim);
 				
