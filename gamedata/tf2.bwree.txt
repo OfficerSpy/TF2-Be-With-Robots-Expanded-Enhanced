@@ -98,13 +98,13 @@
 			//These are virtual function offsets
 			"CTFWeaponBase::Clip1"
 			{
-				"windows"	"344"
-				"linux"		"350"
+				"windows"	"345"
+				"linux"		"351"
 			}
 			"CTFItem::PickUp"
 			{
-				"windows"	"231"
-				"linux"		"269"
+				"windows"	"232"
+				"linux"		"270"
 			}
 			"CBaseEntity::ShouldCollide"
 			{
@@ -125,13 +125,13 @@
 			}
 			"CBaseFilter::PassesFilterImpl"
 			{
-				"windows"	"198"
-				"linux"		"199"
+				"windows"	"199"
+				"linux"		"200"
 			}
 			"CTFPlayer::ShouldGib"
 			{
-				"windows"	"296"
-				"linux"		"297"
+				"windows"	"297"
+				"linux"		"298"
 			}
 			"CBaseEntity::AcceptInput"
 			{
@@ -140,13 +140,13 @@
 			}
 			"CBasePlayer::ForceRespawn"
 			{
-				"windows"	"336"
-				"linux"		"337"
+				"windows"	"337"
+				"linux"		"338"
 			}
 			"CBaseObject::CanBeUpgraded" //CanBeUpgraded( CTFPlayer *pPlayer )
 			{
-				"windows"	"382"
-				"linux"		"383"
+				"windows"	"383"
+				"linux"		"384"
 			}
 			//These numbers are used to calculate the actual offset based on the base netprop offset in the Keys section
 			//The calculation formula is base offset + this number
@@ -356,12 +356,15 @@
 					}
 					"Value"
 					{
-						//For windows
-						"type"	"object"
-						"size"	"20"
-						
-						//For linux
-						//"type"	"objectptr"
+						"windows"
+						{
+							"type"	"object"
+							"size"	"20"
+						}
+						"linux"
+						{
+							"type"	"objectptr"
+						}
 					}
 					"outputID"
 					{
