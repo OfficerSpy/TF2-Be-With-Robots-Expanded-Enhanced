@@ -155,10 +155,15 @@
 				"windows"	"4" //build 8622567: 9272
 				"linux"		"4" //build 8622567: 9276
 			}
-			"CPopulationManager::m_canBotsAttackWhileInSpawnRoom"
+			"CTFPlayer::m_bIsMissionEnemy"
 			{
-				"windows"	"645" //build 8622567: 1477
-				"linux"		"645" //build 8622567: 1501
+				"windows"	"8" //build 9050375: 9276
+				"linux"		"8" //build 9050375: 9280
+			}
+			"CTFPlayer::m_bIsSupportEnemy"
+			{
+				"windows"	"9" //build 9115164: 9277
+				"linux"		"9" //build 9115164: 9281
 			}
 			"CTFPlayer::m_accumulatedSentryGunDamageDealt"
 			{
@@ -170,25 +175,20 @@
 				"windows"	"272" //build 8622567: 9540
 				"linux"		"272" //build 8622567: 9544
 			}
-			"CPopulationManager::m_bSpawningPaused"
-			{
-				"windows"	"716" //build 8835751: 1548
-				"linux"		"716" //build 8835751: 1572
-			}
-			"CTFPlayer::m_bIsMissionEnemy"
-			{
-				"windows"	"8" //build 9050375: 9276
-				"linux"		"8" //build 9050375: 9280
-			}
-			"CTFPlayer::m_bIsSupportEnemy"
-			{
-				"windows"	"9" //build 9115164: 9277
-				"linux"		"9" //build 9115164: 9281
-			}
 			"CPopulationManager::m_nMvMEventPopfileType"
 			{
 				"windows"	"636" //build 9290789: 1468
 				"linux"		"636" //build 9290789: 1492
+			}
+			"CPopulationManager::m_canBotsAttackWhileInSpawnRoom"
+			{
+				"windows"	"645" //build 8622567: 1477
+				"linux"		"645" //build 8622567: 1501
+			}
+			"CPopulationManager::m_bSpawningPaused"
+			{
+				"windows"	"716" //build 8835751: 1548
+				"linux"		"716" //build 8835751: 1572
 			}
 			"CBaseObject::m_vecBuildOrigin"
 			{
