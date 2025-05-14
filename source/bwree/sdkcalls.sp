@@ -58,7 +58,7 @@ static Handle m_hShouldCollide;
 
 bool InitSDKCalls(GameData hGamedata)
 {
-	int failCount = 0;
+	int iFailCount = 0;
 	
 	StartPrepSDKCall(SDKCall_Player);
 	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CTFPlayer::PlaySpecificSequence");
@@ -66,7 +66,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hPlaySpecificSequence = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFPlayer::PlaySpecificSequence!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Player);
@@ -76,7 +76,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hDoAnimationEvent = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFPlayer::DoAnimationEvent!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Entity);
@@ -85,7 +85,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hCapture = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CCaptureZone::Capture!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_GameRules);
@@ -97,7 +97,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hPlayThrottledAlert = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTeamplayRoundBasedRules::PlayThrottledAlert!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Player);
@@ -105,7 +105,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hPostInventoryApplication = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFPlayer::PostInventoryApplication!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Entity);
@@ -115,7 +115,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hGetSentryBusterDamageAndKillThreshold = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed To create SDKCall for CPopulationManager::GetSentryBusterDamageAndKillThreshold!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Player);
@@ -124,7 +124,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hRemoveObject = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed To create SDKCall for CTFPlayer::RemoveObject!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Entity);
@@ -133,7 +133,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hGetCurrentWave = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed To create SDKCall for CPopulationManager::GetCurrentWave!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Player);
@@ -145,7 +145,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hDropCurrencyPack = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFPlayer::DropCurrencyPack!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_GameRules);
@@ -159,7 +159,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hDistributeCurrencyAmount = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFGameRules::DistributeCurrencyAmount!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Entity);
@@ -168,7 +168,7 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hClip1 = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFWeaponBase::Clip1!");
-		failCount++;
+		iFailCount++;
 	}
 	
 	StartPrepSDKCall(SDKCall_Entity);
@@ -178,23 +178,28 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hPickup = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFItem::PickUp!");
-		failCount++;
+		iFailCount++;
 	}
 	
+	const char sTempConfFileName[] = "sdkhooks.games/engine.ep2v";
+	GameData hTempConf = new GameData(sTempConfFileName);
+	
 	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CBaseEntity::ShouldCollide");
+	PrepSDKCall_SetFromConf(hTempConf, SDKConf_Virtual, "ShouldCollide");
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_Plain);
 	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
 	if ((m_hShouldCollide = EndPrepSDKCall()) == null)
 	{
-		LogError("Failed to create SDKCall for CBaseEntity::ShouldCollide!");
-		failCount++;
+		LogError("Failed to create SDKCall for CBaseEntity::ShouldCollide from file %s.txt", sTempConfFileName);
+		iFailCount++;
 	}
 	
-	if (failCount > 0)
+	hTempConf.Close();
+	
+	if (iFailCount > 0)
 	{
-		LogError("InitSDKCalls: GameData file has %d problems!", failCount);
+		LogError("InitSDKCalls: GameData file has %d problems!", iFailCount);
 		return false;
 	}
 	

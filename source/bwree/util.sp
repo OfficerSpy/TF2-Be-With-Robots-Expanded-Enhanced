@@ -15,6 +15,7 @@
 #include <stocklib_officerspy/baseserver>
 #include <stocklib_officerspy/tf/tf_weaponbase>
 #include <stocklib_officerspy/tf/entity_capture_flag>
+#include <stocklib_officerspy/shared/util_shared>
 
 //CTFBotDeliverFlag
 #define DONT_UPGRADE	-1
@@ -160,15 +161,23 @@ public char g_sRobotArmModels[][] =
 static bool TraceFilter_RobotSpawn(int entity, int contentsMask)
 {
 	//CTraceFilterSimple
+	if (!StandardFilterRules(entity, contentsMask))
+		return false;
+	
+	//m_pPassEnt is NULL here
+	
 	const int collisionGroup = COLLISION_GROUP_PLAYER_MOVEMENT;
 	
 	if (!ShouldCollide(entity, collisionGroup, contentsMask))
 		return false;
 	
-	return TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity));
+	if (!TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity)))
+		return false;
+	
+	return true;
 }
 
-static bool TraceFilter_TFBot(int entity, int contentsMask, int data)
+static bool TraceFilter_TFBot(int entity, int contentsMask, StringMap data)
 {
 	//NextBotTraceFilterIgnoreActors
 #if defined MOD_EXT_CBASENPC
@@ -180,23 +189,37 @@ static bool TraceFilter_TFBot(int entity, int contentsMask, int data)
 #endif
 	
 	//CTraceFilterIgnoreFriendlyCombatItems
-	int ignoreTeam = data;
+	int iPassEnt = -1;
+	data.GetValue("m_pPassEnt", iPassEnt);
+	
+	int iCollisionGroup;
+	data.GetValue("m_collisionGroup", iCollisionGroup);
+	
+	int iIgnoreTeam;
+	data.GetValue("m_iIgnoreTeam", iIgnoreTeam);
 	
 	if (BaseEntity_IsCombatItem(entity))
 	{
-		if (BaseEntity_GetTeamNumber(entity) == ignoreTeam)
+		if (BaseEntity_GetTeamNumber(entity) == iIgnoreTeam)
 			return false;
 		
 		//m_bCallerIsProjectile is false here
 	}
 	
 	//CTraceFilterSimple as BaseClass of CTraceFilterIgnoreFriendlyCombatItems
-	const int collisionGroup = COLLISION_GROUP_NONE;
-	
-	if (!ShouldCollide(entity, collisionGroup, contentsMask))
+	if (!StandardFilterRules(entity, contentsMask))
 		return false;
 	
-	if (!TFGameRules_ShouldCollide(collisionGroup, BaseEntity_GetCollisionGroup(entity)))
+	if (iPassEnt != -1)
+	{
+		if (!PassServerEntityFilter(entity, iPassEnt))
+			return false;
+	}
+	
+	if (!ShouldCollide(entity, iCollisionGroup, contentsMask))
+		return false;
+	
+	if (!TFGameRules_ShouldCollide(iCollisionGroup, BaseEntity_GetCollisionGroup(entity)))
 		return false;
 	
 	//CTraceFilterChain checks if both filters are true
@@ -254,9 +277,7 @@ int GetClosestCaptureZone(int client)
 
 void AddEffects(int entity, int nEffects)
 {
-	int flags = GetEntProp(entity, Prop_Send, "m_fEffects");
-	flags |= nEffects;
-	SetEntProp(entity, Prop_Send, "m_fEffects", flags);
+	SetEntProp(entity, Prop_Send, "m_fEffects", GetEntProp(entity, Prop_Send, "m_fEffects") | nEffects);
 	
 #if defined MOD_EXT_CBASENPC
 	if (nEffects & EF_NODRAW)
@@ -373,17 +394,9 @@ bool IsSpaceToSpawnHere(const float where[3], float playerScale = 1.0)
 	float bloatMax[3] = {bloat, bloat, bloat};
 	AddVectors(scaledVecHullMax, bloatMax, maxs);
 	
-	Handle trace = TR_TraceHullFilterEx(where, where, mins, maxs, MASK_SOLID | CONTENTS_PLAYERCLIP, TraceFilter_RobotSpawn);
+	TR_TraceHullFilter(where, where, mins, maxs, MASK_SOLID | CONTENTS_PLAYERCLIP, TraceFilter_RobotSpawn);
 	
-	if (TR_GetFraction(trace) >= 1.0)
-	{
-		delete trace;
-		return true;
-	}
-	
-	delete trace;
-	
-	return false;
+	return TR_GetFraction() >= 1.0;
 }
 
 bool IsTFBotPlayer(int client)
@@ -403,9 +416,18 @@ int EconItemCreateNoSpawn(char[] classname, int itemDefIndex, int level, int qua
 		SetEntProp(item, Prop_Send, "m_bInitialized", 1);
 		
 		//SetEntProp doesn't work here...
-		char serverClassname[64]; GetEntityNetClass(item, serverClassname, sizeof(serverClassname));
-		SetEntData(item, FindSendPropInfo(serverClassname, "m_iEntityQuality"), quality);
-		SetEntData(item, FindSendPropInfo(serverClassname, "m_iEntityLevel"), level);
+		static int iOffsetEntityQuality = -1;
+		
+		if (iOffsetEntityQuality == -1)
+			iOffsetEntityQuality = FindSendPropInfo("CEconEntity", "m_iEntityQuality");
+		
+		static int iOffsetEntityLevel = -1;
+		
+		if (iOffsetEntityLevel == -1)
+			iOffsetEntityLevel = FindSendPropInfo("CEconEntity", "m_iEntityLevel");
+		
+		SetEntData(item, iOffsetEntityQuality, quality);
+		SetEntData(item, iOffsetEntityLevel, level);
 		
 		if (StrEqual(classname, "tf_weapon_builder", false))
 		{
@@ -490,18 +512,13 @@ void StripWeapons(int client, bool bWearables = true, int upperLimit = TFWeaponS
 {
 	if (bWearables)
 	{
-		static int iMaxEntCount = -1;
-		
-		if (iMaxEntCount == -1)
-			iMaxEntCount = GetMaxEntities();
-		
-		char classname[PLATFORM_MAX_PATH];
-		
-		for (int i = MaxClients + 1; i <= iMaxEntCount; i++)
+		for (int i = MaxClients + 1; i <= g_iMaxEdicts; i++)
 		{
-			if (IsValidEntity(i))
+			if (IsValidEdict(i))
 			{
-				if (GetEntityClassname(i, classname, sizeof(classname)))
+				char classname[PLATFORM_MAX_PATH];
+				
+				if (GetEdictClassname(i, classname, sizeof(classname)))
 				{
 					if (StrContains(classname, "tf_wearable", false) != -1)
 					{
@@ -656,18 +673,13 @@ void TeleportEffect(int client)
 
 void RemoveEquippedWearables(int client, int iFilterFlags)
 {
-	static int iMaxEntCount = -1;
-	
-	if (iMaxEntCount == -1)
-		iMaxEntCount = GetMaxEntities();
-	
-	for (int i = MaxClients + 1; i <= iMaxEntCount; i++)
+	for (int i = MaxClients + 1; i <= g_iMaxEdicts; i++)
 	{
-		if (IsValidEntity(i))
+		if (IsValidEdict(i))
 		{
 			char classname[PLATFORM_MAX_PATH];
 			
-			if (GetEntityClassname(i, classname, sizeof(classname)))
+			if (GetEdictClassname(i, classname, sizeof(classname)))
 			{
 				if (iFilterFlags & FLAG_REW_COSMETIC && StrEqual(classname, "tf_wearable", false))
 				{
@@ -928,6 +940,7 @@ void SetForcedTauntCam(int client, int value)
 		SetEntityModel(vm, modelName);
 } */
 
+//Practically just a copy of IsSpaceToSpawnHere except is draws a client-side box to a player if specified
 bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, int iDebugClient = -1)
 {
 	float scaledVecHullMin[3]; scaledVecHullMin = TF_VEC_HULL_MIN;
@@ -946,15 +959,12 @@ bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, i
 	float bloatMax[3] = {bloat, bloat, bloat};
 	AddVectors(scaledVecHullMax, bloatMax, maxs);
 	
-	Handle trace = TR_TraceHullFilterEx(where, where, mins, maxs, MASK_SOLID | CONTENTS_PLAYERCLIP, TraceFilter_RobotSpawn);
+	TR_TraceHullFilter(where, where, mins, maxs, MASK_SOLID | CONTENTS_PLAYERCLIP, TraceFilter_RobotSpawn);
 	
-	if (TR_GetFraction(trace) >= 1.0)
+	if (TR_GetFraction() >= 1.0)
 	{
-		CloseHandle(trace);
 		return true;
 	}
-	
-	CloseHandle(trace);
 	
 	if (iDebugClient > 0)
 	{
@@ -968,13 +978,15 @@ bool IsSpaceToSpawnOnTeleporter(const float where[3], float playerScale = 1.0, i
 //bool CTFBot::IsLineOfFireClear( const Vector &from, CBaseEntity *who ) const
 bool IsLineOfFireClearEntity(int client, const float from[3], int who)
 {
-	//Only passing the player team number here as it is the only piece of data that matters for our filter
-	Handle hTrace = TR_TraceRayFilterEx(from, WorldSpaceCenter(who), MASK_SOLID_BRUSHONLY, RayType_EndPoint, TraceFilter_TFBot, GetClientTeam(client));
-	bool bResult = !TR_DidHit(hTrace) || TR_GetEntityIndex(hTrace) == who;
+	StringMap adtProperties = new StringMap();
+	adtProperties.SetValue("m_pPassEnt", client);
+	adtProperties.SetValue("m_collisionGroup", COLLISION_GROUP_NONE);
+	adtProperties.SetValue("m_iIgnoreTeam", GetClientTeam(client));
 	
-	hTrace.Close();
+	TR_TraceRayFilter(from, WorldSpaceCenter(who), MASK_SOLID_BRUSHONLY, RayType_EndPoint, TraceFilter_TFBot, adtProperties);
+	adtProperties.Close();
 	
-	return bResult;
+	return !TR_DidHit() || TR_GetEntityIndex() == who;
 }
 
 #if defined MOD_EXT_CBASENPC

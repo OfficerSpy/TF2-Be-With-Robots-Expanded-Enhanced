@@ -181,6 +181,7 @@ enum eRobotSpawnType
 
 bool g_bLateLoad;
 
+int g_iMaxEdicts;
 bool g_bCanBotsAttackInSpawn;
 Handle g_hHudText;
 float g_flTimeRoundStarted;
@@ -839,7 +840,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.4",
+	version = "1.3.5",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -990,6 +991,8 @@ public void OnPluginStart()
 				OnEntityCreated(i, classname);
 		}
 	}
+	
+	FindGameConsoleVariables();
 }
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
@@ -1001,6 +1004,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 
 public void OnMapStart()
 {
+	g_iMaxEdicts = GetMaxEntities();
 	g_bCanBotsAttackInSpawn = false;
 	m_adtBWRCooldown.Clear();
 	
@@ -1061,34 +1065,6 @@ public void OnClientDisconnect(int client)
 public void OnConfigsExecuted()
 {
 	PrepareCustomViewModelAssets(bwr3_robot_custom_viewmodels.IntValue);
-	
-	tf_mvm_defenders_team_size = FindConVar("tf_mvm_defenders_team_size");
-	nb_update_frequency = FindConVar("nb_update_frequency");
-	tf_deploying_bomb_delay_time = FindConVar("tf_deploying_bomb_delay_time");
-	tf_deploying_bomb_time = FindConVar("tf_deploying_bomb_time");
-	tf_mvm_bot_allow_flag_carrier_to_fight = FindConVar("tf_mvm_bot_allow_flag_carrier_to_fight");
-	tf_mvm_bot_flag_carrier_interval_to_1st_upgrade = FindConVar("tf_mvm_bot_flag_carrier_interval_to_1st_upgrade");
-	tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade = FindConVar("tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade");
-	tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade = FindConVar("tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade");
-	tf_mvm_bot_flag_carrier_health_regen = FindConVar("tf_mvm_bot_flag_carrier_health_regen");
-	tf_bot_always_full_reload = FindConVar("tf_bot_always_full_reload");
-	tf_bot_fire_weapon_allowed = FindConVar("tf_bot_fire_weapon_allowed");
-	tf_mvm_miniboss_scale = FindConVar("tf_mvm_miniboss_scale");
-	tf_mvm_engineer_teleporter_uber_duration = FindConVar("tf_mvm_engineer_teleporter_uber_duration");
-	tf_bot_suicide_bomb_range = FindConVar("tf_bot_suicide_bomb_range");
-	tf_bot_engineer_building_health_multiplier = FindConVar("tf_bot_engineer_building_health_multiplier");
-	phys_pushscale = FindConVar("phys_pushscale");
-	tf_bot_engineer_mvm_sentry_hint_bomb_backward_range = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_backward_range");
-	tf_bot_engineer_mvm_sentry_hint_bomb_forward_range = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_forward_range");
-	tf_bot_engineer_mvm_hint_min_distance_from_bomb = FindConVar("tf_bot_engineer_mvm_hint_min_distance_from_bomb");
-	
-#if !defined SPY_DISGUISE_VISION_OVERRIDE
-	tf_bot_suspect_spy_touch_interval = FindConVar("tf_bot_suspect_spy_touch_interval");
-#endif
-	
-#if defined MOD_EXT_CBASENPC
-	tf_bot_suicide_bomb_friendly_fire = FindConVar("tf_bot_suicide_bomb_friendly_fire");
-#endif
 	
 	// HookConVarChange(tf_mvm_miniboss_scale, ConVarChanged_MinibossScale);
 	
@@ -1570,7 +1546,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			if (roboPlayer.TalkTimer_IsElapsed())
 			{
 				roboPlayer.TalkTimer_Start(GetRandomFloat(5.0, 10.0));
-				EmitGameSoundToAll("Spy.TeaseVictim", client);
+				EmitGameSoundToAll("Spy.MVM_TeaseVictim", client);
 			}
 		}
 	}
@@ -2772,6 +2748,37 @@ public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 			}
 		}
 	}
+}
+
+void FindGameConsoleVariables()
+{
+	tf_mvm_defenders_team_size = FindConVar("tf_mvm_defenders_team_size");
+	nb_update_frequency = FindConVar("nb_update_frequency");
+	tf_deploying_bomb_delay_time = FindConVar("tf_deploying_bomb_delay_time");
+	tf_deploying_bomb_time = FindConVar("tf_deploying_bomb_time");
+	tf_mvm_bot_allow_flag_carrier_to_fight = FindConVar("tf_mvm_bot_allow_flag_carrier_to_fight");
+	tf_mvm_bot_flag_carrier_interval_to_1st_upgrade = FindConVar("tf_mvm_bot_flag_carrier_interval_to_1st_upgrade");
+	tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade = FindConVar("tf_mvm_bot_flag_carrier_interval_to_2nd_upgrade");
+	tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade = FindConVar("tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade");
+	tf_mvm_bot_flag_carrier_health_regen = FindConVar("tf_mvm_bot_flag_carrier_health_regen");
+	tf_bot_always_full_reload = FindConVar("tf_bot_always_full_reload");
+	tf_bot_fire_weapon_allowed = FindConVar("tf_bot_fire_weapon_allowed");
+	tf_mvm_miniboss_scale = FindConVar("tf_mvm_miniboss_scale");
+	tf_mvm_engineer_teleporter_uber_duration = FindConVar("tf_mvm_engineer_teleporter_uber_duration");
+	tf_bot_suicide_bomb_range = FindConVar("tf_bot_suicide_bomb_range");
+	tf_bot_engineer_building_health_multiplier = FindConVar("tf_bot_engineer_building_health_multiplier");
+	phys_pushscale = FindConVar("phys_pushscale");
+	tf_bot_engineer_mvm_sentry_hint_bomb_backward_range = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_backward_range");
+	tf_bot_engineer_mvm_sentry_hint_bomb_forward_range = FindConVar("tf_bot_engineer_mvm_sentry_hint_bomb_forward_range");
+	tf_bot_engineer_mvm_hint_min_distance_from_bomb = FindConVar("tf_bot_engineer_mvm_hint_min_distance_from_bomb");
+	
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+	tf_bot_suspect_spy_touch_interval = FindConVar("tf_bot_suspect_spy_touch_interval");
+#endif
+	
+#if defined MOD_EXT_CBASENPC
+	tf_bot_suicide_bomb_friendly_fire = FindConVar("tf_bot_suicide_bomb_friendly_fire");
+#endif
 }
 
 bool HandleAutoTeam(int client)
