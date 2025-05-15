@@ -49,7 +49,6 @@ Author: ★ Officer Spy ★
 // #define ALLOW_BUILDING_BETWEEN_ROUNDS
 #define REMOVE_DEBUFF_COND_BY_ROBOTS
 #define NO_AIRBLAST_BETWEEN_ROUNDS
-#define SUICIDE_DISTRIBUTE_CURRENCY
 // #define MANUAL_DEATH_WAVEBAR_EDIT
 #define CORRECT_VISIBLE_RESPAWN_TIME
 #define NO_UPGRADE_TELEPORTER
@@ -137,6 +136,16 @@ enum struct esPlayerStats
 	int iDamage;
 	int iHealing;
 	int iPointCaptures;
+	
+	void Reset()
+	{
+		this.iKills = 0;
+		this.iDeaths = 0;
+		this.iFlagCaptures = 0;
+		this.iDamage = 0;
+		this.iHealing = 0;
+		this.iPointCaptures = 0;
+	}
 }
 
 enum struct esCSProperties
@@ -151,6 +160,20 @@ enum struct esCSProperties
 	float flDmgForSecMult;
 	int iHealingForSec;
 	float flHealingForSecMult;
+	
+	void ResetToDefault()
+	{
+		this.flDefaultDuration = 60.0;
+		this.flFastCapWatchMaxSeconds = 120.0;
+		this.flFastCapMaxMinutes = 10.0;
+		this.flKDSecMultiplicand = 60.0;
+		this.flSecPerKill = 66.0;
+		this.flSecPerCapFlag = 60.0;
+		this.iDmgForSec = 750;
+		this.flDmgForSecMult = 1.0;
+		this.iHealingForSec = 600;
+		this.flHealingForSecMult = 1.0;
+	}
 }
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
@@ -1021,7 +1044,7 @@ public void OnMapStart()
 
 public void OnClientPutInServer(int client)
 {
-	ResetRobotPlayerGameStats(client);
+	g_arrRobotPlayerStats[client].Reset();
 	
 	g_iForcedButtonInput[client] = 0;
 	g_bRobotSpawning[client] = false;
@@ -1859,7 +1882,34 @@ public Action Command_JoinBlue(int client, int args)
 
 public Action Command_JoinRed(int client, int args)
 {
-	FakeClientCommand(client, "jointeam red");
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
+	//Get how many slots defender team has left
+	//Not counting live match players as they should never matter for community servers
+	int iDefenderTeamSize = tf_mvm_defenders_team_size.IntValue;
+	int iSlotsLeft = iDefenderTeamSize - GetTeamClientCount(TFTeam_Red);
+	bool bTeamFull = iSlotsLeft < 1;
+	
+	if (bTeamFull)
+	{
+		//Increase the defender limit until there is room to fit one more player
+		while (iSlotsLeft < 1)
+		{
+			iSlotsLeft++;
+			tf_mvm_defenders_team_size.IntValue++;
+		}
+	}
+	
+	//Go through CTFGameRules::GetTeamAssignmentOverride with modified limit
+	TF2_ChangeClientTeam(client, TFTeam_Red);
+	ShowVGUIPanel(client, PANEL_CLASS_RED);
+	
+	if (bTeamFull)
+	{
+		//Restore the old defender limit
+		tf_mvm_defenders_team_size.IntValue = iDefenderTeamSize;
+	}
 	
 	return Plugin_Handled;
 }
@@ -3027,16 +3077,6 @@ bool IsClassIconUsedInCurrentWave(const char[] iconName)
 	return false;
 }
 
-void ResetRobotPlayerGameStats(int client)
-{
-	g_arrRobotPlayerStats[client].iKills = 0;
-	g_arrRobotPlayerStats[client].iDeaths = 0;
-	g_arrRobotPlayerStats[client].iFlagCaptures = 0;
-	g_arrRobotPlayerStats[client].iDamage = 0;
-	g_arrRobotPlayerStats[client].iHealing = 0;
-	g_arrRobotPlayerStats[client].iPointCaptures = 0;
-}
-
 float GetBWRCooldownTimeLeft(int client)
 {
 	//Nobody has a cooldown
@@ -3323,7 +3363,7 @@ void SetRobotPlayer(int client, bool enabled)
 	}
 	else
 	{
-		ResetRobotPlayerGameStats(client);
+		g_arrRobotPlayerStats[client].Reset();
 		
 		g_bRobotSpawning[client] = false;
 		g_bSpawningAsBossRobot[client] = false;
@@ -4049,16 +4089,7 @@ bool IsPlayerNoticedByRobot(int client, int subject)
 void MainConfig_UpdateSettings()
 {
 	//Reset data
-	g_arrCooldownSystem.flDefaultDuration = 60.0;
-	g_arrCooldownSystem.flFastCapWatchMaxSeconds = 120.0;
-	g_arrCooldownSystem.flFastCapMaxMinutes = 10.0;
-	g_arrCooldownSystem.flKDSecMultiplicand = 60.0;
-	g_arrCooldownSystem.flSecPerKill = 66.0;
-	g_arrCooldownSystem.flSecPerCapFlag = 60.0;
-	g_arrCooldownSystem.iDmgForSec = 750;
-	g_arrCooldownSystem.flDmgForSecMult = 1.0;
-	g_arrCooldownSystem.iHealingForSec = 600;
-	g_arrCooldownSystem.flHealingForSecMult = 1.0;
+	g_arrCooldownSystem.ResetToDefault();
 	
 	char sFilePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, sFilePath, sizeof(sFilePath), "%s/general.cfg", PLUGIN_CONFIG_DIRECTORY);
 	KeyValues kv = new KeyValues("MainConfig");

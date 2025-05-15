@@ -273,28 +273,31 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 							int attacker = info.GetAttacker();
 							int inflictor = info.GetInflictor();
 							
-							if (attacker == pThis)
-							{
-								bDropPack = false;
-								
-#if defined SUICIDE_DISTRIBUTE_CURRENCY
-								DistributeCurrencyAmount(dropAmount, _, _, true);
-#endif
-							}
-							else if (inflictor > 0 && IsEntityATrigger(inflictor))
+							if (inflictor > 0 && IsEntityATrigger(inflictor))
 							{
 								bDropPack = false;
 								DistributeCurrencyAmount(dropAmount, -1, true, true);
 							}
 							else if (attacker > 0 && BaseEntity_IsPlayer(attacker) && TF2_GetPlayerClass(attacker) == TFClass_Sniper)
 							{
+								int nDamageCustom = info.GetDamageCustom();
 								int killerWeapon = info.GetWeapon();
 								
-								if (info.GetDamageCustom() == TF_CUSTOM_BLEEDING || (killerWeapon > 0 && WeaponID_IsSniperRifleOrBow(TF2Util_GetWeaponID(killerWeapon))))
+								if (nDamageCustom == TF_CUSTOM_BLEEDING || (killerWeapon > 0 && WeaponID_IsSniperRifleOrBow(TF2Util_GetWeaponID(killerWeapon))))
 								{
 									moneyMaker = attacker;
 									
-									//TODO: achievement shit
+									if (TF2_IsHeadshot(nDamageCustom) || (BaseCombatCharacter_LastHitGroup(pThis) == HITGROUP_HEAD && killerWeapon > 0 && GetJarateTime(killerWeapon)))
+									{
+										Event hEvent = CreateEvent("mvm_sniper_headshot_currency");
+										
+										if (hEvent)
+										{
+											hEvent.SetInt("userid", GetClientUserId(attacker));
+											hEvent.SetInt("currency", dropAmount);
+											hEvent.Fire();
+										}
+									}
 								}
 							}
 						}

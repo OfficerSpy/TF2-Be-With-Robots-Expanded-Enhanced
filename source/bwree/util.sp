@@ -989,6 +989,41 @@ bool IsLineOfFireClearEntity(int client, const float from[3], int who)
 	return !TR_DidHit() || TR_GetEntityIndex() == who;
 }
 
+//CTFWeaponBase::GetJarateTime
+float GetJarateTime(int weapon)
+{
+	switch (TF2Util_GetWeaponID(weapon))
+	{
+		case TF_WEAPON_SNIPERRIFLE, TF_WEAPON_SNIPERRIFLE_DECAP, TF_WEAPON_SNIPERRIFLE_CLASSIC:
+		{
+			//CTFSniperRifle
+			if (GetEntPropFloat(weapon, Prop_Send, "m_flChargedDamage") > 0.0)
+				return GetJarateTimeInternal(weapon);
+			else
+				return 0.0;
+		}
+	}
+	
+	return 0.0;
+}
+
+//CTFSniperRifle::GetJarateTimeInternal
+float GetJarateTimeInternal(int weapon)
+{
+	float flMaxJarateTime = TF2Attrib_HookValueFloat(0.0, "jarate_duration", weapon);
+	
+	if (flMaxJarateTime > 0)
+	{
+		const float flMinJarateTime = 2.0;
+		
+		//TODO: replace the raw number values with defines
+		float flDuration = RemapValClamped(GetEntPropFloat(weapon, Prop_Send, "m_flChargedDamage"), 50.0, 150.0, flMinJarateTime, flMaxJarateTime);
+		return flDuration;
+	}
+	
+	return 0.0;
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {

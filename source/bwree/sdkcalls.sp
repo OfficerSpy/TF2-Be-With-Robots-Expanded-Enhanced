@@ -181,7 +181,7 @@ bool InitSDKCalls(GameData hGamedata)
 		iFailCount++;
 	}
 	
-	const char sTempConfFileName[] = "sdkhooks.games/engine.ep2v";
+	char sTempConfFileName[] = "sdkhooks.games/engine.ep2v";
 	GameData hTempConf = new GameData(sTempConfFileName);
 	
 	StartPrepSDKCall(SDKCall_Entity);

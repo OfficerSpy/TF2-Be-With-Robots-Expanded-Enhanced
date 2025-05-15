@@ -1191,6 +1191,7 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 						
 						//The style may have changed, tell the game to update its model
 						VS_ReapplyProvision(item);
+						BaseEntity_TerminateScriptScope(item);
 					}
 				}
 			} while (kv.GotoNextKey(false))

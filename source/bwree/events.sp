@@ -394,7 +394,7 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 	{
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
 		{
-			ResetRobotPlayerGameStats(i);
+			g_arrRobotPlayerStats[i].Reset();
 			ResetRobotPlayerName(i);
 			ResetPlayerProperties(i);
 			
@@ -428,14 +428,14 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	
 	if (IsPlayingAsRobot(client))
 	{
+#if !defined SPY_DISGUISE_VISION_OVERRIDE
+		MvMRobotPlayer(client).ClearTrackedSpyData();
+#endif
+		
 		/* switch (bwr3_robot_custom_viewmodels.IntValue)
 		{
 			case 1:	SetPlayerViewModel(client, g_sRobotArmModels[TF2_GetPlayerClass(client)]);
 		} */
-		
-#if !defined SPY_DISGUISE_VISION_OVERRIDE
-		MvMRobotPlayer(client).ClearTrackedSpyData();
-#endif
 	}
 	
 #if defined TELEPORTER_METHOD_MANUAL
