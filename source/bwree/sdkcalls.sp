@@ -163,11 +163,11 @@ bool InitSDKCalls(GameData hGamedata)
 	}
 	
 	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CTFWeaponBase::Clip1");
+	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Virtual, "CBaseCombatWeapon::Clip1");
 	PrepSDKCall_SetReturnInfo(SDKType_PlainOldData, SDKPass_Plain);
 	if ((m_hClip1 = EndPrepSDKCall()) == null)
 	{
-		LogError("Failed to create SDKCall for CTFWeaponBase::Clip1!");
+		LogError("Failed to create SDKCall for CBaseCombatWeapon::Clip1!");
 		iFailCount++;
 	}
 	
@@ -199,7 +199,7 @@ bool InitSDKCalls(GameData hGamedata)
 	
 	if (iFailCount > 0)
 	{
-		LogError("InitSDKCalls: GameData file has %d problems!", iFailCount);
+		LogError("InitSDKCalls: GameData file has %d problem(s)!", iFailCount);
 		return false;
 	}
 	

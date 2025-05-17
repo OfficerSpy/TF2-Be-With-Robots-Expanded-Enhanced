@@ -1894,11 +1894,15 @@ public Action Command_JoinRed(int client, int args)
 	if (bTeamFull)
 	{
 		//Increase the defender limit until there is room to fit one more player
+		int numNewSlots = 0;
+		
 		while (iSlotsLeft < 1)
 		{
 			iSlotsLeft++;
-			tf_mvm_defenders_team_size.IntValue++;
+			numNewSlots++;
 		}
+		
+		tf_mvm_defenders_team_size.IntValue = iDefenderTeamSize + numNewSlots;
 	}
 	
 	//Go through CTFGameRules::GetTeamAssignmentOverride with modified limit

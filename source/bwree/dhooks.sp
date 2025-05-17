@@ -11,46 +11,46 @@ static DynamicHook m_hCanBeUpgraded;
 
 bool InitDHooks(GameData hGamedata)
 {
-	int failCount = 0;
+	int iFailCount = 0;
 	
 	if (!RegisterDetour(hGamedata, "CTFBot::GetEventChangeAttributes", DHookCallback_GetEventChangeAttributes_Pre, DHookCallback_GetEventChangeAttributes_Post))
-		failCount++;
+		iFailCount++;
 	
 	if (!RegisterDetour(hGamedata, "CBaseObject::FindSnapToBuildPos", DHookCallback_FindSnapToBuildPos_Pre, DHookCallback_FindSnapToBuildPos_Post))
-		failCount++;
+		iFailCount++;
 	
 	if (!RegisterDetour(hGamedata, "CTFPlayer::CanBuild", DHookCallback_CanBuild_Pre, DHookCallback_CanBuild_Post))
-		failCount++;
+		iFailCount++;
 	
 	if (!RegisterDetour(hGamedata, "CTFPlayer::CanBeForcedToLaugh", DHookCallback_CanBeForcedToLaugh_Pre))
-		failCount++;
+		iFailCount++;
 	
 	if (!RegisterHook(hGamedata, m_hShouldTransmit, "CBaseEntity::ShouldTransmit"))
-		failCount++;
+		iFailCount++;
 	
 	if (!RegisterHook(hGamedata, m_hEventKilled, "CBaseEntity::Event_Killed"))
-		failCount++;
+		iFailCount++;
 	
 	if (!RegisterHook(hGamedata, m_hPassesFilterImp1, "CBaseFilter::PassesFilterImpl"))
-		failCount++;
+		iFailCount++;
 	
-	if (!RegisterHook(hGamedata, m_hShouldGib, "CTFPlayer::ShouldGib"))
-		failCount++;
+	if (!RegisterHook(hGamedata, m_hShouldGib, "CBaseCombatCharacter::ShouldGib"))
+		iFailCount++;
 	
 	if (!RegisterHook(hGamedata, m_hAcceptInput, "CBaseEntity::AcceptInput"))
-		failCount++;
+		iFailCount++;
 	
 	if (!RegisterHook(hGamedata, m_hForceRespawn, "CBasePlayer::ForceRespawn"))
-		failCount++;
+		iFailCount++;
 	
 #if defined NO_UPGRADE_TELEPORTER
 	if (!RegisterHook(hGamedata, m_hCanBeUpgraded, "CBaseObject::CanBeUpgraded"))
-		failCount++;
+		iFailCount++;
 #endif
 	
-	if (failCount > 0)
+	if (iFailCount > 0)
 	{
-		LogError("InitDHooks: found %d problems with gamedata!", failCount);
+		LogError("InitDHooks: found %d problem(s) with gamedata!", iFailCount);
 		return false;
 	}
 	

@@ -74,7 +74,7 @@
 			}
 			"CTFBot::GetEventChangeAttributes"
 			{
-				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x30\x29\x00\x00"
+				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x2A\x2A\x2A\x2A\x7E\x2A\x8B\x5D\x2A\xEB"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
 			"CBaseObject::FindSnapToBuildPos"
@@ -96,7 +96,7 @@
 		"Offsets"
 		{
 			//These are virtual function offsets
-			"CTFWeaponBase::Clip1"
+			"CBaseCombatWeapon::Clip1"
 			{
 				"windows"	"345"
 				"linux"		"351"
@@ -128,7 +128,7 @@
 				"windows"	"199"
 				"linux"		"200"
 			}
-			"CTFPlayer::ShouldGib"
+			"CBaseCombatCharacter::ShouldGib"
 			{
 				"windows"	"297"
 				"linux"		"298"
@@ -319,9 +319,9 @@
 					}
 				}
 			}
-			"CTFPlayer::ShouldGib"
+			"CBaseCombatCharacter::ShouldGib"
 			{
-				"offset"	"CTFPlayer::ShouldGib"
+				"offset"	"CBaseCombatCharacter::ShouldGib"
 				"hooktype"	"entity"
 				"return"	"bool"
 				"this"		"entity"
