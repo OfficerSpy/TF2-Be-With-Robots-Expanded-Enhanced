@@ -38,6 +38,9 @@
 //The char it allocates in CTeamControlPoint::SendCapString
 #define TCP_CAPPERS_MAX_LENGTH	9
 
+//ConVar cl_sidespeed
+#define PLAYER_SIDESPEED	450.0
+
 #define BWR_FAKE_SPAWN_DURATION_EXTRA	34.0
 
 #if !defined __tf_econ_data_included
@@ -601,11 +604,11 @@ void PressAltFireButton(int client)
 {
 	if (TF2_IsControlStunned(client) || TF2_IsLoserStateStunned(client) || MvMRobotPlayer(client).HasAttribute(CTFBot_SUPPRESS_FIRE))
 	{
-		//TODO: ReleaseAltFireButton?
+		g_arrExtraButtons[client].ReleaseButtons(IN_ATTACK2);
 		return;
 	}
 	
-	g_iForcedButtonInput[client] = IN_ATTACK2;
+	g_arrExtraButtons[client].PressButtons(IN_ATTACK2);
 }
 
 //Based on DoTeleporterOverride
@@ -1208,6 +1211,53 @@ bool CTFNavArea_IsValidForWanderingPopulation(CTFNavArea area)
 {
 	return !area.HasAttributeTF(BLOCKED | RED_SPAWN_ROOM | BLUE_SPAWN_ROOM | NO_SPAWNING | RESCUE_CLOSET);
 }
+
+NavDirType CNavArea_ComputeDirection(CNavArea area, const float vPoint[3])
+{
+	float vExtentLo[3], vExtentHi[3];
+	area.GetExtent(vExtentLo, vExtentHi);
+	
+	if (vPoint[0] >= vExtentLo[0] && vPoint[0] <= vExtentHi[0])
+	{
+		if (vPoint[1] < vExtentLo[1])
+		{
+			return NORTH;
+		}
+		else if (vPoint[1] > vExtentHi[1])
+		{
+			return SOUTH;
+		}
+	}
+	else if (vPoint[1] >= vExtentLo[1] && vPoint[1] <= vExtentHi[1])
+	{
+		if (vPoint[0] < vExtentLo[0])
+		{
+			return WEST;
+		}
+		else if (vPoint[0] > vExtentHi[0])
+		{
+			return EAST;
+		}
+	}
+	
+	float vCenter[3]; area.GetCenter(vCenter);
+	float to[3]; SubtractVectors(vPoint, vCenter, to);
+	
+	if (FloatAbs(to[0]) > FloatAbs(to[1]))
+	{
+		if (to[0] > 0.0)
+			return EAST;
+		
+		return WEST;
+	}
+	else
+	{
+		if (to[1] > 0.0)
+			return SOUTH;
+		
+		return NORTH;
+	}
+}
 #endif
 
 // Taken from [TF2] Chaos Mod
@@ -1658,4 +1708,57 @@ stock int GetPlayerBuilding(int client, TFObjectType type, TFObjectMode mode = T
 	}
 	
 	return -1;
+}
+
+//This seems heavily based on PlayerLocomotion::Approach
+stock void MovePlayerTowardsGoal(int client, const float vGoal[3], float vVel[3])
+{
+	//WASD Movement
+	float forward3D[3];
+	BasePlayer_EyeVectors(client, forward3D);
+	
+	float vForward[3];
+	vForward[0] = forward3D[0];
+	vForward[1] = forward3D[1];
+	NormalizeVector(vForward, vForward);
+	
+	float right[3] 
+	right[0] = vForward[1];
+	right[1] = -vForward[0];
+
+	//PlayerLocomotion::GetFeet
+	float vFeet[3]; GetClientAbsOrigin(client, vFeet);
+	
+	float to[3]; 
+	SubtractVectors(vGoal, vFeet, to);
+
+	/*float goalDistance = */
+	NormalizeVector(to, to);
+
+	float ahead = GetVectorDotProduct(to, vForward);
+	float side  = GetVectorDotProduct(to, right);
+	
+	const float epsilon = 0.25;
+
+	if (ahead > epsilon)
+	{
+		//PressForwardButton();
+		vVel[0] = PLAYER_SIDESPEED;
+	}
+	else if (ahead < -epsilon)
+	{
+		//PressBackwardButton();
+		vVel[0] = -PLAYER_SIDESPEED;
+	}
+
+	if (side <= -epsilon)
+	{
+		//PressLeftButton();
+		vVel[1] = -PLAYER_SIDESPEED;
+	}
+	else if (side >= epsilon)
+	{
+		//PressRightButton();
+		vVel[1] = PLAYER_SIDESPEED;
+	}
 }

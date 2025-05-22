@@ -1032,7 +1032,10 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 				int flag = GetFlagToFetch(client);
 				
 				if (flag != -1 && CaptureFlag_IsHome(flag))
+				{
+					g_flLastTimeFlagInSpawn[client] = GetGameTime();
 					CTFItemPickup(flag, client, true);
+				}
 			}
 		}
 	}

@@ -148,6 +148,34 @@ enum struct esPlayerStats
 	}
 }
 
+enum struct esButtonInput
+{
+	int iPress;
+	float flPressTime;
+	int iRelease;
+	float flReleaseTime;
+	
+	void Reset()
+	{
+		this.iPress = 0;
+		this.flPressTime = 0.0;
+		this.iRelease = 0;
+		this.flReleaseTime = 0.0;
+	}
+	
+	void PressButtons(int buttons, float duration = -1.0)
+	{
+		this.iPress = buttons;
+		this.flPressTime = duration > 0.0 ? GetGameTime() + duration : 0.0;
+	}
+	
+	void ReleaseButtons(int buttons, float duration = -1.0)
+	{
+		this.iRelease = buttons;
+		this.flReleaseTime = duration > 0.0 ? GetGameTime() + duration : 0.0;
+	}
+}
+
 enum struct esCSProperties
 {
 	float flDefaultDuration;
@@ -173,6 +201,52 @@ enum struct esCSProperties
 		this.flDmgForSecMult = 1.0;
 		this.iHealingForSec = 600;
 		this.flHealingForSecMult = 1.0;
+	}
+}
+
+enum struct esPlayerPathing
+{
+	ArrayList adtPositions;
+	int iTargetNodeIndex;
+	float flNextRepathTime;
+	
+	void Reset()
+	{
+		delete this.adtPositions;
+		this.iTargetNodeIndex = -1;
+		this.flNextRepathTime = 0.0;
+	}
+	
+	void Initialize()
+	{
+		this.adtPositions = new ArrayList(3);
+	}
+	
+	bool IsDoingPathMovement()
+	{
+		//Only do this when our object is constructed, as it will only exist when we want to use it
+		return this.adtPositions != null;
+	}
+	
+	bool IsPathValid()
+	{
+		return this.iTargetNodeIndex >= 0 && this.iTargetNodeIndex < this.adtPositions.Length;
+	}
+	
+	void GetCurrentGoalPosition(float buffer[3])
+	{
+		this.adtPositions.GetArray(this.iTargetNodeIndex, buffer);
+	}
+	
+	void AppendPathPosition(const float vec[3])
+	{
+		this.adtPositions.PushArray(vec, sizeof(vec));
+	}
+	
+	void OnPathRecalculated()
+	{
+		//Update the current node we are moving towards
+		this.iTargetNodeIndex = this.adtPositions.Length - 2;
 	}
 }
 
@@ -222,13 +296,14 @@ char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MA
 static StringMap m_adtBWRCooldown;
 
 esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
-int g_iForcedButtonInput[MAXPLAYERS + 1];
+esButtonInput g_arrExtraButtons[MAXPLAYERS + 1];
 bool g_bRobotSpawning[MAXPLAYERS + 1];
 int g_nForcedTauntCam[MAXPLAYERS + 1];
 float g_flLastTimeFlagInSpawn[MAXPLAYERS + 1];
 bool g_bChangeRobotPicked[MAXPLAYERS + 1];
 float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
+esPlayerPathing g_arrPlayerPath[MAXPLAYERS + 1];
 bool g_bAllowRespawn[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
@@ -287,6 +362,7 @@ ConVar bwr3_edit_wavebar;
 ConVar bwr3_drop_credits;
 ConVar bwr3_invader_cooldown_mode;
 ConVar bwr3_flag_max_hold_time;
+ConVar bwr3_flag_idle_deal_method;
 ConVar bwr3_robot_template_file;
 ConVar bwr3_robot_giant_template_file;
 ConVar bwr3_robot_gatebot_template_file;
@@ -863,7 +939,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.5",
+	version = "1.3.6",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -892,6 +968,7 @@ public void OnPluginStart()
 	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
 	bwr3_invader_cooldown_mode = CreateConVar("sm_bwr3_invader_cooldown_mode", "2", _, FCVAR_NOTIFY);
 	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
+	bwr3_flag_idle_deal_method = CreateConVar("sm_bwr3_flag_idle_deal_method", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_template_file = CreateConVar("sm_bwr3_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
@@ -1045,14 +1122,14 @@ public void OnMapStart()
 public void OnClientPutInServer(int client)
 {
 	g_arrRobotPlayerStats[client].Reset();
-	
-	g_iForcedButtonInput[client] = 0;
+	g_arrExtraButtons[client].Reset();
 	g_bRobotSpawning[client] = false;
 	// g_nForcedTauntCam[client] = 0;
 	g_flLastTimeFlagInSpawn[client] = GetGameTime();
 	g_bChangeRobotPicked[client] = false;
 	g_flChangeRobotCooldown[client] = 0.0;
 	g_bSpawningAsBossRobot[client] = false;
+	g_arrPlayerPath[client].Reset();
 	g_bAllowRespawn[client] = true;
 	
 	m_bIsRobot[client] = false;
@@ -1281,10 +1358,21 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		return Plugin_Continue;
 	
 	//Force any input if specified elsewhere
-	if (g_iForcedButtonInput[client] != 0)
+	if (g_arrExtraButtons[client].iPress != 0)
 	{
-		buttons |= g_iForcedButtonInput[client];
-		g_iForcedButtonInput[client] = 0;
+		buttons |= g_arrExtraButtons[client].iPress;
+		
+		//Holding it down?
+		if (g_arrExtraButtons[client].flPressTime <= GetGameTime())
+			g_arrExtraButtons[client].iPress = 0;
+	}
+	
+	if (g_arrExtraButtons[client].iRelease != 0)
+	{
+		buttons &= ~g_arrExtraButtons[client].iRelease;
+		
+		if (g_arrExtraButtons[client].flReleaseTime <= GetGameTime())
+			g_arrExtraButtons[client].iRelease = 0;
 	}
 	
 	if (m_flBlockMovementTime[client] > GetGameTime())
@@ -1579,6 +1667,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (myArea)
 	{
+		if (g_arrPlayerPath[client].IsDoingPathMovement())
+		{
+			if (myArea.HasAttributeTF(BLUE_SPAWN_ROOM))
+			{
+				MakePlayerLeaveSpawn(client, vel);
+			}
+			else
+			{
+				g_arrPlayerPath[client].Reset();
+			}
+		}
+		
 		if (myArea.HasAttributeTF(BLUE_SPAWN_ROOM))
 		{
 			if (!g_bCanBotsAttackInSpawn)
@@ -1609,32 +1709,48 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if (bHasTheFlag)
 			{
-				bool bMoving = buttons & (IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT) != 0;
-				
-				if (bMoving)
-					g_flLastTimeFlagInSpawn[client] = GetGameTime();
-				
-				float timeHoldingFlag = GetGameTime() - g_flLastTimeFlagInSpawn[client];
-				
-				if (timeHoldingFlag >= bwr3_flag_max_hold_time.FloatValue)
+				if (bwr3_flag_idle_deal_method.IntValue)
 				{
-					g_flLastTimeFlagInSpawn[client] = GetGameTime();
+					bool bMoving = buttons & (IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT) != 0;
 					
-					if (roboPlayer.BombUpgradeLevel > 1 && bwr3_allow_drop_item.IntValue <= DROPITEM_DISABLED_BOMB_LEVEL2)
+					if (bMoving || g_arrPlayerPath[client].IsDoingPathMovement())
 					{
-						//At this point we have permanent buffs, so just suicide
-						ForcePlayerSuicide(client);
-					}
-					else
-					{
-						ForcePlayerToDropFlag(client);
+						//Reset if we are moving
+						g_flLastTimeFlagInSpawn[client] = GetGameTime();
 					}
 					
-					char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
+					float timeHoldingFlag = GetGameTime() - g_flLastTimeFlagInSpawn[client];
 					
-					PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Idle_Flag_SpawnRoom", playerName);
-					EmitSoundToAll(ALERT_FLAG_HELD_TOO_LONG_SOUND);
-					LogAction(client, -1, "%L held the flag for too long in spawn!", client);
+					if (timeHoldingFlag >= bwr3_flag_max_hold_time.FloatValue)
+					{
+						g_flLastTimeFlagInSpawn[client] = GetGameTime();
+						
+						switch (bwr3_flag_idle_deal_method.IntValue)
+						{
+							case 1:
+							{
+								if (roboPlayer.BombUpgradeLevel > 1 && bwr3_allow_drop_item.IntValue <= DROPITEM_DISABLED_BOMB_LEVEL2)
+								{
+									//At this point we have permanent buffs, so just suicide
+									ForcePlayerSuicide(client);
+								}
+								else
+								{
+									ForcePlayerToDropFlag(client);
+								}
+							}
+							case 2:
+							{
+								g_arrPlayerPath[client].Initialize();
+							}
+						}
+						
+						char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
+						
+						PrintToChatAll("%s %t", PLUGIN_PREFIX, "Player_Idle_Flag_SpawnRoom", playerName);
+						EmitSoundToAll(ALERT_FLAG_HELD_TOO_LONG_SOUND);
+						LogAction(client, -1, "%L held the flag for too long in spawn!", client);
+					}
 				}
 				
 				if (roboPlayer.BombUpgradeLevel != DONT_UPGRADE)
@@ -3371,6 +3487,7 @@ void SetRobotPlayer(int client, bool enabled)
 		
 		g_bRobotSpawning[client] = false;
 		g_bSpawningAsBossRobot[client] = false;
+		g_arrPlayerPath[client].Reset();
 		g_bAllowRespawn[client] = true;
 		m_bIsRobot[client] = false;
 		
@@ -3964,6 +4081,85 @@ int GetRandomRobotPlayer(int excludePlayer = -1)
 		return arrPlayers[GetRandomInt(0, total - 1)];
 	
 	return -1;
+}
+
+static bool MakePlayerLeaveSpawn(int client, float vel[3])
+{
+	if (g_arrPlayerPath[client].adtPositions)
+	{
+		if (g_arrPlayerPath[client].IsPathValid())
+		{
+			float vGoal[3]; g_arrPlayerPath[client].GetCurrentGoalPosition(vGoal);
+			MovePlayerTowardsGoal(client, vGoal, vel);
+			
+			float vOrigin[3]; GetClientAbsOrigin(client, vOrigin);
+			vGoal[2] = vOrigin[2];
+			
+			if (GetVectorDistance(vGoal, vOrigin) <= 25.0)
+			{
+				//Reached our goal, move on to the next
+				g_arrPlayerPath[client].iTargetNodeIndex--;
+			}
+		}
+	}
+	
+	if (g_arrPlayerPath[client].flNextRepathTime > GetGameTime())
+		return true;
+	
+	g_arrPlayerPath[client].adtPositions.Clear();
+	
+	CNavArea startArea = CBaseCombatCharacter(client).GetLastKnownArea();
+	
+	if (startArea == NULL_AREA)
+	{
+		return false;
+	}
+	
+	float vDesiredGoal[3]; vDesiredGoal = GetBombHatchPosition();
+	
+	const float maxDistanceToArea = 200.0;
+	CNavArea goalArea = TheNavMesh.GetNearestNavArea(vDesiredGoal, true, maxDistanceToArea, true);
+	
+	if (startArea == goalArea)
+	{
+		//TODO: trivial path
+	}
+	
+	CNavArea closestArea = NULL_AREA;
+	TheNavMesh.BuildPath(startArea, goalArea, vDesiredGoal, _, closestArea, 0.0, GetClientTeam(client));
+	
+	if (closestArea == NULL_AREA)
+		return false;
+	
+	CNavArea tempArea = closestArea;
+	CNavArea parentArea = tempArea.GetParent();
+	NavDirType iNavDirection;
+	float flHalfWidth;
+	float vCenterPortal[3], vClosestPoint[3];
+	
+	g_arrPlayerPath[client].AppendPathPosition(vDesiredGoal);
+	
+	while (parentArea != NULL_AREA)
+	{
+		float vTempAreaCenter[3], vParentAreaCenter[3];
+		
+		tempArea.GetCenter(vTempAreaCenter);
+		parentArea.GetCenter(vParentAreaCenter);
+		iNavDirection = CNavArea_ComputeDirection(tempArea, vParentAreaCenter);
+		tempArea.ComputePortal(parentArea, iNavDirection, vCenterPortal, flHalfWidth);
+		tempArea.ComputeClosestPointInPortal(parentArea, iNavDirection, vCenterPortal, vClosestPoint);
+		vClosestPoint[2] = tempArea.GetZVector(vClosestPoint);
+		g_arrPlayerPath[client].AppendPathPosition(vClosestPoint);
+		tempArea = parentArea;
+		parentArea = tempArea.GetParent();
+	}
+	
+	float vStartPos[3]; startArea.GetCenter(vStartPos);
+	g_arrPlayerPath[client].AppendPathPosition(vStartPos);
+	g_arrPlayerPath[client].OnPathRecalculated();
+	g_arrPlayerPath[client].flNextRepathTime = GetGameTime() + 5.0;
+	
+	return true;
 }
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
