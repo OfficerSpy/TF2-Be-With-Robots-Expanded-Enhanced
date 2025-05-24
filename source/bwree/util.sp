@@ -1646,7 +1646,12 @@ stock void DrawBoundingBox(const float vecMins[3], const float vecMaxs[3], const
 //Modified function from Parkour Fortress: Redux
 stock void DrawVectorPoints(float vecOrigin[3], float vecEndpoint[3], float flLifespan, int iColor[4], float flWidth = 3.0, int iSendToWho = -1)
 {
-	TE_SetupBeamPoints(vecOrigin, vecEndpoint, PrecacheModel("materials/sprites/laser.vmt"), 0, 0, 0, flLifespan, flWidth, 3.0, 1, 0.0, iColor, 0);
+	static int iModelIndex = -1;
+	
+	if (iModelIndex == -1)
+		iModelIndex = PrecacheModel("materials/sprites/laser.vmt");
+	
+	TE_SetupBeamPoints(vecOrigin, vecEndpoint, iModelIndex, 0, 0, 0, flLifespan, flWidth, 3.0, 1, 0.0, iColor, 0);
 	
 	if (iSendToWho > 0)
 		TE_SendToClient(iSendToWho);

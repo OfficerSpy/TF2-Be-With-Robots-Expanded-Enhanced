@@ -248,6 +248,26 @@ enum struct esPlayerPathing
 		//Update the current node we are moving towards
 		this.iTargetNodeIndex = this.adtPositions.Length - 2;
 	}
+	
+	void DrawCurrentPath(int whom, float duration = 0.0)
+	{
+		static int iModelIndex = -1;
+		
+		if (iModelIndex == -1)
+			iModelIndex = PrecacheModel("materials/sprites/laserbeam.vmt");
+		
+		if (duration <= 0.0)
+			duration = MaxFloat(0.1, this.flNextRepathTime - GetGameTime());
+		
+		for (int i = this.adtPositions.Length - 1; i > 0; i--)
+		{
+			float vFromPos[3], vToPos[3];
+			this.adtPositions.GetArray(i, vFromPos, sizeof(vFromPos));
+			this.adtPositions.GetArray(i - 1, vToPos, sizeof(vToPos));
+			TE_SetupBeamPoints(vFromPos, vToPos, iModelIndex, iModelIndex, 0, 30, duration, 5.0, 5.0, 5, 0.0, {0, 255, 0, 255}, 30);
+			TE_SendToClient(whom);
+		}
+	}
 }
 
 #if defined SPY_DISGUISE_VISION_OVERRIDE
@@ -4158,6 +4178,10 @@ static bool MakePlayerLeaveSpawn(int client, float vel[3])
 	g_arrPlayerPath[client].AppendPathPosition(vStartPos);
 	g_arrPlayerPath[client].OnPathRecalculated();
 	g_arrPlayerPath[client].flNextRepathTime = GetGameTime() + 5.0;
+	
+#if defined TESTING_ONLY
+	g_arrPlayerPath[client].DrawCurrentPath(client);
+#endif
 	
 	return true;
 }
