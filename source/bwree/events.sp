@@ -9,7 +9,7 @@ void InitGameEventHooks()
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("teamplay_flag_event", Event_TeamplayFlagEvent);
 	HookEvent("teamplay_round_start", Event_TeamplayRoundStart);
-	HookEvent("teamplay_round_win", Event_TeamplayRoundWin);
+	HookEvent("teamplay_round_win", Event_TeamplayRoundWin, EventHookMode_Post);
 	HookEvent("player_buyback", Event_PlayerBuyback);
 	HookEvent("post_inventory_application", Event_PostInventoryApplication);
 	HookEvent("player_hurt", Event_PlayerHurt);

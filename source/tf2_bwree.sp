@@ -178,7 +178,7 @@ enum struct esButtonInput
 
 enum struct esCSProperties
 {
-	float flDefaultDuration;
+	float flBaseDuration;
 	float flFastCapWatchMaxSeconds;
 	float flFastCapMaxMinutes;
 	float flKDSecMultiplicand;
@@ -191,7 +191,7 @@ enum struct esCSProperties
 	
 	void ResetToDefault()
 	{
-		this.flDefaultDuration = 60.0;
+		this.flBaseDuration = 60.0;
 		this.flFastCapWatchMaxSeconds = 120.0;
 		this.flFastCapMaxMinutes = 10.0;
 		this.flKDSecMultiplicand = 60.0;
@@ -959,7 +959,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.6",
+	version = "1.3.7",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1822,14 +1822,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							//Upgrade the bomb over time
 							if (UpgradeBomb(client))
 							{
-								//CTFBotTaunt taunts on random interval
-								float interval = GetRandomFloat(0.0, 1.0);
-								
-								CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
-								SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
-								
-								if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL || bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_BOMB)
-									FreezePlayerInput(client, true);
+								DoBotTauntAction(client);
 							}
 						}
 					}
@@ -2444,13 +2437,7 @@ public Action CommandListener_Taunt(int client, const char[] command, int argc)
 			{
 				if (UpgradeBomb(client))
 				{
-					float interval = GetRandomFloat(0.0, 1.0);
-					CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
-					SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
-					
-					if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL || bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_BOMB)
-						FreezePlayerInput(client, true);
-					
+					DoBotTauntAction(client);
 					return Plugin_Handled;
 				}
 			}
@@ -2459,11 +2446,7 @@ public Action CommandListener_Taunt(int client, const char[] command, int argc)
 		if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL)
 		{
 			//Every taunting we do is delayed
-			float interval = GetRandomFloat(0.0, 1.0);
-			CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
-			SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
-			FreezePlayerInput(client, true);
-			
+			DoBotTauntAction(client);
 			return Plugin_Handled;
 		}
 	}
@@ -2561,7 +2544,7 @@ public Action SoundHook_General(int clients[MAXPLAYERS], int &numClients, char s
 	{
 		if (StrEqual(sample, ")mvm/mvm_tele_deliver.wav"))
 		{
-			char classname[PLATFORM_MAX_PATH]; GetEntityClassname(entity, classname, sizeof(classname));
+			char classname[PLATFORM_MAX_PATH]; GetEdictClassname(entity, classname, sizeof(classname));
 			
 			if (StrEqual(classname, "obj_teleporter"))
 			{
@@ -2575,12 +2558,13 @@ public Action SoundHook_General(int clients[MAXPLAYERS], int &numClients, char s
 	return Plugin_Continue;
 }
 
-public Action Timer_Taunt(Handle timer, int data)
+static Action Timer_Taunt(Handle timer, int data)
 {
 	if (!IsClientInGame(data) || !IsPlayingAsRobot(data) || !IsPlayerAlive(data))
 		return Plugin_Stop;
 	
-	VS_HandleTauntCommand(data);
+	//NOTE: we use Taunt instead of HandleTauntCommand to prevent us from accidentally doing partner taunts
+	VS_Taunt(data, TAUNT_BASE_WEAPON);
 	
 	if (bwr3_robot_taunt_mode.IntValue >= TAUNTING_MODE_BEHAVORIAL_ON_KILL)
 		FreezePlayerInput(data, false);
@@ -3291,7 +3275,9 @@ float GetPlayerCalculatedCooldown(int client)
 		return 0.0;
 	}
 	
-	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+	RoundState iRoundState = GameRules_GetRoundState();
+	
+	if (iRoundState == RoundState_BetweenRounds)
 	{
 		//Do nothing between rounds
 		return 0.0;
@@ -3307,11 +3293,19 @@ float GetPlayerCalculatedCooldown(int client)
 	
 	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
 	{
-		//TODO: factor time based on when the cooldown is applied (during round or round win?)
-		return g_arrCooldownSystem.flDefaultDuration;
+		if (iRoundState == RoundState_RoundRunning)
+			return 0.0;
+		
+		return g_arrCooldownSystem.flBaseDuration;
 	}
 	
 	float flTotalDuration;
+	
+	if (iRoundState == RoundState_TeamWin)
+	{
+		//Base cooldown for winning to give others a chance to play
+		flTotalDuration += g_arrCooldownSystem.flBaseDuration;
+	}
 	
 	if (g_arrRobotPlayerStats[client].iFlagCaptures > 0)
 	{
@@ -3726,6 +3720,18 @@ void SetPlayerToMove(int client, bool bEnable)
 		//Disable movement
 		SetEntityMoveType(client, MOVETYPE_NONE);
 	}
+}
+
+void DoBotTauntAction(int client)
+{
+	//CTFBotTaunt taunts on random interval
+	float interval = GetRandomFloat(0.0, 1.0);
+	
+	CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
+	SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
+	
+	if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL || bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_BOMB)
+		FreezePlayerInput(client, true);
 }
 
 bool UpgradeBomb(int client)
@@ -4330,7 +4336,7 @@ void MainConfig_UpdateSettings()
 	if (kv.JumpToKey("CooldownSystem"))
 	{
 		//If no keyvalue was found, assume default from the value it was originally set to
-		g_arrCooldownSystem.flDefaultDuration = kv.GetFloat("default_duration", g_arrCooldownSystem.flDefaultDuration);
+		g_arrCooldownSystem.flBaseDuration = kv.GetFloat("base_duration", g_arrCooldownSystem.flBaseDuration);
 		
 		if (kv.JumpToKey("DynamicPerformanceMode"))
 		{
@@ -4357,7 +4363,7 @@ void MainConfig_UpdateSettings()
 	CloseHandle(kv);
 	
 #if defined TESTING_ONLY
-	LogMessage("MainConfig_UpdateSettings: CS DEFAULT DURATION = %f", g_arrCooldownSystem.flDefaultDuration);
+	LogMessage("MainConfig_UpdateSettings: CS DEFAULT DURATION = %f", g_arrCooldownSystem.flBaseDuration);
 	LogMessage("MainConfig_UpdateSettings: FAST CAP MAX WATCH SECONDS = %f, MAX COOLDOWN MINUTES = %f", g_arrCooldownSystem.flFastCapWatchMaxSeconds, g_arrCooldownSystem.flFastCapMaxMinutes);
 #endif
 }
