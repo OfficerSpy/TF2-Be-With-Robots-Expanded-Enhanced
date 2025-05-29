@@ -499,8 +499,7 @@ static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBr
 			continue;
 		
 		//Silent team change
-		SetVariantString("self.ForceChangeTeam(Constants.ETFTeam.TF_TEAM_PVE_DEFENDERS, false)");
-		AcceptEntityInput(i, "RunScriptCode");
+		VS_ForceChangeTeam(i, TFTeam_Red);
 	}
 }
 

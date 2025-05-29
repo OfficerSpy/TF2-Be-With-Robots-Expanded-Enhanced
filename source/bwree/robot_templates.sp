@@ -117,8 +117,7 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		m_bHasDetonated[this.index] = true;
 		
 		//Use vscript to emit the particles
-		SetVariantString("DispatchParticleEffect(\"explosionTrail_seeds_mvm\", self.GetOrigin(), self.GetAngles()); DispatchParticleEffect(\"fluidSmokeExpl_ring_mvm\", self.GetOrigin(), self.GetAngles());");
-		AcceptEntityInput(this.index, "RunScriptCode");
+		OSLib_RunScriptCode(this.index, _, _, "DispatchParticleEffect(\"explosionTrail_seeds_mvm\",self.GetOrigin(),self.GetAngles());DispatchParticleEffect(\"fluidSmokeExpl_ring_mvm\",self.GetOrigin(),self.GetAngles())");
 		
 		EmitGameSoundToAll("MVM.SentryBusterExplode", this.index);
 		
@@ -1194,7 +1193,7 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 						
 						//The style may have changed, tell the game to update its model
 						VS_ReapplyProvision(item);
-						BaseEntity_TerminateScriptScope(item);
+						BaseEntity_MarkNeedsNamePurge(item);
 					}
 				}
 			} while (kv.GotoNextKey(false))
