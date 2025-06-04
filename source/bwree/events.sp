@@ -275,6 +275,8 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 		{
 			if (IsPlayingAsRobot(i))
 			{
+				g_flTimeJoinedBlue[i] = GetGameTime();
+				
 				//The round started, now we turn into one of our robots
 				TurnPlayerIntoHisNextRobot(i);
 				SelectPlayerNextRobot(i);

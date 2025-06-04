@@ -306,7 +306,7 @@ void SetAbsOrigin(int entity, float origin[3])
 #if defined MOD_EXT_CBASENPC
 	CBaseEntity(entity).SetAbsOrigin(origin);
 #else	
-	VS_SetAbsOrigin(entity, origin);
+	TeleportEntity(entity, origin);
 #endif
 }
 
@@ -315,7 +315,7 @@ void SetAbsVelocity(int entity, const float velocity[3])
 #if defined MOD_EXT_CBASENPC
 	CBaseEntity(entity).SetAbsVelocity(velocity);
 #else	
-	VS_SetAbsVelocity(entity, velocity);
+	TeleportEntity(entity, _, _, velocity);
 #endif
 }
 

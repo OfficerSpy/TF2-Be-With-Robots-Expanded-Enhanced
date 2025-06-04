@@ -305,7 +305,7 @@ float g_flTimeRoundStarted;
 
 esCSProperties g_arrCooldownSystem;
 
-// PRESERVED ENTITIES
+// GLOBAL ENTITIES
 int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
 
@@ -313,11 +313,13 @@ int g_iPopulationManager = -1;
 float g_flMapGiantScale;
 char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MAX_PATH];
 
+//KEY is player steamID, VALUE is the time when his ban expires
 static StringMap m_adtBWRCooldown;
 
 esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
 esButtonInput g_arrExtraButtons[MAXPLAYERS + 1];
 bool g_bRobotSpawning[MAXPLAYERS + 1];
+float g_flTimeJoinedBlue[MAXPLAYERS + 1]; //Active round only, not used between waves
 int g_nForcedTauntCam[MAXPLAYERS + 1];
 float g_flLastTimeFlagInSpawn[MAXPLAYERS + 1];
 bool g_bChangeRobotPicked[MAXPLAYERS + 1];
@@ -959,7 +961,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.7",
+	version = "1.3.8",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1144,6 +1146,7 @@ public void OnClientPutInServer(int client)
 	g_arrRobotPlayerStats[client].Reset();
 	g_arrExtraButtons[client].Reset();
 	g_bRobotSpawning[client] = false;
+	// g_flTimeJoinedBlue[client] = 0.0;
 	// g_nForcedTauntCam[client] = 0;
 	g_flLastTimeFlagInSpawn[client] = GetGameTime();
 	g_bChangeRobotPicked[client] = false;
@@ -2267,13 +2270,13 @@ public Action Command_ViewCooldownData(int client, int args)
 	
 	StringMapSnapshot shot = m_adtBWRCooldown.Snapshot();
 	char keyName[MAX_AUTHID_LENGTH];
-	float cooldownTime;
+	float flExpireTime;
 	
 	for (int i = 0; i < shot.Length; i++)
 	{
 		shot.GetKey(i, keyName, sizeof(keyName));
-		m_adtBWRCooldown.GetValue(keyName, cooldownTime);
-		ReplyToCommand(client, "%s - %f", keyName, cooldownTime - GetGameTime());
+		m_adtBWRCooldown.GetValue(keyName, flExpireTime);
+		ReplyToCommand(client, "%s - %f", keyName, flExpireTime - GetGameTime());
 	}
 	
 	CloseHandle(shot);
@@ -3211,15 +3214,18 @@ float GetBWRCooldownTimeLeft(int client)
 	
 	//Not authorized or no steam connection
 	if (!GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID)))
+	{
+		LogError("GetBWRCooldownTimeLeft: failed to get steamID for %L", client);
 		return 0.0;
+	}
 	
-	float cooldownTime;
+	float flExpireTime;
 	
 	//They don't currently have a cooldown
-	if (!m_adtBWRCooldown.GetValue(steamID, cooldownTime))
+	if (!m_adtBWRCooldown.GetValue(steamID, flExpireTime))
 		return 0.0;
 	
-	float timeLeft = cooldownTime - GetGameTime();
+	float timeLeft = flExpireTime - GetGameTime();
 	
 	//If their cooldown time has expired, remove it
 	if (timeLeft <= 0.0)
@@ -3233,7 +3239,10 @@ bool SetBWRCooldownTimeLeft(int client, float duration, int user = -1)
 	char steamID[MAX_AUTHID_LENGTH];
 	
 	if (!GetClientAuthId(client, AuthId_Steam3, steamID, sizeof(steamID)))
+	{
+		LogError("SetBWRCooldownTimeLeft: failed to get steamID for %L", client);
 		return false;
+	}
 	
 	if (user != -1)
 		LogAction(user, client, "%L set a cooldown of %f seconds on %L.", user, duration, client);
@@ -3253,14 +3262,14 @@ void BWRCooldown_PurgeExpired()
 	
 	StringMapSnapshot shot = m_adtBWRCooldown.Snapshot();
 	char keyName[MAX_AUTHID_LENGTH];
-	float cooldownTime;
+	float flExpireTime;
 	
 	for (int i = 0; i < shot.Length; i++)
 	{
 		shot.GetKey(i, keyName, sizeof(keyName));
-		m_adtBWRCooldown.GetValue(keyName, cooldownTime);
+		m_adtBWRCooldown.GetValue(keyName, flExpireTime);
 		
-		if (cooldownTime <= GetGameTime())
+		if (flExpireTime <= GetGameTime())
 			m_adtBWRCooldown.Remove(keyName);
 	}
 	
@@ -3291,12 +3300,16 @@ float GetPlayerCalculatedCooldown(int client)
 	}
 #endif
 	
+	float flBlueRoundTimePlayed = GetGameTime() - g_flTimeJoinedBlue[client];
+	float flRoundLength = GetGameTime() - g_flTimeRoundStarted;
+	float flBlueRoundTimeRatio = flBlueRoundTimePlayed / flRoundLength;
+	
 	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
 	{
 		if (iRoundState == RoundState_RoundRunning)
 			return 0.0;
 		
-		return g_arrCooldownSystem.flBaseDuration;
+		return flBlueRoundTimeRatio * g_arrCooldownSystem.flBaseDuration;
 	}
 	
 	float flTotalDuration;
@@ -3304,21 +3317,19 @@ float GetPlayerCalculatedCooldown(int client)
 	if (iRoundState == RoundState_TeamWin)
 	{
 		//Base cooldown for winning to give others a chance to play
-		flTotalDuration += g_arrCooldownSystem.flBaseDuration;
+		flTotalDuration += flBlueRoundTimeRatio * g_arrCooldownSystem.flBaseDuration;
 	}
 	
 	if (g_arrRobotPlayerStats[client].iFlagCaptures > 0)
 	{
-		float roundLength = GetGameTime() - g_flTimeRoundStarted;
-		
-		if (roundLength < g_arrCooldownSystem.flFastCapWatchMaxSeconds)
+		if (flRoundLength < g_arrCooldownSystem.flFastCapWatchMaxSeconds)
 		{
-			float penalTimeLeft = g_arrCooldownSystem.flFastCapWatchMaxSeconds - roundLength;
+			float penalTimeLeft = g_arrCooldownSystem.flFastCapWatchMaxSeconds - flRoundLength;
 			float secPerMin = g_arrCooldownSystem.flFastCapWatchMaxSeconds / g_arrCooldownSystem.flFastCapMaxMinutes;
 			float extraSeconds = (penalTimeLeft / secPerMin) * 60;
 			
 			flTotalDuration += extraSeconds;
-			LogAction(client, -1, "%L deployed the bomb in %f seconds (added ban time: %f)", client, roundLength, extraSeconds);
+			LogAction(client, -1, "%L deployed the bomb in %f seconds (added ban time: %f)", client, flRoundLength, extraSeconds);
 		}
 		
 		flTotalDuration += g_arrCooldownSystem.flSecPerCapFlag;
@@ -3475,6 +3486,14 @@ void ChangePlayerToTeamInvaders(int client)
 	//TODO: verify the player is actually on blue team after change
 	SetRobotPlayer(client, true);
 	SelectPlayerNextRobot(client);
+	
+	if (GameRules_GetRoundState() == RoundState_RoundRunning)
+	{
+		g_flTimeJoinedBlue[client] = GetGameTime();
+	}
+	
+	//TODO: find a better place to put this
+	BaseEntity_MarkNeedsNamePurge(client);
 }
 
 void SetRobotPlayer(int client, bool enabled)
