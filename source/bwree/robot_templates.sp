@@ -566,7 +566,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				//First we need to join as the class desired by the template
 				char className[PLATFORM_MAX_PATH]; kv.GetString("Class", className, sizeof(className));
 				TFClassType playerClass = TF2_GetClassIndexFromString(className);
-				Player_JoinClass(client, playerClass);
+				MakePlayerJoinClass(client, playerClass);
 				
 				//After joining a class, remove their weapons and cosmetics
 				StripWeapons(client, true, TFWeaponSlot_Building, true);
@@ -613,8 +613,8 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				int credits = kv.GetNum("TotalCurrency");
 				char description[ROBOT_DESC_MAX_LENGTH]; kv.GetString("Description", description, sizeof(description));
 				
-				SetEntProp(client, Prop_Send, "m_bIsABot", 1);
 				roboPlayer.ClearEventChangeAttributes();
+				SetEntProp(client, Prop_Send, "m_bIsABot", 1);
 				
 				if (kv.JumpToKey("EventChangeAttributes"))
 				{

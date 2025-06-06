@@ -366,7 +366,7 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 		
 		int iHealth = BaseEntity_GetMaxHealth(entity) * tf_bot_engineer_building_health_multiplier.IntValue;
 		BaseEntity_SetMaxHealth(entity, iHealth);
-		BaseEntity_SetHealth(entity, iHealth);
+		SetEntityHealth(entity, iHealth);
 		
 		EmitGameSoundToAll("Engineer.MVM_AutoBuildingTeleporter02", client);
 		

@@ -746,7 +746,7 @@ methodmap MvMRobotPlayer
 				
 				//Set the health back to what it was before
 				ModifyMaxHealth(this.index, nMaxHealth, false, false);
-				// BaseEntity_SetHealth(this.index, nHealth);
+				// SetEntityHealth(this.index, nHealth);
 				
 				ReadEventChangeAttributesForPlayer(this, kv);
 				break;

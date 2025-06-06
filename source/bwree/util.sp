@@ -1371,7 +1371,7 @@ stock int GetEnemyPlayerNearestToMe(int client, float max_distance = 999999.0, b
 
 /* Unlike TF2_SetPlayerClass, this forces the class to be initialized
 CTFPlayer::ForceRespawn > GetPlayerClass()->Init( iDesiredClass ); */
-stock void Player_JoinClass(int client, TFClassType classType, bool allowSpawn = true)
+stock void MakePlayerJoinClass(int client, TFClassType classType, bool allowSpawn = true)
 {
 	SetEntProp(client, Prop_Send, "m_iDesiredPlayerClass", view_as<int>(classType));
 	
