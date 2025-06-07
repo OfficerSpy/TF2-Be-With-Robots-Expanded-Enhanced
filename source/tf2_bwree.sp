@@ -249,6 +249,22 @@ enum struct esPlayerPathing
 		this.iTargetNodeIndex = this.adtPositions.Length - 2;
 	}
 	
+	void TeleportToNearestNodeOutsideSpawn(int client)
+	{
+		for (int i = this.adtPositions.Length - 1; i > 0; i--)
+		{
+			float vToPos[3]; this.adtPositions.GetArray(i - 1, vToPos, sizeof(vToPos));
+			
+			CTFNavArea area = view_as<CTFNavArea>(TheNavMesh.GetNavArea(vToPos));
+			
+			if (area && !area.HasAttributeTF(BLUE_SPAWN_ROOM))
+			{
+				SetAbsOrigin(client, vToPos);
+				break;
+			}
+		}
+	}
+	
 	void DrawCurrentPath(int whom, float duration = 0.0)
 	{
 		static int iModelIndex = -1;
@@ -1765,6 +1781,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							case 2:
 							{
 								g_arrPlayerPath[client].Initialize();
+							}
+							case 3:
+							{
+								//Construct a path and teleport us right outside the spawn room
+								g_arrPlayerPath[client].Initialize();
+								MakePlayerLeaveSpawn(client, NULL_VECTOR);
+								g_arrPlayerPath[client].TeleportToNearestNodeOutsideSpawn(client);
+								g_arrPlayerPath[client].Reset();
 							}
 						}
 						
