@@ -849,36 +849,44 @@ float[] GetAbsVelocity(int entity)
 	return vec;
 }
 
-int GetDefendablePointTrigger(TFTeam team)
+//Return a capture area trigger associated with a control point that the team can capture
+int GetCapturableAreaTrigger(TFTeam team)
 {
 	int trigger = -1;
 	
-	//Look for a trigger_timer_door associated with a control point
-	while ((trigger = FindEntityByClassname(trigger, "trigger_timer_door")) != -1)
-	{		
+	//Look for a capture area trigger associated with a control point
+	while ((trigger = FindEntityByClassname(trigger, "trigger_*")) != -1)
+	{
+		//Only want capture areas
+		if (!HasEntProp(trigger, Prop_Data, "CTriggerAreaCaptureCaptureThink"))
+			continue;
+		
 		//Ignore disabled triggers
 		if (GetEntProp(trigger, Prop_Data, "m_bDisabled") == 1)
 			continue;
 		
 		//Apparently some community maps don't disable the trigger when capped
-		char cpname[32]; GetEntPropString(trigger, Prop_Data, "m_iszCapPointName", cpname, sizeof(cpname));
+		char sCapPointName[32]; GetEntPropString(trigger, Prop_Data, "m_iszCapPointName", sCapPointName, sizeof(sCapPointName));
 		
 		//Trigger has no point associated with it
-		if (strlen(cpname) < 3)
+		if (strlen(sCapPointName) < 3)
 			continue;
 		
 		//Now find the matching control point
 		int point = -1;
-		char targetname[32];
 		
 		while ((point = FindEntityByClassname(point, "team_control_point")) != -1)
 		{
-			GetEntPropString(point, Prop_Data, "m_iName", targetname, sizeof(targetname));
+			int iPointIndex = GetEntProp(point, Prop_Data, "m_iPointIndex");
 			
-			//Found the match
-			if (strcmp(targetname, cpname, false) == 0)
-				if (BaseEntity_GetTeamNumber(point) == view_as<int>(team))
-					return trigger;
+			if (!TFGameRules_TeamMayCapturePoint(team, iPointIndex))
+				continue;
+			
+			char sName[32]; GetEntPropString(point, Prop_Data, "m_iName", sName, sizeof(sName));
+			
+			//Found the match?
+			if (strcmp(sName, sCapPointName, false) == 0)
+				return trigger;
 		}
 	}
 	
@@ -1025,6 +1033,24 @@ float GetJarateTimeInternal(int weapon)
 	}
 	
 	return 0.0;
+}
+
+int GetCapturablePointCount(TFTeam team)
+{
+	int count = 0;
+	int iPoint = -1;
+	
+	while ((iPoint = FindEntityByClassname(iPoint, "team_control_point")) != -1)
+	{
+		int iPointIndex = GetEntProp(iPoint, Prop_Data, "m_iPointIndex");
+		
+		if (!TFGameRules_TeamMayCapturePoint(team, iPointIndex))
+			continue;
+		
+		count++;
+	}
+	
+	return count;
 }
 
 #if defined MOD_EXT_CBASENPC

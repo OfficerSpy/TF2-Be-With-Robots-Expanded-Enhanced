@@ -1852,7 +1852,7 @@ bool AreGiantRobotsAvailable()
 bool AreGatebotsAvailable()
 {
 	//If there's a point RED can defend, then it's a point BLUE can capture
-	return GetDefendablePointTrigger(TFTeam_Red) != -1;
+	return GetCapturablePointCount(TFTeam_Blue) > 0;
 }
 
 void ResetRobotSpawnerData()

@@ -977,7 +977,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.8",
+	version = "1.3.9",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1639,8 +1639,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	}
 	else if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 	{
-		SetHudTextParams(-1.0, -1.0, 0.1, 255, 0, 0, 0, 0, 0.0, 0.0, 0.0);
-		ShowSyncHudText(client, g_hHudText, "%t", "Hud_Instruct_SentryBuster_Detonate");
+		if (!MvMSuicideBomber(client).DetonateTimer_HasStarted())
+		{
+			SetHudTextParams(-1.0, -1.0, 0.1, 255, 0, 0, 0, 0, 0.0, 0.0, 0.0);
+			ShowSyncHudText(client, g_hHudText, "%t", "Hud_Instruct_SentryBuster_Detonate");
+		}
 	}
 	
 	float myAbsOrigin[3]; GetClientAbsOrigin(client, myAbsOrigin);
