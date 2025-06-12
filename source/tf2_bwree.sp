@@ -188,6 +188,7 @@ enum struct esCSProperties
 	float flDmgForSecMult;
 	int iHealingForSec;
 	float flHealingForSecMult;
+	float flCapturePointSec;
 	
 	void ResetToDefault()
 	{
@@ -201,6 +202,7 @@ enum struct esCSProperties
 		this.flDmgForSecMult = 1.0;
 		this.iHealingForSec = 600;
 		this.flHealingForSecMult = 1.0;
+		this.flCapturePointSec = 60.0;
 	}
 }
 
@@ -315,9 +317,10 @@ enum eRobotSpawnType
 bool g_bLateLoad;
 
 int g_iMaxEdicts;
-bool g_bCanBotsAttackInSpawn;
 Handle g_hHudText;
 float g_flTimeRoundStarted;
+int g_iRoundCapturablePoints;
+bool g_bCanBotsAttackInSpawn;
 
 esCSProperties g_arrCooldownSystem;
 
@@ -3387,6 +3390,12 @@ float GetPlayerCalculatedCooldown(int client)
 		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iHealing) / float(g_arrCooldownSystem.iHealingForSec)) * g_arrCooldownSystem.flHealingForSecMult;
 	}
 	
+	if (g_arrRobotPlayerStats[client].iPointCaptures > 0)
+	{
+		//Add a percentage of this duration based on the amount of points we capped versus the total amount we could have capped this round
+		flTotalDuration += (float(g_arrRobotPlayerStats[client].iPointCaptures) / float(g_iRoundCapturablePoints)) * g_arrCooldownSystem.flCapturePointSec;
+	}
+	
 	return flTotalDuration;
 }
 
@@ -4400,6 +4409,7 @@ void MainConfig_UpdateSettings()
 			g_arrCooldownSystem.flDmgForSecMult = kv.GetFloat("damage_for_one_second_multiplier", g_arrCooldownSystem.flDmgForSecMult);
 			g_arrCooldownSystem.iHealingForSec = kv.GetNum("healing_for_one_second", g_arrCooldownSystem.iHealingForSec);
 			g_arrCooldownSystem.flHealingForSecMult = kv.GetFloat("healing_for_one_second_multiplier", g_arrCooldownSystem.flHealingForSecMult);
+			g_arrCooldownSystem.flCapturePointSec = kv.GetFloat("points_captured_sec", g_arrCooldownSystem.flCapturePointSec);
 			kv.GoBack();
 		}
 		

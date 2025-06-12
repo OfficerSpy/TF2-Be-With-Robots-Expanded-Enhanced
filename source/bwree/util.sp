@@ -1035,22 +1035,38 @@ float GetJarateTimeInternal(int weapon)
 	return 0.0;
 }
 
-int GetCapturablePointCount(TFTeam team)
+//Get the amount of points we may be able to cap in this round, including locked ones that will unlock later
+int GetPotentiallyCapturablePointCount(TFTeam team)
 {
 	int count = 0;
 	int iPoint = -1;
 	
 	while ((iPoint = FindEntityByClassname(iPoint, "team_control_point")) != -1)
 	{
+		//Disabled by the map?
+		if (!IsControlPointActive(iPoint))
+			continue;
+		
 		int iPointIndex = GetEntProp(iPoint, Prop_Data, "m_iPointIndex");
 		
-		if (!TFGameRules_TeamMayCapturePoint(team, iPointIndex))
+		if (BaseTeamObjectiveResource_GetOwningTeam(g_iObjectiveResource, iPointIndex) == team)
 			continue;
 		
 		count++;
 	}
 	
 	return count;
+}
+
+bool IsControlPointActive(int iPoint)
+{
+	static int iOffsetActive = -1;
+	
+	//m_bActive
+	if (iOffsetActive == -1)
+		iOffsetActive = FindDataMapInfo(iPoint, "m_iCPGroup") + 4;
+	
+	return GetEntData(iPoint, iOffsetActive, 1);
 }
 
 #if defined MOD_EXT_CBASENPC

@@ -252,6 +252,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)
 {
 	g_flTimeRoundStarted = GetGameTime();
+	g_iRoundCapturablePoints = GetPotentiallyCapturablePointCount(TFTeam_Blue);
 	g_bCanBotsAttackInSpawn = CanBotsAttackWhileInSpawnRoom(g_iPopulationManager);
 	
 	if (bwr3_edit_wavebar.BoolValue)
@@ -320,6 +321,11 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 			}
 		}
 	}
+	
+#if defined TESTING_ONLY
+	PrintToChatAll("[Event_MvmBeginWave] CAPTURABLE POINTS: %d", g_iRoundCapturablePoints);
+	PrintToChatAll("[Event_MvmBeginWave] CANS BOTS ATTACK IN SPAWN: %d", g_bCanBotsAttackInSpawn ? 1 : 0);
+#endif
 }
 
 static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBroadcast)
