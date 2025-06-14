@@ -862,7 +862,7 @@ int GetCapturableAreaTrigger(TFTeam team)
 			continue;
 		
 		//Ignore disabled triggers
-		if (GetEntProp(trigger, Prop_Data, "m_bDisabled") == 1)
+		if (GetEntProp(trigger, Prop_Data, "m_bDisabled"))
 			continue;
 		
 		//Apparently some community maps don't disable the trigger when capped
