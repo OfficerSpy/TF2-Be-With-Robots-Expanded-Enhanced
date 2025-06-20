@@ -182,7 +182,7 @@ enum struct esCSProperties
 	float flFastCapWatchMaxSeconds;
 	float flFastCapMaxMinutes;
 	float flKDSecMultiplicand;
-	float flSecPerKill;
+	float flSecPerKillNoDeath;
 	float flSecPerCapFlag;
 	int iDmgForSec;
 	float flDmgForSecMult;
@@ -192,11 +192,11 @@ enum struct esCSProperties
 	
 	void ResetToDefault()
 	{
-		this.flBaseDuration = 60.0;
+		this.flBaseDuration = 30.0;
 		this.flFastCapWatchMaxSeconds = 120.0;
 		this.flFastCapMaxMinutes = 10.0;
 		this.flKDSecMultiplicand = 60.0;
-		this.flSecPerKill = 66.0;
+		this.flSecPerKillNoDeath = 66.0;
 		this.flSecPerCapFlag = 60.0;
 		this.iDmgForSec = 750;
 		this.flDmgForSecMult = 1.0;
@@ -3376,7 +3376,7 @@ float GetPlayerCalculatedCooldown(int client)
 		else
 		{
 			//No deaths, add a minute for each kill obtained
-			flTotalDuration += g_arrCooldownSystem.flSecPerKill * g_arrRobotPlayerStats[client].iKills;
+			flTotalDuration += g_arrCooldownSystem.flSecPerKillNoDeath * g_arrRobotPlayerStats[client].iKills;
 		}
 	}
 	
@@ -4403,7 +4403,7 @@ void MainConfig_UpdateSettings()
 			}
 			
 			g_arrCooldownSystem.flKDSecMultiplicand = kv.GetFloat("kd_seconds_multiplicand", g_arrCooldownSystem.flKDSecMultiplicand);
-			g_arrCooldownSystem.flSecPerKill = kv.GetFloat("seconds_per_kill", g_arrCooldownSystem.flSecPerKill);
+			g_arrCooldownSystem.flSecPerKillNoDeath = kv.GetFloat("seconds_per_kill_no_death", g_arrCooldownSystem.flSecPerKillNoDeath);
 			g_arrCooldownSystem.flSecPerCapFlag = kv.GetFloat("seconds_per_capture_flag", g_arrCooldownSystem.flSecPerCapFlag);
 			g_arrCooldownSystem.iDmgForSec = kv.GetNum("damage_for_one_second", g_arrCooldownSystem.iDmgForSec);
 			g_arrCooldownSystem.flDmgForSecMult = kv.GetFloat("damage_for_one_second_multiplier", g_arrCooldownSystem.flDmgForSecMult);
