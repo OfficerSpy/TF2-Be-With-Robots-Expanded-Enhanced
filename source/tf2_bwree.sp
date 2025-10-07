@@ -53,6 +53,12 @@ Author: ★ Officer Spy ★
 #define CORRECT_VISIBLE_RESPAWN_TIME
 #define NO_UPGRADE_TELEPORTER
 
+enum ePlayerPenalty
+{
+	PENALTY_NONE = 0,
+	PENALTY_INVULNERABLE_DEPLOY = (1 << 0)
+}
+
 enum eRobotAction
 {
 	ROBOT_ACTION_UPGRADE_BOMB,
@@ -136,8 +142,9 @@ enum struct esPlayerStats
 	int iDamage;
 	int iHealing;
 	int iPointCaptures;
+	int iSuccessiveRoundsPlayed;
 	
-	void Reset()
+	void Reset(bool bFullReset = false)
 	{
 		this.iKills = 0;
 		this.iDeaths = 0;
@@ -145,6 +152,11 @@ enum struct esPlayerStats
 		this.iDamage = 0;
 		this.iHealing = 0;
 		this.iPointCaptures = 0;
+		
+		if (bFullReset)
+		{
+			this.iSuccessiveRoundsPlayed = 0;
+		}
 	}
 }
 
@@ -189,6 +201,8 @@ enum struct esCSProperties
 	int iHealingForSec;
 	float flHealingForSecMult;
 	float flCapturePointSec;
+	float flInvulnDeploySec;
+	float flSecPerSuccessiveRoundPlayed;
 	
 	void ResetToDefault()
 	{
@@ -203,6 +217,8 @@ enum struct esCSProperties
 		this.iHealingForSec = 600;
 		this.flHealingForSecMult = 1.0;
 		this.flCapturePointSec = 60.0;
+		this.flInvulnDeploySec = 60.0;
+		this.flSecPerSuccessiveRoundPlayed = 30.0;
 	}
 }
 
@@ -339,6 +355,7 @@ esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
 esButtonInput g_arrExtraButtons[MAXPLAYERS + 1];
 bool g_bRobotSpawning[MAXPLAYERS + 1];
 float g_flTimeJoinedBlue[MAXPLAYERS + 1]; //Active round only, not used between waves
+ePlayerPenalty g_iPenaltyFlags[MAXPLAYERS + 1];
 int g_nForcedTauntCam[MAXPLAYERS + 1];
 float g_flLastTimeFlagInSpawn[MAXPLAYERS + 1];
 bool g_bChangeRobotPicked[MAXPLAYERS + 1];
@@ -980,7 +997,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.3.9",
+	version = "1.4.0",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1162,10 +1179,11 @@ public void OnMapStart()
 
 public void OnClientPutInServer(int client)
 {
-	g_arrRobotPlayerStats[client].Reset();
+	g_arrRobotPlayerStats[client].Reset(true);
 	g_arrExtraButtons[client].Reset();
 	g_bRobotSpawning[client] = false;
 	// g_flTimeJoinedBlue[client] = 0.0;
+	g_iPenaltyFlags[client] = PENALTY_NONE;
 	// g_nForcedTauntCam[client] = 0;
 	g_flLastTimeFlagInSpawn[client] = GetGameTime();
 	g_bChangeRobotPicked[client] = false;
@@ -3396,6 +3414,14 @@ float GetPlayerCalculatedCooldown(int client)
 		flTotalDuration += (float(g_arrRobotPlayerStats[client].iPointCaptures) / float(g_iRoundCapturablePoints)) * g_arrCooldownSystem.flCapturePointSec;
 	}
 	
+	if (g_iPenaltyFlags[client] & PENALTY_INVULNERABLE_DEPLOY)
+	{
+		//Additonal time for deploying the bomb while invulnerable
+		flTotalDuration += g_arrCooldownSystem.flInvulnDeploySec;
+	}
+	
+	flTotalDuration += g_arrRobotPlayerStats[client].iSuccessiveRoundsPlayed * g_arrCooldownSystem.flSecPerSuccessiveRoundPlayed;
+	
 	return flTotalDuration;
 }
 
@@ -3555,6 +3581,7 @@ void SetRobotPlayer(int client, bool enabled)
 		g_arrRobotPlayerStats[client].Reset();
 		
 		g_bRobotSpawning[client] = false;
+		g_iPenaltyFlags[client] = PENALTY_NONE;
 		g_bSpawningAsBossRobot[client] = false;
 		g_arrPlayerPath[client].Reset();
 		g_bAllowRespawn[client] = true;
@@ -3655,6 +3682,9 @@ bool MvMDeployBomb_Update(int client)
 		{
 			//TODO: whoever pushed us away, fire an event for them
 			
+			//Remove deploy penalty since we were pushed off it
+			g_iPenaltyFlags[client] &= ~PENALTY_INVULNERABLE_DEPLOY;
+			
 			//We were pushed away from the hatch hole
 			return false;
 		}
@@ -3716,6 +3746,17 @@ bool MvMDeployBomb_Update(int client)
 				
 				return false;
 			}
+		}
+	}
+	
+	if (g_iPenaltyFlags[client] & PENALTY_INVULNERABLE_DEPLOY == 0)
+	{
+		if (TF2_IsPlayerInCondition(client, TFCond_Ubercharged)
+		|| TF2_IsPlayerInCondition(client, TFCond_MegaHeal)
+		|| TF2_IsPlayerInCondition(client, TFCond_Bonked))
+		{
+			//Remember if we ever became invulnerable during the deploy
+			g_iPenaltyFlags[client] |= PENALTY_INVULNERABLE_DEPLOY;
 		}
 	}
 	
@@ -4410,6 +4451,8 @@ void MainConfig_UpdateSettings()
 			g_arrCooldownSystem.iHealingForSec = kv.GetNum("healing_for_one_second", g_arrCooldownSystem.iHealingForSec);
 			g_arrCooldownSystem.flHealingForSecMult = kv.GetFloat("healing_for_one_second_multiplier", g_arrCooldownSystem.flHealingForSecMult);
 			g_arrCooldownSystem.flCapturePointSec = kv.GetFloat("points_captured_sec", g_arrCooldownSystem.flCapturePointSec);
+			g_arrCooldownSystem.flInvulnDeploySec = kv.GetFloat("invulnerable_deploy_sec", g_arrCooldownSystem.flInvulnDeploySec);
+			g_arrCooldownSystem.flSecPerSuccessiveRoundPlayed = kv.GetFloat("seconds_per_successive_round_played", g_arrCooldownSystem.flSecPerSuccessiveRoundPlayed);
 			kv.GoBack();
 		}
 		

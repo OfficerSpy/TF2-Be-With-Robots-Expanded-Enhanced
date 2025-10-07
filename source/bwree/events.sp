@@ -400,18 +400,26 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 	
 	for (int i = 1; i <= MaxClients; i++)
 	{
-		if (IsClientInGame(i) && IsPlayingAsRobot(i))
+		if (IsClientInGame(i))
 		{
-			g_arrRobotPlayerStats[i].Reset();
-			ResetRobotPlayerName(i);
-			ResetPlayerProperties(i);
-			
+			if (IsPlayingAsRobot(i))
+			{
+				g_arrRobotPlayerStats[i].Reset();
+				ResetRobotPlayerName(i);
+				ResetPlayerProperties(i);
+				
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
-			/* All BLUE players are killed when the wave is complete
-			so we need to reset the respawn time on robot players because we override it when they die
-			Though they could actually get around this by changing classes as this will instantly respawn them between waves */
-			TF2Util_SetPlayerRespawnTimeOverride(i, -1.0);
+				/* All BLUE players are killed when the wave is complete
+				so we need to reset the respawn time on robot players because we override it when they die
+				Though they could actually get around this by changing classes as this will instantly respawn them between waves */
+				TF2Util_SetPlayerRespawnTimeOverride(i, -1.0);
 #endif
+			}
+			else if (TF2_GetClientTeam(i) == TFTeam_Red)
+			{
+				//We played one round on RED and broke our streak
+				g_arrRobotPlayerStats[i].iSuccessiveRoundsPlayed = 0;
+			}
 		}
 	}
 }
@@ -436,6 +444,9 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	
 	if (IsPlayingAsRobot(client))
 	{
+		//Possibly got killed during deploy, clear deploy penalties on spawn
+		g_iPenaltyFlags[client] &= ~PENALTY_INVULNERABLE_DEPLOY;
+		
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
 		MvMRobotPlayer(client).ClearTrackedSpyData();
 #endif
@@ -519,10 +530,19 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 	{
 		for (int i = 1; i <= MaxClients; i++)
 		{
-			if (IsClientInGame(i) && IsPlayingAsRobot(i))
+			if (IsClientInGame(i))
 			{
-				//Compensate cooldown for map reset time
-				SetBWRCooldownTimeLeft(i, GetPlayerCalculatedCooldown(i) + BONUS_ROUND_TIME_MVM + 1.0);
+				if (IsPlayingAsRobot(i))
+				{
+					//Compensate cooldown for map reset time
+					SetBWRCooldownTimeLeft(i, GetPlayerCalculatedCooldown(i) + BONUS_ROUND_TIME_MVM + 1.0);
+					g_arrRobotPlayerStats[i].iSuccessiveRoundsPlayed++;
+				}
+				else if (TF2_GetClientTeam(i) == TFTeam_Red)
+				{
+					//We played one round on RED and broke our streak
+					g_arrRobotPlayerStats[i].iSuccessiveRoundsPlayed = 0;
+				}
 			}
 		}
 	}
