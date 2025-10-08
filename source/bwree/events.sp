@@ -16,6 +16,8 @@ void InitGameEventHooks()
 	HookEvent("npc_hurt", Event_NpcHurt);
 	HookEvent("player_healed", Event_PlayerHealed);
 	HookEvent("teamplay_point_captured", Event_TeamplayPointCaptured);
+	HookEvent("player_chargedeployed", Event_PlayerChargedeployed);
+	HookEvent("player_invulned", Event_PlayerInvulned);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -658,6 +660,30 @@ static void Event_TeamplayPointCaptured(Event event, const char[] name, bool don
 				g_arrRobotPlayerStats[iPlayerIndex].iPointCaptures++;
 		}
 	}
+}
+
+static void Event_PlayerChargedeployed(Event event, const char[] name, bool dontBroadcast)
+{
+	int medic = GetClientOfUserId(event.GetInt("userid"));
+	
+	if (IsPlayingAsRobot(medic))
+	{
+		g_bReleasingUber[medic] = true;
+		
+		int patient = GetClientOfUserId(event.GetInt("targetid"));
+		
+		//Track this here cause event "player_invulned" will fire before this one and we need to know if we released uber first
+		if (patient > 0)
+			RememberPlayerUberTarget(medic, patient);
+	}
+}
+
+static void Event_PlayerInvulned(Event event, const char[] name, bool dontBroadcast)
+{
+	int medic = GetClientOfUserId(event.GetInt("medic_userid"));
+	
+	if (IsPlayingAsRobot(medic) && g_bReleasingUber[medic])
+		RememberPlayerUberTarget(medic, GetClientOfUserId(event.GetInt("userid")));
 }
 
 #if defined FIX_VOTE_CONTROLLER

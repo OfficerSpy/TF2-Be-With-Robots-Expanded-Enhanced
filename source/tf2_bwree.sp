@@ -142,6 +142,7 @@ enum struct esPlayerStats
 	int iDamage;
 	int iHealing;
 	int iPointCaptures;
+	int iPlayersUbered;
 	int iSuccessiveRoundsPlayed;
 	
 	void Reset(bool bFullReset = false)
@@ -152,6 +153,7 @@ enum struct esPlayerStats
 		this.iDamage = 0;
 		this.iHealing = 0;
 		this.iPointCaptures = 0;
+		this.iPlayersUbered = 0;
 		
 		if (bFullReset)
 		{
@@ -351,9 +353,15 @@ char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MA
 //KEY is player steamID, VALUE is the time when his ban expires
 static StringMap m_adtBWRCooldown;
 
+#if SOURCEMOD_V_MINOR >= 13
+//KEY is player entity index, VALUE is ArrayList object
+static IntMap m_adtPlayersUbered;
+#endif
+
 esPlayerStats g_arrRobotPlayerStats[MAXPLAYERS + 1];
 esButtonInput g_arrExtraButtons[MAXPLAYERS + 1];
 bool g_bRobotSpawning[MAXPLAYERS + 1];
+bool g_bReleasingUber[MAXPLAYERS + 1];
 float g_flTimeJoinedBlue[MAXPLAYERS + 1]; //Active round only, not used between waves
 ePlayerPenalty g_iPenaltyFlags[MAXPLAYERS + 1];
 int g_nForcedTauntCam[MAXPLAYERS + 1];
@@ -1104,6 +1112,10 @@ public void OnPluginStart()
 	g_hHudText = CreateHudSynchronizer();
 	m_adtBWRCooldown = new StringMap();
 	
+#if SOURCEMOD_V_MINOR >= 13
+	m_adtPlayersUbered = new IntMap();
+#endif
+	
 	GameData hGamedata = new GameData("tf2.bwree");
 	
 	if (hGamedata)
@@ -1165,6 +1177,7 @@ public void OnMapStart()
 	g_iMaxEdicts = GetMaxEntities();
 	g_bCanBotsAttackInSpawn = false;
 	m_adtBWRCooldown.Clear();
+	// m_adtPlayersUbered.Clear();
 	
 	PrecacheSound(BAD_TELE_PLACEMENT_SOUND);
 	PrecacheSound(ALERT_FLAG_HELD_TOO_LONG_SOUND);
@@ -1182,6 +1195,7 @@ public void OnClientPutInServer(int client)
 	g_arrRobotPlayerStats[client].Reset(true);
 	g_arrExtraButtons[client].Reset();
 	g_bRobotSpawning[client] = false;
+	g_bReleasingUber[client] = false;
 	// g_flTimeJoinedBlue[client] = 0.0;
 	g_iPenaltyFlags[client] = PENALTY_NONE;
 	// g_nForcedTauntCam[client] = 0;
@@ -1333,7 +1347,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				
 				if (g_arrDisguised[client].nDisguisedClass != iDisguisedClass || g_arrDisguised[client].nDisguisedTeam != iDisguisedTeam)
 				{
-					if (iDisguisedClass == 0 && iDisguisedTeam == 0)
+					if ((iDisguisedClass == 0 && iDisguisedTeam == 0) || iDisguisedTeam == TFTeam_Red)
 					{
 						SpyDisguiseClear(client);
 					}
@@ -1387,6 +1401,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (!IsPlayerAlive(client))
 	{
+		if (g_bReleasingUber[client])
+		{
+			//Not releasing uber anymore if we are dead
+			g_bReleasingUber[client] = false;
+			CollectPlayerCurrentUniqueUbers(client);
+		}
+		
 		m_bIsWaitingForReload[client] = false;
 		
 		if (iRoundState == RoundState_TeamWin || iRoundState == RoundState_GameOver)
@@ -1433,6 +1454,26 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		
 		if (g_arrExtraButtons[client].flReleaseTime <= GetGameTime())
 			g_arrExtraButtons[client].iRelease = 0;
+	}
+	
+	if (g_bReleasingUber[client])
+	{
+		int medigun = GetPlayerWeaponSlot(client, TFWeaponSlot_Secondary);
+		
+		if (medigun != -1 && TF2Util_GetWeaponID(medigun) == TF_WEAPON_MEDIGUN)
+		{
+			if (GetEntProp(medigun, Prop_Send, "m_bChargeRelease") == 0)
+			{
+				//Our ubercharge expired
+				g_bReleasingUber[client] = false;
+				CollectPlayerCurrentUniqueUbers(client);
+			}
+		}
+		else
+		{
+			//We should never be here...
+			g_bReleasingUber[client] = false;
+		}
 	}
 	
 	if (m_flBlockMovementTime[client] > GetGameTime())
@@ -2381,6 +2422,8 @@ public Action Command_DebugPlayerStats(int client, int args)
 		ReplyToCommand(client, "DAMAGE: %d", g_arrRobotPlayerStats[target_list[i]].iDamage);
 		ReplyToCommand(client, "HEALING: %d", g_arrRobotPlayerStats[target_list[i]].iHealing);
 		ReplyToCommand(client, "POINT CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iPointCaptures);
+		ReplyToCommand(client, "TOTAL PLAYERS UBERED: %d", g_arrRobotPlayerStats[target_list[i]].iPlayersUbered);
+		ReplyToCommand(client, "ROUNDS PLAYED IN A ROW: %d", g_arrRobotPlayerStats[target_list[i]].iSuccessiveRoundsPlayed);
 	}
 	
 	return Plugin_Handled;
@@ -3324,6 +3367,65 @@ void BWRCooldown_PurgeExpired()
 	CloseHandle(shot);
 }
 
+/* REMEMBER UNIQUE UBERS BY PLAYERS
+We need these to be unique because event "player_invulned" repeatedly fires for every uber triggered even repeated by the same player
+This is done through an IntMap because I do not want to allocate 102 ArrayList objects
+This is only done temporarily for each new ubercharge the player pops and is then extorted to esPlayerStats.iPlayersUbered */
+void RememberPlayerUberTarget(int client, int target)
+{
+#if SOURCEMOD_V_MINOR >= 13
+	ArrayList adtUniqueUbers;
+	
+	if (!m_adtPlayersUbered.GetValue(client, adtUniqueUbers))
+	{
+		adtUniqueUbers = new ArrayList();
+		m_adtPlayersUbered.SetValue(client, adtUniqueUbers);
+	}
+	
+	int iTargetUID = GetClientUserId(target);
+	
+	//Already remembered?
+	if (adtUniqueUbers.FindValue(iTargetUID) != -1)
+		return;
+	
+	adtUniqueUbers.Push(iTargetUID);
+#endif
+}
+
+int GetUniqueUbersByPlayer(int client)
+{
+#if SOURCEMOD_V_MINOR >= 13
+	ArrayList adtUniqueUbers;
+	
+	if (!m_adtPlayersUbered.GetValue(client, adtUniqueUbers))
+		return 0;
+	
+	return adtUniqueUbers.Length;
+#endif
+}
+
+void ForgetUniqueUbersByPlayer(int client)
+{
+#if SOURCEMOD_V_MINOR >= 13
+	ArrayList adtUniqueUbers;
+	
+	if (!m_adtPlayersUbered.GetValue(client, adtUniqueUbers))
+		return;
+	
+	adtUniqueUbers.Close();
+	m_adtPlayersUbered.Remove(client);
+#endif
+}
+
+void CollectPlayerCurrentUniqueUbers(int client)
+{
+#if SOURCEMOD_V_MINOR >= 13
+	//Count our totals and reset
+	g_arrRobotPlayerStats[client].iPlayersUbered += GetUniqueUbersByPlayer(client);
+	ForgetUniqueUbersByPlayer(client);
+#endif
+}
+
 //Returns the cooldown duration the player should get based on certain statistics
 float GetPlayerCalculatedCooldown(int client)
 {
@@ -3581,6 +3683,7 @@ void SetRobotPlayer(int client, bool enabled)
 		g_arrRobotPlayerStats[client].Reset();
 		
 		g_bRobotSpawning[client] = false;
+		g_bReleasingUber[client] = false;
 		g_iPenaltyFlags[client] = PENALTY_NONE;
 		g_bSpawningAsBossRobot[client] = false;
 		g_arrPlayerPath[client].Reset();
@@ -3594,6 +3697,7 @@ void SetRobotPlayer(int client, bool enabled)
 		SDKUnhook(client, SDKHook_WeaponCanSwitchTo, PlayerRobot_WeaponCanSwitchTo);
 		SDKUnhook(client, SDKHook_WeaponEquipPost, PlayerRobot_WeaponEquipPost);
 		
+		ForgetUniqueUbersByPlayer(client);
 		ResetRobotPlayerName(client);
 		ResetPlayerProperties(client);
 		
@@ -3682,7 +3786,7 @@ bool MvMDeployBomb_Update(int client)
 		{
 			//TODO: whoever pushed us away, fire an event for them
 			
-			//Remove deploy penalty since we were pushed off it
+			//Remove deploy penalty since we were pushed off of it
 			g_iPenaltyFlags[client] &= ~PENALTY_INVULNERABLE_DEPLOY;
 			
 			//We were pushed away from the hatch hole
