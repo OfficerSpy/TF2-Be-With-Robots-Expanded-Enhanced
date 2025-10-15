@@ -3368,7 +3368,7 @@ void BWRCooldown_PurgeExpired()
 }
 
 /* REMEMBER UNIQUE UBERS BY PLAYERS
-We need these to be unique because event "player_invulned" repeatedly fires for every uber triggered even repeated by the same player
+We need these to be unique because event "player_invulned" fires for every uber triggered even on the same player
 This is done through an IntMap because I do not want to allocate 102 ArrayList objects
 This is only done temporarily for each new ubercharge the player pops and is then extorted to esPlayerStats.iPlayersUbered */
 void RememberPlayerUberTarget(int client, int target)
