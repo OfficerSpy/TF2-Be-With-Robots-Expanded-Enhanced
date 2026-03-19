@@ -306,6 +306,28 @@ enum struct esPlayerPathing
 	}
 }
 
+enum struct esSBControl
+{
+	float flControlTime;
+	int iMissionTarget;
+	
+	void Reset()
+	{
+		this.flControlTime = -1.0;
+		this.iMissionTarget = -1;
+	}
+	
+	bool IsControllable()
+	{
+		return this.flControlTime != -1.0;
+	}
+	
+	bool HasControlTimeExpired()
+	{
+		return this.flControlTime <= GetGameTime();
+	}
+}
+
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 enum struct eDisguisedStruct
 {
@@ -371,6 +393,10 @@ float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
 esPlayerPathing g_arrPlayerPath[MAXPLAYERS + 1];
 bool g_bAllowRespawn[MAXPLAYERS + 1];
+
+//THIS IS FOR BOTS ONLY!
+//It's how we monitor what sentry busters we can currently replace
+esSBControl g_arrBusterControl[MAXPLAYERS + 1];
 
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
@@ -1005,7 +1031,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.0",
+	version = "1.4.1",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1205,6 +1231,7 @@ public void OnClientPutInServer(int client)
 	g_bSpawningAsBossRobot[client] = false;
 	g_arrPlayerPath[client].Reset();
 	g_bAllowRespawn[client] = true;
+	g_arrBusterControl[client].Reset();
 	
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
@@ -1337,6 +1364,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 {
 	if (!IsPlayingAsRobot(client))
 	{
+		if (g_arrBusterControl[client].IsControllable() && g_arrBusterControl[client].HasControlTimeExpired())
+		{
+			//Nobody took this sentry buster's place...
+			g_arrBusterControl[client].Reset();
+			
+			//Resume operations
+			VS_SetMission(client, CTFBot_MISSION_DESTROY_SENTRIES, true);
+			SetEntityMoveType(client, MOVETYPE_WALK);
+		}
+		
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 		if (IsPlayerAlive(client))
 		{

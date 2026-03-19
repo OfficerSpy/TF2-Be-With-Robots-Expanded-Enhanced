@@ -4,7 +4,6 @@ void InitGameEventHooks()
 	HookEvent("player_death", Event_PlayerDeath);
 	HookEvent("mvm_begin_wave", Event_MvmBeginWave);
 	HookEvent("player_builtobject", Event_PlayerBuiltObject);
-	HookEvent("mvm_wave_failed", Event_MvmWaveFailed);
 	HookEvent("mvm_wave_complete", Event_MvmWaveComplete);
 	HookEvent("player_spawn", Event_PlayerSpawn);
 	HookEvent("teamplay_flag_event", Event_TeamplayFlagEvent);
@@ -79,6 +78,8 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		return;
 	
 	int client = GetClientOfUserId(event.GetInt("userid"));
+	
+	g_arrBusterControl[client].Reset();
 	
 #if defined SPY_DISGUISE_VISION_OVERRIDE
 	SpyDisguiseClear(client);
@@ -385,17 +386,9 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	TF2_PushAllPlayersAway(GetAbsOrigin(entity), 400.0, 500.0, TFTeam_Red);
 }
 
-static void Event_MvmWaveFailed(Event event, const char[] name, bool dontBroadcast)
-{
-	if (!UpdateSentryBusterSpawningCriteria())
-		LogError("Failed to update sentry buster spawning criteria for the current mission!");
-	
-	BossRobotSystem_Reset();
-}
-
 static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroadcast)
 {
-	if (!UpdateSentryBusterSpawningCriteria())
+	if (!UpdateSentryBusterSpawnData())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
 	
 	BossRobotSystem_Reset();
@@ -459,9 +452,9 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		} */
 	}
 	
-#if defined TELEPORTER_METHOD_MANUAL
 	if (TF2_GetClientTeam(client) == TFTeam_Blue && IsTFBotPlayer(client))
 	{
+#if defined TELEPORTER_METHOD_MANUAL
 		//Catch this before uber gets applied in CTFBotMainAction::Update
 		float delay = nb_update_frequency.FloatValue - 0.005;
 		
@@ -469,8 +462,22 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 			delay = 0.0;
 		
 		CreateTimer(delay, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
-	}
 #endif
+		
+		if (GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
+		{
+			g_arrBusterControl[client].flControlTIme = GetGameTime() + 5.0;
+			g_arrBusterControl[client].iMissionTarget = GetTFBotMissionTarget(client);
+			
+			//TODO: somehow determine if this sentry buster teleported onto a teleporter
+			//This is so we can determine if we should spawn our player onto it as well
+			
+			//Temporarily "pause" the ai to give players time to decide if they want to replace this one
+			//TODO: bot can't move but can still pick up flag if it somehow touches it which could disrupt the flow of gameplay
+			VS_SetMission(client, CTFBot_NO_MISSION, true);
+			SetEntityMoveType(client, MOVETYPE_NONE);
+		}
+	}
 }
 
 static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBroadcast)
@@ -500,6 +507,11 @@ static void Event_TeamplayFlagEvent(Event event, const char[] name, bool dontBro
 
 static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBroadcast)
 {
+	if (!UpdateSentryBusterSpawnData())
+		LogError("Failed to update sentry buster spawning criteria for the current mission!");
+	
+	BossRobotSystem_Reset();
+	
 	/* From CTFGameRules::FireGameEvent, when this event is fired all BLUE players are switched to spectator
 	So here we are just going to switch them to RED, but only the actual human players! */
 	for (int i = 1; i <= MaxClients; i++)
@@ -530,6 +542,8 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 	
 	if (team == TFTeam_Blue)
 	{
+		bool bBotDefenders = GetTeamHumanClientCount(TFTeam_Red) == 0;
+		
 		for (int i = 1; i <= MaxClients; i++)
 		{
 			if (IsClientInGame(i))
@@ -538,7 +552,9 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 				{
 					//Compensate cooldown for map reset time
 					SetBWRCooldownTimeLeft(i, GetPlayerCalculatedCooldown(i) + BONUS_ROUND_TIME_MVM + 1.0);
-					g_arrRobotPlayerStats[i].iSuccessiveRoundsPlayed++;
+					
+					if (!bBotDefenders)
+						g_arrRobotPlayerStats[i].iSuccessiveRoundsPlayed++;
 				}
 				else if (TF2_GetClientTeam(i) == TFTeam_Red)
 				{

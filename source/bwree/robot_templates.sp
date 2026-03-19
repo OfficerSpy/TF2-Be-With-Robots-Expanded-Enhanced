@@ -234,7 +234,6 @@ bool g_bBossProportionalHealth;
 float g_flNextBossSpawnTime;
 
 static float m_flDestroySentryCooldownDuration; //Cooldown amount specified by the population file
-static float m_flSentryBusterCooldown; //How long our active cooldown is right now
 
 int g_iOverrideTeleportVictim[MAXPLAYERS + 1] = {-1, ...};
 
@@ -1584,58 +1583,6 @@ static void AddRomevisionCosmetics(int client)
 	// PostInventoryApplication(client);
 }
 
-static bool ShouldDispatchSentryBuster()
-{
-	//Still on cooldown
-	if (m_flSentryBusterCooldown > GetGameTime())
-		return false;
-	
-	//TODO: we should actually check if other sentries can be targeted, not just single out one
-	//Also factor in players whose next robot are sentry busters and what sentry they're gonna target
-	int sentry = GetMostThreateningSentry();
-	
-	if (sentry == -1)
-		return false;
-	
-	if (IsSentryAlreadyTargeted(sentry))
-		return false;
-	
-	return true;
-}
-
-static int GetMostThreateningSentry()
-{
-	int nDmgLimit = 0;
-	int nKillLimit = 0;
-	GetSentryBusterDamageAndKillThreshold(g_iPopulationManager, nDmgLimit, nKillLimit);
-	
-	int ent = -1;
-	
-	while ((ent = FindEntityByClassname(ent, "obj_sentrygun")) != -1)
-	{
-		OSBaseObject cboSentry = OSBaseObject(ent);
-		
-		if (cboSentry.IsDisposableBuilding())
-			continue;
-		
-		if (cboSentry.GetTeamNumber() == view_as<int>(TFTeam_Red))
-		{
-			int sentryOwner = cboSentry.GetOwner();
-			
-			if (sentryOwner != -1)
-			{
-				int nDmgDone = RoundFloat(GetAccumulatedSentryGunDamageDealt(sentryOwner));
-				int nKillsMade = GetAccumulatedSentryGunKillCount(sentryOwner);
-				
-				if (nDmgDone >= nDmgLimit || nKillsMade >= nKillLimit)
-					return ent;
-			}
-		}
-	}
-	
-	return -1;
-}
-
 SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale = 1.0, bool bIgnoreTeleporter = false, eRobotSpawnType iRobotSpawnType = ROBOT_SPAWN_NO_TYPE)
 {
 	int ent;
@@ -1861,13 +1808,6 @@ void ResetRobotSpawnerData()
 	g_flLastTeleportTime = 0.0;
 	
 	m_flDestroySentryCooldownDuration = 0.0;
-	m_flSentryBusterCooldown = 0.0;
-}
-
-void StartSentryBusterCooldown()
-{
-	//TODO: factor in NumSentryBustersKilled?
-	m_flSentryBusterCooldown = GetGameTime() + m_flDestroySentryCooldownDuration;
 }
 
 // Determine the next robot template the player should use on their next spawn
@@ -2633,24 +2573,20 @@ void MvMEngineerTeleportSpawn(int client, eEngineerTeleportType type = ENGINEER_
 	TF2_PushAllPlayersAway(hintTeleportPos, 400.0, 500.0, TFTeam_Red);
 }
 
-bool UpdateSentryBusterSpawningCriteria()
+bool UpdateSentryBusterSpawnData()
 {
 	char missionFilePath[PLATFORM_MAX_PATH]; TF2_GetMvMPopfileName(g_iObjectiveResource, missionFilePath, sizeof(missionFilePath));
+	KeyValues kv = new KeyValues("Population");
 	
-	if (!FileExists(missionFilePath))
+	if (!kv.ImportFromFile(missionFilePath))
 	{
-		//Search the valve directory then...
-		if (!FileExists(missionFilePath, true))
-		{
-			LogError("UpdateSentryBusterSpawningCriteria: Could not find the current mission file %s!", missionFilePath);
-			return false;
-		}
+		kv.Close();
+		LogError("UpdateSentryBusterSpawnData: Could not find the current mission file %s!", missionFilePath);
+		return false;
 	}
 	
 	int currentWaveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
 	bool bUpdated = false;
-	KeyValues kv = new KeyValues("Population");
-	kv.ImportFromFile(missionFilePath);
 	
 	//Search the pop file for a sentry buster specification that can be used for this current wave
 	if (kv.GotoFirstSubKey())
@@ -2695,7 +2631,7 @@ bool UpdateSentryBusterSpawningCriteria()
 	delete kv;
 	
 #if defined TESTING_ONLY
-	PrintToChatAll("[UpdateSentryBusterSpawningCriteria] Sentry buster cooldown for wave %d: %f", currentWaveNumber, m_flDestroySentryCooldownDuration);
+	PrintToChatAll("[UpdateSentryBusterSpawnData] Sentry buster cooldown for wave %d: %f", currentWaveNumber, m_flDestroySentryCooldownDuration);
 #endif
 	
 	return bUpdated;
