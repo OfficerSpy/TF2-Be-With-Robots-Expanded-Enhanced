@@ -833,11 +833,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (nMission == CTFBot_MISSION_DESTROY_SENTRIES)
 	{
-		if (GameRules_GetRoundState() == RoundState_RoundRunning)
-			StartSentryBusterCooldown();
-		
-		MvMSuicideBomber(client).InitializeSuicideBomber(GetMostThreateningSentry());
-		
 		if (bwr3_edit_wavebar.BoolValue)
 		{
 			// SetAsMissionEnemy(client, true);
@@ -857,13 +852,13 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 			}
 		}
 		
-		MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SENTRY_BUSTER, view_as<int>(TFTeam_Red));
+		// MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SENTRY_BUSTER, view_as<int>(TFTeam_Red));
 		
 		/* TODO: replace this as this is a jank way of letting the player phase through other players
 		They will only phase through if the colliding entity is actually moving, otherwise the player will still be blocked */
 		SetEntityCollisionGroup(client, COLLISION_GROUP_PROJECTILE);
 		
-		Address pWave = GetCurrentWave(g_iPopulationManager);
+		/* Address pWave = GetCurrentWave(g_iPopulationManager);
 		
 		if (pWave)
 		{
@@ -874,10 +869,10 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 			else
 				TeamplayRoundBasedRules_BroadcastSound(255, "Announcer.MVM_Sentry_Buster_Alert");
 			
-			/* NOTE: doing this will likely make actual mission sentry busters spawn faster
-			This actual value gets checked in CMissionPopulator::UpdateMissionDestroySentries */
+			//NOTE: doing this will likely make actual mission sentry busters spawn faster
+			//This actual value gets checked in CMissionPopulator::UpdateMissionDestroySentries
 			// SetNumSentryBustersKilled(pWave, 0);
-		}
+		} */
 	}
 	else if (nMission == CTFBot_MISSION_SNIPER)
 	{
@@ -1583,6 +1578,19 @@ static void AddRomevisionCosmetics(int client)
 	// PostInventoryApplication(client);
 }
 
+void ReplaceSentryBuster(int iTFBot, int iReplacement)
+{
+	ForcePlayerSuicide(iTFBot);
+	// g_arrBusterControl[iTFBot].Reset();
+	
+	if (IsPlayerAlive(iReplacement))
+		DecrementRobotPlayerClassIcon(iReplacement);
+	
+	g_bAllowRespawn[iReplacement] = true;
+	TurnPlayerIntoRobot(iReplacement, ROBOT_SENTRYBUSTER, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_SENTRYBUSTER] - 1));
+	MvMSuicideBomber(iReplacement).InitializeSuicideBomber(GetTFBotMissionTarget(iTFBot));
+}
+
 SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale = 1.0, bool bIgnoreTeleporter = false, eRobotSpawnType iRobotSpawnType = ROBOT_SPAWN_NO_TYPE)
 {
 	int ent;
@@ -1822,12 +1830,6 @@ void SelectPlayerNextRobot(int client)
 		roboPlayer.SetMyNextRobot(ROBOT_BOSS, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_BOSS] - 1));
 		g_bSpawningAsBossRobot[client] = true;
 		g_bRobotBossesAvailable = false;
-		return;
-	}
-	
-	if (ShouldDispatchSentryBuster())
-	{
-		roboPlayer.SetMyNextRobot(ROBOT_SENTRYBUSTER, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_SENTRYBUSTER] - 1));
 		return;
 	}
 	

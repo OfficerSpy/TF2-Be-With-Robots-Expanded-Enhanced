@@ -309,12 +309,12 @@ enum struct esPlayerPathing
 enum struct esSBControl
 {
 	float flControlTime;
-	int iMissionTarget;
+	// int iMissionTarget;
 	
 	void Reset()
 	{
 		this.flControlTime = -1.0;
-		this.iMissionTarget = -1;
+		// this.iMissionTarget = -1;
 	}
 	
 	bool IsControllable()
@@ -1105,6 +1105,7 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_newspawnarea", Command_FindUseNewSpawnLocation);
 	RegConsoleCmd("sm_newspawn", Command_FindUseNewSpawnLocation);
 	RegConsoleCmd("sm_ns", Command_FindUseNewSpawnLocation);
+	RegConsoleCmd("sm_buster", Command_BecomeSentryBuster);
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_robots", Command_ListRobots, ADMFLAG_GENERIC);
@@ -2263,6 +2264,33 @@ public Action Command_FindUseNewSpawnLocation(int client, int args)
 #if defined TESTING_ONLY
 	PrintToChatAll("[Command_FindUseNewSpawnLocation] New spawn at %f %f %f", newSpawnPos[0], newSpawnPos[1], newSpawnPos[2]);
 #endif
+	
+	return Plugin_Handled;
+}
+
+public Action Command_BecomeSentryBuster(int client, int args)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Handled;
+	
+	int iSelected = -1;
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (g_arrBusterControl[i].IsControllable())
+		{
+			iSelected = i;
+			break;
+		}
+	}
+	
+	if (iSelected == -1)
+	{
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "ReplaceBuster_Search_Failed");
+		return Plugin_Handled;
+	}
+	
+	ReplaceSentryBuster(iSelected, client);
 	
 	return Plugin_Handled;
 }

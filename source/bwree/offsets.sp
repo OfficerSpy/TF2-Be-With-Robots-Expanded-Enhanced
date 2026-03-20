@@ -15,6 +15,8 @@ void InitOffsets(GameData hGamedata)
 	SetOffset(hGamedata, "CPopulationManager", "m_canBotsAttackWhileInSpawnRoom");
 	SetOffset(hGamedata, "CPopulationManager", "m_bSpawningPaused");
 	SetOffset(hGamedata, "CBaseObject", "m_vecBuildOrigin");
+	SetOffset(hGamedata, "CTFBot", "m_mission");
+	SetOffset(hGamedata, "CTFBot", "m_missionTarget");
 	SetOffset(hGamedata, "CWave", "m_nSentryBustersSpawned");
 	SetOffset(hGamedata, "CWave", "m_nNumEngineersTeleportSpawned");
 	SetOffset(hGamedata, "CWave", "m_nNumSentryBustersKilled");
@@ -31,6 +33,8 @@ void InitOffsets(GameData hGamedata)
 	LogMessage("InitOffsets: CPopulationManager->m_canBotsAttackWhileInSpawnRoom = %d", GetOffset("CPopulationManager", "m_canBotsAttackWhileInSpawnRoom"));
 	LogMessage("InitOffsets: CPopulationManager->m_bSpawningPaused = %d", GetOffset("CPopulationManager", "m_bSpawningPaused"));
 	LogMessage("InitOffsets: CBaseObject->m_vecBuildOrigin = %d", GetOffset("CBaseObject", "m_vecBuildOrigin"));
+	LogMessage("InitOffsets: CTFBot->m_mission = %d", GetOffset("CTFBot", "m_mission"));
+	LogMessage("InitOffsets: CTFBot->m_missionTarget = %d", GetOffset("CTFBot", "m_missionTarget"));
 	LogMessage("InitOffsets: CWave->m_nSentryBustersSpawned = %d", GetOffset("CWave", "m_nSentryBustersSpawned"));
 	LogMessage("InitOffsets: CWave->m_nNumEngineersTeleportSpawned = %d", GetOffset("CWave", "m_nNumEngineersTeleportSpawned"));
 	LogMessage("InitOffsets: CWave->m_nNumSentryBustersKilled = %d", GetOffset("CWave", "m_nNumSentryBustersKilled"));
@@ -62,6 +66,16 @@ static void SetOffset(GameData hGamedata, const char[] cls, const char[] prop)
 	if (hGamedata.GetKeyValue(base_key, base_prop, sizeof(base_prop)))
 	{
 		int base_offset = FindSendPropInfo(cls, base_prop);
+		
+		if (base_offset == -1)
+		{
+			if (!strcmp(cls, "CTFBot"))
+			{
+				LogMessage("\"%s\" is not a networked class, falling back to CTFPlayer", cls);
+				base_offset = FindSendPropInfo("CTFPlayer", base_prop);
+			}
+		}
+		
 		if (base_offset == -1)
 		{
 			// If we found nothing, search on CBaseEntity instead
@@ -133,6 +147,16 @@ bool IsBotSpawningPaused(int populator)
 void GetCurrentBuildOrigin(int iObject, float buffer[3])
 {
 	GetEntDataVector(iObject, GetOffset("CBaseObject", "m_vecBuildOrigin"), buffer);
+}
+
+int GetTFBotMission(int client)
+{
+	return GetEntData(client, GetOffset("CTFBot", "m_mission"));
+}
+
+int GetTFBotMissionTarget(int client)
+{
+	return GetEntDataEnt2(client, GetOffset("CTFBot", "m_missionTarget"));
 }
 
 int GetNumSentryBustersSpawned(Address wave)

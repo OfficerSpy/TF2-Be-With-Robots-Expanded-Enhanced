@@ -262,7 +262,6 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 		UpdateCurrentWaveUsedIcons();
 	
 	BWRCooldown_PurgeExpired();
-	StartSentryBusterCooldown();
 	BossRobotSystem_UpdateSettings();
 	BossRobotSystem_StartSpawnCooldown();
 	
@@ -464,10 +463,9 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		CreateTimer(delay, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
 #endif
 		
-		if (GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
+		if (GetRobotPlayerCount() > 0 && GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
 		{
 			g_arrBusterControl[client].flControlTIme = GetGameTime() + 5.0;
-			g_arrBusterControl[client].iMissionTarget = GetTFBotMissionTarget(client);
 			
 			//TODO: somehow determine if this sentry buster teleported onto a teleporter
 			//This is so we can determine if we should spawn our player onto it as well
@@ -476,6 +474,8 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 			//TODO: bot can't move but can still pick up flag if it somehow touches it which could disrupt the flow of gameplay
 			VS_SetMission(client, CTFBot_NO_MISSION, true);
 			SetEntityMoveType(client, MOVETYPE_NONE);
+			
+			PrintToChatTeam(TFTeam_Blue, "%s %t", PLUGIN_PREFIX, "Advertise_SentryBuster_Command", "!buster");
 		}
 	}
 }

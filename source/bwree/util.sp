@@ -1809,3 +1809,18 @@ stock void MovePlayerTowardsGoal(int client, const float vGoal[3], float vVel[3]
 		vVel[1] = PLAYER_SIDESPEED;
 	}
 }
+
+stock void PrintToChatTeam(int team, const char[] format, any ...)
+{
+	char buffer[254];
+	
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && GetClientTeam(i) == team)
+		{
+			SetGlobalTransTarget(i);
+			VFormat(buffer, sizeof(buffer), format, 3);
+			PrintToChat(i, "%s", buffer);
+		}
+	}
+}

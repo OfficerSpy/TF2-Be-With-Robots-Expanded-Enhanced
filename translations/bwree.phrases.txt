@@ -191,6 +191,15 @@
 		"#format"	"{1:d}"
 		"en"	"Failed to teleport to a victim after {1} tries!"
 	}
+	"ReplaceBuster_Search_Failed"
+	{
+		"en"	"There is no Sentry Buster available."
+	}
+	"Advertise_SentryBuster_Command"
+	{
+		"#format"	"{1:s}"
+		"en"	"Type {1} to play as a Sentry Buster."
+	}
 	"Changed_Heal_Target"
 	{
 		"#format"	"{1:s}"
