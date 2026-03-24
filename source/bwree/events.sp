@@ -463,20 +463,7 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		CreateTimer(delay, Timer_TFBotSpawn, client, TIMER_FLAG_NO_MAPCHANGE);
 #endif
 		
-		if (GetRobotPlayerCount() > 0 && GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
-		{
-			g_arrBusterControl[client].flControlTIme = GetGameTime() + 5.0;
-			
-			//TODO: somehow determine if this sentry buster teleported onto a teleporter
-			//This is so we can determine if we should spawn our player onto it as well
-			
-			//Temporarily "pause" the ai to give players time to decide if they want to replace this one
-			//TODO: bot can't move but can still pick up flag if it somehow touches it which could disrupt the flow of gameplay
-			VS_SetMission(client, CTFBot_NO_MISSION, true);
-			SetEntityMoveType(client, MOVETYPE_NONE);
-			
-			PrintToChatTeam(TFTeam_Blue, "%s %t", PLUGIN_PREFIX, "Advertise_SentryBuster_Command", "!buster");
-		}
+		RequestFrame(Frame_CheckTFBotBehavior, client);
 	}
 }
 
@@ -717,7 +704,7 @@ static void Event_VoteOptions(Event event, const char[] name, bool dontBroadcast
 			SetTeamNumber(i, TFTeam_Red);
 	
 	//Undo what we did a frame later
-	RequestFrame(FrameResetRobotPlayersTeam);
+	RequestFrame(Frame_ResetRobotPlayersTeam);
 }
 #endif
 
@@ -774,8 +761,36 @@ static Action Timer_TFBotSpawn(Handle timer, int data)
 }
 #endif
 
+static void Frame_CheckTFBotBehavior(any client)
+{
+	if (GetRobotPlayerCount() > 0 && GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
+	{
+		g_arrBusterControl[client].flControlTime = GetGameTime() + 10.0;
+		
+		//TODO: somehow determine if this sentry buster teleported onto a teleporter
+		//This is so we can determine if we should spawn our player onto it as well
+		
+		//Temporarily "pause" the ai to give players time to decide if they want to replace this one
+		//TODO: bot can't move but can still pick up flag if it somehow touches it which could disrupt the flow of gameplay
+		VS_SetMission(client, CTFBot_NO_MISSION, true);
+		SetEntityMoveType(client, MOVETYPE_NONE);
+		
+		PrintToChatTeam(TFTeam_Blue, "%s %t", PLUGIN_PREFIX, "Advertise_SentryBuster_Command", "!buster");
+		
+#if defined TESTING_ONLY
+		int iTarget = GetTFBotMissionTarget(client);
+		char sTargetName[PLATFORM_MAX_PATH];
+		
+		if (iTarget != -1)
+			GetEdictClassname(iTarget, sTargetName, sizeof(sTargetName));
+		
+		PrintToChatAll("[Frame_CheckTFBotBehavior] CONTROLLABLE BUSTER SPAWNED WITH TARGET %s (%d)", sTargetName, iTarget);
+#endif
+	}
+}
+
 #if defined FIX_VOTE_CONTROLLER
-static void FrameResetRobotPlayersTeam()
+static void Frame_ResetRobotPlayersTeam()
 {
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsPlayingAsRobot(i))

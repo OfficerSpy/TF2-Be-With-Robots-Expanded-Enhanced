@@ -19,6 +19,11 @@
 				"windows"	"m_hBuilder"
 				"linux"		"m_hBuilder"
 			}
+			"CTFBot_BaseOffset"
+			{
+				"windows"	"m_iPlayerSkinOverride"
+				"linux"		"m_iPlayerSkinOverride"
+			}
 		}
 		"Signatures"
 		{
@@ -187,6 +192,16 @@
 			{
 				"windows"	"4" //build 9290789: 2324
 				"linux"		"4" //build 9290789: 2348
+			}
+			"CTFBot::m_mission"
+			{
+				"windows"	"664" //build 10515055: 10396
+				"linux"		"656" //build 10515055: 10396
+			}
+			"CTFBot::m_missionTarget"
+			{
+				"windows"	"672" //build 10515055: 10404
+				"linux"		"664" //build 10515055: 10404
 			}
 			//These are raw offset values and are not used for any calculations
 			"CWave::m_nSentryBustersSpawned"

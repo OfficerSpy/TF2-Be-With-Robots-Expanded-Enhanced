@@ -1266,6 +1266,13 @@ public void OnClientDisconnect(int client)
 
 public void OnConfigsExecuted()
 {
+	//Initialize default values for players that have not joined
+	//NOTE: if structs ever get supported for default values, this will be redundant
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		g_arrBusterControl[i].Reset();
+	}
+	
 	PrepareCustomViewModelAssets(bwr3_robot_custom_viewmodels.IntValue);
 	
 	// HookConVarChange(tf_mvm_miniboss_scale, ConVarChanged_MinibossScale);
@@ -2196,7 +2203,7 @@ public Action Command_RobotTemplateMenu(int client, int args)
 	{
 		char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 		
-		if (StringToInt(arg1) == 1 && CheckCommandAccess(client, "", ADMFLAG_GENERIC, true))
+		if (StringToInt(arg1) == 1 && GetUserFlagBits(client) & ADMFLAG_GENERIC)
 		{
 			RobotPlayer_ChangeRobot(client, true);
 			return Plugin_Handled;

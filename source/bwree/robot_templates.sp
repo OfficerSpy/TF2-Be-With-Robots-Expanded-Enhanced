@@ -1583,7 +1583,7 @@ void ReplaceSentryBuster(int iTFBot, int iReplacement)
 	ForcePlayerSuicide(iTFBot);
 	// g_arrBusterControl[iTFBot].Reset();
 	
-	if (IsPlayerAlive(iReplacement))
+	if (bwr3_edit_wavebar.BoolValue && IsPlayerAlive(iReplacement))
 		DecrementRobotPlayerClassIcon(iReplacement);
 	
 	g_bAllowRespawn[iReplacement] = true;
