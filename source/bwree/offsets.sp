@@ -9,8 +9,6 @@ void InitOffsets(GameData hGamedata)
 	SetOffset(hGamedata, "CTFPlayer", "m_nDeployingBombState");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsMissionEnemy");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsSupportEnemy");
-	SetOffset(hGamedata, "CTFPlayer", "m_accumulatedSentryGunDamageDealt");
-	SetOffset(hGamedata, "CTFPlayer", "m_accumulatedSentryGunKillCount");
 	SetOffset(hGamedata, "CPopulationManager", "m_nMvMEventPopfileType");
 	SetOffset(hGamedata, "CPopulationManager", "m_canBotsAttackWhileInSpawnRoom");
 	SetOffset(hGamedata, "CPopulationManager", "m_bSpawningPaused");
@@ -27,8 +25,6 @@ void InitOffsets(GameData hGamedata)
 	LogMessage("InitOffsets: CTFPlayer->m_nDeployingBombState = %d", GetOffset("CTFPlayer", "m_nDeployingBombState"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsMissionEnemy = %d", GetOffset("CTFPlayer", "m_bIsMissionEnemy"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsSupportEnemy = %d", GetOffset("CTFPlayer", "m_bIsSupportEnemy"));
-	LogMessage("InitOffsets: CTFPlayer->m_accumulatedSentryGunDamageDealt = %d", GetOffset("CTFPlayer", "m_accumulatedSentryGunDamageDealt"));
-	LogMessage("InitOffsets: CTFPlayer->m_accumulatedSentryGunKillCount = %d", GetOffset("CTFPlayer", "m_accumulatedSentryGunKillCount"));
 	LogMessage("InitOffsets: CPopulationManager->m_nMvMEventPopfileType = %d", GetOffset("CPopulationManager", "m_nMvMEventPopfileType"));
 	LogMessage("InitOffsets: CPopulationManager->m_canBotsAttackWhileInSpawnRoom = %d", GetOffset("CPopulationManager", "m_canBotsAttackWhileInSpawnRoom"));
 	LogMessage("InitOffsets: CPopulationManager->m_bSpawningPaused = %d", GetOffset("CPopulationManager", "m_bSpawningPaused"));
@@ -118,16 +114,6 @@ void SetAsSupportEnemy(int client, bool bVal)
 	SetEntData(client, GetOffset("CTFPlayer", "m_bIsSupportEnemy"), bVal, 1);
 }
 
-float GetAccumulatedSentryGunDamageDealt(int client)
-{
-	return GetEntDataFloat(client, GetOffset("CTFPlayer", "m_accumulatedSentryGunDamageDealt"));
-}
-
-int GetAccumulatedSentryGunKillCount(int client)
-{
-	return GetEntData(client, GetOffset("CTFPlayer", "m_accumulatedSentryGunKillCount"));
-}
-
 int GetPopFileEventType(int populator)
 {
 	return GetEntData(populator, GetOffset("CPopulationManager", "m_nMvMEventPopfileType"));
@@ -149,9 +135,9 @@ void GetCurrentBuildOrigin(int iObject, float buffer[3])
 	GetEntDataVector(iObject, GetOffset("CBaseObject", "m_vecBuildOrigin"), buffer);
 }
 
-int GetTFBotMission(int client)
+MissionType GetTFBotMission(int client)
 {
-	return GetEntData(client, GetOffset("CTFBot", "m_mission"));
+	return view_as<MissionType>(GetEntData(client, GetOffset("CTFBot", "m_mission")));
 }
 
 int GetTFBotMissionTarget(int client)
@@ -164,10 +150,10 @@ int GetNumSentryBustersSpawned(Address wave)
 	return LoadFromAddress(wave + GetOffset("CWave", "m_nSentryBustersSpawned"), NumberType_Int32);
 }
 
-void SetNumSentryBustersSpawned(Address wave, int iValue)
+/* void SetNumSentryBustersSpawned(Address wave, int iValue)
 {
 	StoreToAddress(wave + GetOffset("CWave", "m_nSentryBustersSpawned"), iValue, NumberType_Int32);
-}
+} */
 
 int GetNumEngineersTeleportSpawned(Address wave)
 {

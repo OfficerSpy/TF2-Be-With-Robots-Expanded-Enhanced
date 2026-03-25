@@ -130,8 +130,8 @@ enum
 {
 	ROBOT_TELEPORTER_MODE_RECENTLY_USED,
 	ROBOT_TELEPORTER_MODE_RANDOM,
-	ROBOT_TELEPORTER_MODE_CLOSEST_BOMB,
-	ROBOT_TELEPORTER_MODE_CLOSEST_BOMB_HATCH
+	ROBOT_TELEPORTER_MODE_RANDOM_BOMB,
+	ROBOT_TELEPORTER_MODE_BOMB_NEAR_HATCH
 }
 
 enum struct esPlayerStats
@@ -424,7 +424,7 @@ static WeaponRestrictionType m_nWeaponRestrictionFlags[MAXPLAYERS + 1];
 static AttributeType m_nAttributeFlags[MAXPLAYERS + 1];
 static DifficultyType m_nDifficulty[MAXPLAYERS + 1];
 static ArrayList m_adtTags[MAXPLAYERS + 1];
-static int m_nMission[MAXPLAYERS + 1];
+static MissionType m_nMission[MAXPLAYERS + 1];
 static int m_iMissionTarget[MAXPLAYERS + 1];
 static float m_flMaxVisionRange[MAXPLAYERS + 1];
 static ArrayList m_adtTeleportWhereName[MAXPLAYERS + 1];
@@ -690,17 +690,17 @@ methodmap MvMRobotPlayer
 		return m_adtTags[this.index].FindString(tag) != -1;
 	}
 	
-	public void SetMission(int mission)
+	public void SetMission(MissionType mission)
 	{
 		m_nMission[this.index] = mission;
 	}
 	
-	public int GetMission()
+	public MissionType GetMission()
 	{
 		return m_nMission[this.index];
 	}
 	
-	public bool HasMission(int mission)
+	public bool HasMission(MissionType mission)
 	{
 		return m_nMission[this.index] == mission ? true : false;
 	}
@@ -1377,9 +1377,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			//Nobody took this sentry buster's place...
 			g_arrBusterControl[client].Reset();
 			
+			//Prevent occasional premature detonation because buster thought it was stuck
+			//TODO: don't like the buster stuck log spam, but ILocomotion::Reset doesn't work in Frame_CheckTFBotBehavior?
+			//Find some way to mitigate this without constantly resetting the stuck status in this callback
+			CBaseNPC_GetNextBotOfEntity(client).GetLocomotionInterface().ClearStuckStatus();
+			
 			//Resume operations
-			VS_SetMission(client, CTFBot_MISSION_DESTROY_SENTRIES, true);
 			SetEntityMoveType(client, MOVETYPE_WALK);
+			VS_SetMission(client, CTFBot_MISSION_DESTROY_SENTRIES, true);
 		}
 		
 #if defined SPY_DISGUISE_VISION_OVERRIDE
@@ -1392,7 +1397,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				
 				if (g_arrDisguised[client].nDisguisedClass != iDisguisedClass || g_arrDisguised[client].nDisguisedTeam != iDisguisedTeam)
 				{
-					if ((iDisguisedClass == 0 && iDisguisedTeam == 0) || iDisguisedTeam == TFTeam_Red)
+					if ((iDisguisedClass == 0 && iDisguisedTeam == 0) || iDisguisedTeam == view_as<int>(TFTeam_Red))
 					{
 						SpyDisguiseClear(client);
 					}
@@ -2278,7 +2283,13 @@ public Action Command_FindUseNewSpawnLocation(int client, int args)
 public Action Command_BecomeSentryBuster(int client, int args)
 {
 	if (!IsPlayingAsRobot(client))
+		return Plugin_Continue;
+	
+	if (MvMRobotPlayer(client).GetMission() == CTFBot_MISSION_DESTROY_SENTRIES)
+	{
+		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "ReplaceBuster_Already_Playing");
 		return Plugin_Handled;
+	}
 	
 	int iSelected = -1;
 	
@@ -2503,32 +2514,17 @@ public Action Command_DebugPlayerStats(int client, int args)
 
 public Action Command_DebugSentryBuster(int client, int args)
 {
-	int nDmgLimit = 0;
-	int nKillLimit = 0;
-	GetSentryBusterDamageAndKillThreshold(g_iPopulationManager, nDmgLimit, nKillLimit);
-	
-	ReplyToCommand(client, "SENTRY BUSTER\nDamage limit = %d\nKill limit = %d", nDmgLimit, nKillLimit);
-	
-	int ent = -1;
-	
-	while ((ent = FindEntityByClassname(ent, "obj_sentrygun")) != -1)
+	for (int i = 1; i <= MaxClients; i++)
 	{
-		OSBaseObject cboSentry = OSBaseObject(ent);
-		
-		if (cboSentry.IsDisposableBuilding())
-			continue;
-		
-		if (cboSentry.GetTeamNumber() == view_as<int>(TFTeam_Red))
+		if (IsClientInGame(i) && TF2_GetClientTeam(i) == TFTeam_Blue && IsTFBotPlayer(i) && GetTFBotMission(i) == CTFBot_MISSION_DESTROY_SENTRIES)
 		{
-			int sentryOwner = cboSentry.GetOwner();
+			int target = GetTFBotMissionTarget(i);
+			char sTargetName[15];
 			
-			if (sentryOwner != -1)
-			{
-				int nDmgDone = RoundFloat(GetAccumulatedSentryGunDamageDealt(sentryOwner));
-				int nKillsMade = GetAccumulatedSentryGunKillCount(sentryOwner);
-				
-				ReplyToCommand(client, "%N's sentry damage = %d, sentry kills = %d", sentryOwner, nDmgDone, nKillsMade);
-			}
+			if (target != -1)
+				GetEdictClassname(target, sTargetName, sizeof(sTargetName));
+			
+			ReplyToCommand(client, "%N (%d) with target %s (%d)", i, i, sTargetName, target);
 		}
 	}
 	

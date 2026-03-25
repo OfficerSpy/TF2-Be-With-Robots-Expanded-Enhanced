@@ -195,6 +195,10 @@
 	{
 		"en"	"There is no Sentry Buster available."
 	}
+	"ReplaceBuster_Already_Playing"
+	{
+		"en"	"You are already playing as a Sentry Buster."
+	}
 	"Advertise_SentryBuster_Command"
 	{
 		"#format"	"{1:s}"

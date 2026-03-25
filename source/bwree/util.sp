@@ -1036,7 +1036,7 @@ float GetJarateTimeInternal(int weapon)
 }
 
 //Get the amount of points we may be able to cap in this round, including locked ones that will unlock later
-int GetPotentiallyCapturablePointCount(TFTeam team)
+int GetPotentiallyCapturablePointCount(int team)
 {
 	int count = 0;
 	int iPoint = -1;

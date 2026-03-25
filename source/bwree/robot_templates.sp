@@ -726,7 +726,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	//Currency is used as an amount to drop
 	player.SetCurrency(iCreditAmount);
 	
-	int nMission = roboPlayer.GetMission();
+	MissionType nMission = roboPlayer.GetMission();
 	int spyCount = 0;
 	int nSniperCount = 0;
 	
@@ -1255,7 +1255,7 @@ WeaponRestrictionType GetWeaponRestrictionFlagsFromString(const char[] value)
 	return CTFBot_ANY_WEAPON;
 }
 
-static int GetBotMissionFromString(const char[] value)
+static MissionType GetBotMissionFromString(const char[] value)
 {
 	if (strlen(value) > 0)
 	{
@@ -1580,6 +1580,7 @@ static void AddRomevisionCosmetics(int client)
 
 void ReplaceSentryBuster(int iTFBot, int iReplacement)
 {
+	TF2_SetIsMiniBoss(iTFBot, false);
 	ForcePlayerSuicide(iTFBot);
 	// g_arrBusterControl[iTFBot].Reset();
 	
@@ -1624,15 +1625,15 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 		{
 			switch (bwr3_robot_teleporter_mode.IntValue)
 			{
-				case ROBOT_TELEPORTER_MODE_CLOSEST_BOMB, ROBOT_TELEPORTER_MODE_CLOSEST_BOMB_HATCH:
+				case ROBOT_TELEPORTER_MODE_RANDOM_BOMB, ROBOT_TELEPORTER_MODE_BOMB_NEAR_HATCH:
 				{
 					int flag = -1;
 					
-					if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_CLOSEST_BOMB)
+					if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_RANDOM_BOMB)
 					{
 						//TODO: get random flag to teleport near
 					}
-					else if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_CLOSEST_BOMB_HATCH)
+					else if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_BOMB_NEAR_HATCH)
 					{
 						flag = FindBombNearestToHatch();
 					}
@@ -1776,27 +1777,6 @@ void OnBotTeleported(int client)
 		TF2_AddCondition(client, TFCond_Ubercharged, flUberTime);
 		TF2_AddCondition(client, TFCond_UberchargeFading, flUberTime);
 	}
-}
-
-static int GetActiveSentryBusterCount()
-{
-	int count = 0;
-	
-	for (int i = 1; i <= MaxClients; i++)
-		if (IsClientInGame(i) && TF2_GetClientTeam(i) == TFTeam_Blue && IsPlayerAlive(i) && IsSentryBusterRobot(i))
-			count++;
-	
-	return count;
-}
-
-//See if another player is already after this sentry
-static bool IsSentryAlreadyTargeted(int sentry)
-{
-	for (int i = 1; i <= MaxClients; i++)
-		if (IsClientInGame(i) && IsPlayingAsRobot(i) && MvMSuicideBomber(i).GetMissionTarget() == sentry)
-			return true;
-	
-	return false;
 }
 
 bool AreGiantRobotsAvailable()

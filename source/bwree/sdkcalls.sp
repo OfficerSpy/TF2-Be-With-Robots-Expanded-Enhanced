@@ -47,7 +47,6 @@ static Handle m_hDoAnimationEvent;
 static Handle m_hCapture;
 static Handle m_hPlayThrottledAlert;
 static Handle m_hPostInventoryApplication;
-static Handle m_hGetSentryBusterDamageAndKillThreshold;
 static Handle m_hRemoveObject;
 static Handle m_hGetCurrentWave;
 static Handle m_hDropCurrencyPack;
@@ -105,16 +104,6 @@ bool InitSDKCalls(GameData hGamedata)
 	if ((m_hPostInventoryApplication = EndPrepSDKCall()) == null)
 	{
 		LogError("Failed to create SDKCall for CTFPlayer::PostInventoryApplication!");
-		iFailCount++;
-	}
-	
-	StartPrepSDKCall(SDKCall_Entity);
-	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CPopulationManager::GetSentryBusterDamageAndKillThreshold");
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
-	PrepSDKCall_AddParameter(SDKType_PlainOldData, SDKPass_ByRef, _, VENCODE_FLAG_COPYBACK);
-	if ((m_hGetSentryBusterDamageAndKillThreshold = EndPrepSDKCall()) == null)
-	{
-		LogError("Failed To create SDKCall for CPopulationManager::GetSentryBusterDamageAndKillThreshold!");
 		iFailCount++;
 	}
 	
@@ -234,11 +223,6 @@ bool PlayThrottledAlert(int iTeam, const char[] sound, float fDelayBeforeNext)
 void PostInventoryApplication(int client)
 {
 	SDKCall(m_hPostInventoryApplication, client);
-}
-
-void GetSentryBusterDamageAndKillThreshold(int populator, int &nDamage, int &nKills)
-{
-	SDKCall(m_hGetSentryBusterDamageAndKillThreshold, populator, nDamage, nKills);
 }
 
 void RemoveObject(int client, int pObject)

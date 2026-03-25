@@ -52,11 +52,6 @@
 				"windows"	"\x55\x8B\xEC\x83\xEC\x3C\x53\x8B\xD9\x56\x57"
 				"linux"		"@_ZN9CTFPlayer24PostInventoryApplicationEv"
 			}
-			"CPopulationManager::GetSentryBusterDamageAndKillThreshold"
-			{
-				"windows"	"\x55\x8B\xEC\x83\xEC\x08\x33\xC0\x89\x4D"
-				"linux"		"@_ZNK18CPopulationManager37GetSentryBusterDamageAndKillThresholdERiS0_"
-			}
 			"CTFPlayer::RemoveObject"
 			{
 				"windows"	"\x55\x8B\xEC\x56\x57\x8B\xF9\x8B\xB7\x2A\x2A\x2A\x2A\x83\xEE\x01"
@@ -162,16 +157,6 @@
 			{
 				"windows"	"9" //build 9115164: 9277
 				"linux"		"9" //build 9115164: 9281
-			}
-			"CTFPlayer::m_accumulatedSentryGunDamageDealt"
-			{
-				"windows"	"268" //build 8622567: 9536
-				"linux"		"268" //build 8622567: 9540
-			}
-			"CTFPlayer::m_accumulatedSentryGunKillCount"
-			{
-				"windows"	"272" //build 8622567: 9540
-				"linux"		"272" //build 8622567: 9544
 			}
 			"CPopulationManager::m_nMvMEventPopfileType"
 			{
