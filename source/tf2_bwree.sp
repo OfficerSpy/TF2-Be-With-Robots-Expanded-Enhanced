@@ -712,12 +712,12 @@ methodmap MvMRobotPlayer
 	
 	public void SetMissionTarget(int target)
 	{
-		m_iMissionTarget[this.index] = target;
+		m_iMissionTarget[this.index] = target == -1 ? INVALID_ENT_REFERENCE : EntIndexToEntRef(target);
 	}
 	
 	public int GetMissionTarget()
 	{
-		return m_iMissionTarget[this.index];
+		return EntRefToEntIndex(m_iMissionTarget[this.index]);
 	}
 	
 	public void SetMaxVisionRange(float range)
@@ -1554,6 +1554,35 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			//Sentry buster never attacks
 			BlockAttackForDuration(client, 0.5);
 			buttons &= ~IN_ATTACK;
+		}
+		
+		int victim = roboPlayer.GetMissionTarget();
+		
+		if (victim != INVALID_ENT_REFERENCE)
+		{
+			//Update the last known position of the entity we're supposed to be targeting...
+			if (BaseEntity_IsAlive(victim) && GetEntProp(victim, Prop_Send, "m_fEffects") & EF_NODRAW == 0)
+			{
+				//We are chasing our visible living victim
+				g_vecLastKnownVictimPosition[client] = GetAbsOrigin(victim);
+			}
+			
+			if (BaseEntity_IsBaseObject(victim))
+			{
+				OSBaseObject cboSentry = OSBaseObject(victim);
+				
+				//TODO: surely there's a better way to check this is in fact a CObjectSentrygun entity...
+				if (cboSentry.GetType() == TFObject_Sentry && cboSentry.IsCarried())
+				{
+					int builder = cboSentry.GetOwner();
+					
+					if (builder != -1)
+					{
+						//We are chasing the builder of our sentry victim
+						GetClientAbsOrigin(builder, g_vecLastKnownVictimPosition[client]);
+					}
+				}
+			}
 		}
 		
 		if (roboPlayer.TalkTimer_IsElapsed())
@@ -2562,7 +2591,23 @@ public Action CommandListener_Voicemenu(int client, const char[] command, int ar
 			
 			if (StringToInt(arg1) == 0 && StringToInt(arg2) == 0)
 			{
-				roboPlayer.StartDetonate(true);
+				float detonateRange = tf_bot_suicide_bomb_range.FloatValue / 3.0;
+				
+				if (IsDistanceBetweenLessThanVector(client, g_vecLastKnownVictimPosition[client], detonateRange))
+				{
+					float vec[3]; AddVectors(g_vecLastKnownVictimPosition[client], {0.0, 0.0, TFBOT_STEP_HEIGHT}, vec);
+					float myEyePos[3]; GetClientEyePosition(client, myEyePos);
+					
+					if (IsLineOfFireClearPosition(client, myEyePos, vec))
+					{
+						//We are only successful if we detonated within the desired range
+						roboPlayer.StartDetonate(true);
+						return Plugin_Handled;
+					}
+				}
+				
+				//Otherwise, we prematurely exploded
+				roboPlayer.StartDetonate();
 				return Plugin_Handled;
 			}
 		}

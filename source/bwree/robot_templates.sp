@@ -41,6 +41,7 @@ float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
 float g_vecMapEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
 
+float g_vecLastKnownVictimPosition[MAXPLAYERS + 1][3]; //Global, but only used for sentry buster related things
 static Handle m_hDetonateTimer[MAXPLAYERS + 1];
 static bool m_bHasDetonated[MAXPLAYERS + 1];
 static bool m_bWasSuccessful[MAXPLAYERS + 1];
@@ -55,11 +56,17 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 	
 	public void InitializeSuicideBomber(int victim)
 	{
-		this.SetMissionTarget(victim);
+		//Initialize
+		g_vecLastKnownVictimPosition[this.index] = NULL_VECTOR;
 		
 		m_bHasDetonated[this.index] = false;
 		m_bWasSuccessful[this.index] = false;
 		m_bWasKilled[this.index] = false;
+		
+		this.SetMissionTarget(victim);
+		
+		if (victim != -1)
+			g_vecLastKnownVictimPosition[this.index] = GetAbsOrigin(victim);
 	}
 	
 	public void DestroySuicideBomber()
@@ -218,6 +225,34 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 				{
 					//Our death counts towards the wave's sentry busters killed count
 					SetNumSentryBustersKilled(pWave, GetNumSentryBustersKilled(pWave) + 1);
+				}
+			}
+		}
+		
+		this.DetonatePost(origin);
+	}
+	
+	public void DetonatePost(const float vecDetLocation[3])
+	{
+		int victim = this.GetMissionTarget();
+		
+		if (m_bWasSuccessful[this.index] && victim != INVALID_ENT_REFERENCE && BaseEntity_IsBaseObject(victim))
+		{
+			OSBaseObject cboSentry = OSBaseObject(victim);
+			int iOwner = cboSentry.GetOwner();
+			
+			//TODO: same thing we said in OnPlayerRunCmd
+			if (cboSentry.GetType() == TFObject_Sentry && iOwner != -1)
+			{
+				Event hEvent = CreateEvent("mvm_sentrybuster_detonate");
+				
+				if (hEvent)
+				{
+					hEvent.SetInt("player", iOwner);
+					hEvent.SetFloat("det_x", vecDetLocation[0]);
+					hEvent.SetFloat("det_y", vecDetLocation[1]);
+					hEvent.SetFloat("det_z", vecDetLocation[2]);
+					hEvent.Fire();
 				}
 			}
 		}
@@ -1580,7 +1615,9 @@ static void AddRomevisionCosmetics(int client)
 
 void ReplaceSentryBuster(int iTFBot, int iReplacement)
 {
+	//Suppress the death event and no giant explosion sound
 	TF2_SetIsMiniBoss(iTFBot, false);
+	
 	ForcePlayerSuicide(iTFBot);
 	// g_arrBusterControl[iTFBot].Reset();
 	

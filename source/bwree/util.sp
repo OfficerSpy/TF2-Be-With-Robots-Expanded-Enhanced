@@ -1069,6 +1069,20 @@ bool IsControlPointActive(int iPoint)
 	return GetEntData(iPoint, iOffsetActive, 1);
 }
 
+//bool CTFBot::IsLineOfFireClear( const Vector &from, const Vector &to ) const
+bool IsLineOfFireClearPosition(int client, const float from[3], const float to[3])
+{
+	StringMap adtProperties = new StringMap();
+	adtProperties.SetValue("m_pPassEnt", client);
+	adtProperties.SetValue("m_collisionGroup", COLLISION_GROUP_NONE);
+	adtProperties.SetValue("m_iIgnoreTeam", GetClientTeam(client));
+	
+	TR_TraceRayFilter(from, to, MASK_SOLID_BRUSHONLY, RayType_EndPoint, TraceFilter_TFBot, adtProperties);
+	adtProperties.Close();
+	
+	return !TR_DidHit();
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {
@@ -1823,4 +1837,13 @@ stock void PrintToChatTeam(int team, const char[] format, any ...)
 			PrintToChat(i, "%s", buffer);
 		}
 	}
+}
+
+//inline bool NextBotPlayer< PlayerType >::IsDistanceBetweenLessThan( const Vector &target, float range ) const
+stock bool IsDistanceBetweenLessThanVector(int client, const float target[3], float range)
+{
+	float vec[3]; GetClientAbsOrigin(client, vec);
+	SubtractVectors(vec, target, vec);
+	
+	return Vector_IsLengthLessThan(vec, range);
 }
