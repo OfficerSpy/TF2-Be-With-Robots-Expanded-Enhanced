@@ -39,7 +39,10 @@ enum struct esBossWaveInfo
 	float flSpawnDelay;
 	float flRespawnDelay;
 	bool bProportionalHealth;
-	bool bWaveFailHealthNerf;
+	int iWaveFailHealthNerf;
+	float flWaveFailNerfPercent;
+	int iFinalWaveFailLimit;
+	int iTotalWaveFailLimit;
 	
 	void Reset()
 	{
@@ -52,7 +55,10 @@ enum struct esBossWaveInfo
 		this.flSpawnDelay = 60.0;
 		this.flSpawnDelay = -1.0;
 		this.bProportionalHealth = false;
-		this.bWaveFailHealthNerf = false;
+		this.iWaveFailHealthNerf = 1;
+		this.flWaveFailNerfPercent = 10.0;
+		this.iFinalWaveFailLimit = 10;
+		this.iTotalWaveFailLimit = 99;
 	}
 	
 	void StartCooldown()
@@ -63,6 +69,24 @@ enum struct esBossWaveInfo
 	bool IsCooldownOver()
 	{
 		return this.flNextSpawnTime <= GetGameTime();
+	}
+	
+	void CalculateNerfedHealth(int &maxHealth)
+	{
+		switch (this.iWaveFailHealthNerf)
+		{
+			case 1:
+			{
+				maxhealth -= (maxHealth * (g_iFinalWaveFails * this.flWaveFailNerfPercent / 100.0));
+			}
+			case 2:
+			{
+				maxhealth -= (maxHealth * (g_iTotalWaveFails * this.flWaveFailNerfPercent / 100.0));
+			}
+		}
+		
+		if (maxHealth < 1)
+			maxHealth = 1;
 	}
 }
 
@@ -659,8 +683,13 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				
 				//TODO: factor in GetHealthMultiplier for endless waves
 				
-				if (g_arrBossSystem.bProportionalHealth && g_bSpawningAsBossRobot[client])
-					CalculateBossRobotHealth(health);
+				if (g_bSpawningAsBossRobot[client])
+				{
+					if (g_arrBossSystem.bProportionalHealth)
+						CalculateBossRobotHealth(health);
+					
+					g_arrBossSystem.CalculateNerfedHealth(health);
+				}
 				
 				ModifyMaxHealth(client, health, _, false);
 				

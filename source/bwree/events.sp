@@ -532,8 +532,6 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 	
 	if (team == TFTeam_Blue)
 	{
-		g_iFinalWaveFails++;
-		
 		bool bBotDefenders = GetTeamHumanClientCount(TFTeam_Red) == 0;
 		
 		for (int i = 1; i <= MaxClients; i++)
@@ -554,6 +552,17 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 					g_arrRobotPlayerStats[i].iSuccessiveRoundsPlayed = 0;
 				}
 			}
+		}
+		
+		g_iTotalWaveFails++;
+		
+		if (IsValidEntity(g_iObjectiveResource))
+		{
+			int iWaveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
+			int iMaxWaveNumber = TF2_GetMannVsMachineMaxWaveCount(g_iObjectiveResource);
+			
+			if (iWaveNumber == iMaxWaveNumber)
+				g_iFinalWaveFails++;
 		}
 	}
 }
