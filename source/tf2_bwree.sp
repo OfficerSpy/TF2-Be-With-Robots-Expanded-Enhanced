@@ -401,7 +401,6 @@ esSBControl g_arrBusterControl[MAXPLAYERS + 1];
 static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
 static char m_sPlayerName[MAXPLAYERS + 1][MAX_NAME_LENGTH];
-static float m_flBlockMovementTime[MAXPLAYERS + 1];
 static float m_flNextActionTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
 // static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
@@ -506,6 +505,8 @@ ConVar tf_bot_suicide_bomb_friendly_fire;
 #define BOT_TAG_EACH_MAX_LENGTH	16 //How long each named tag can be
 
 #define ROBOT_TEMPLATE_ID_INVALID	-1
+
+esBossWaveInfo g_arrBossSystem;
 
 methodmap MvMRobotPlayer
 {
@@ -1031,7 +1032,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.1",
+	version = "1.4.2",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1236,7 +1237,6 @@ public void OnClientPutInServer(int client)
 	
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
-	m_flBlockMovementTime[client] = 0.0;
 	m_flNextActionTime[client] = 0.0;
 	m_bIsWaitingForReload[client] = false;
 	
@@ -1255,7 +1255,7 @@ public void OnClientDisconnect(int client)
 		//The player that left was going to be a boss, so give it to someone else
 		if (g_bSpawningAsBossRobot[client])
 		{
-			g_bRobotBossesAvailable = true;
+			g_arrBossSystem.bBossAvailable = true;
 			ForceRandomPlayerToReselectRobot();
 		}
 		
@@ -1526,12 +1526,6 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 	}
 	
-	if (m_flBlockMovementTime[client] > GetGameTime())
-	{
-		//Block all movement inputs
-		vel = NULL_VECTOR;
-	}
-	
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -1561,7 +1555,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		if (victim != INVALID_ENT_REFERENCE)
 		{
 			//Update the last known position of the entity we're supposed to be targeting...
-			if (BaseEntity_IsAlive(victim) && GetEntProp(victim, Prop_Send, "m_fEffects") & EF_NODRAW == 0)
+			if (BaseEntity_IsAlive(victim) && !BaseEntity_IsEffectActive(victim, EF_NODRAW))
 			{
 				//We are chasing our visible living victim
 				g_vecLastKnownVictimPosition[client] = GetAbsOrigin(victim);
@@ -3855,7 +3849,6 @@ bool MvMDeployBomb_OnStart(int client)
 	
 	GetClientAbsOrigin(client, m_vecDeployPos[client]);
 	FreezePlayerInput(client, true);
-	SetBlockPlayerMovementTime(client, GetClientAvgLatency(client, NetFlow_Outgoing) * 1.3);
 	SetAbsVelocity(client, {0.0, 0.0, 0.0});
 	
 	if (TF2_IsMiniBoss(client))
@@ -4003,7 +3996,6 @@ void MvMDeployBomb_OnEnd(int client)
 	roboPlayer.DeployBombState = TF_BOMB_DEPLOYING_NONE;
 	
 	FreezePlayerInput(client, false);
-	SetBlockPlayerMovementTime(client, 0.0);
 	
 	if (!g_nForcedTauntCam[client])
 		SetForcedTauntCam(client, 0);
@@ -4013,11 +4005,11 @@ void FreezePlayerInput(int client, bool bFreeze)
 {
 	if (bFreeze)
 	{
-		TF2_AddCondition(client, TFCond_FreezeInput);
+		SetEntityFlags(client, GetEntityFlags(client) | FL_FROZEN);
 	}
 	else
 	{
-		TF2_RemoveCondition(client, TFCond_FreezeInput);
+		SetEntityFlags(client, GetEntityFlags(client) & ~FL_FROZEN);
 	}
 }
 
@@ -4225,15 +4217,6 @@ bool CanStartOrResumeAction(int client, eRobotAction type)
 	
 	LogError("CanStartOrResumeAction: unimplemented case %d", type);
 	return false;
-}
-
-void SetBlockPlayerMovementTime(int client, float value)
-{
-	m_flBlockMovementTime[client] = GetGameTime() + value;
-	
-#if defined TESTING_ONLY
-	PrintToChatAll("[SetBlockPlayerMovementTime] %N blocked for %f seconds!", client, value);
-#endif
 }
 
 void SetNextBehaviorActionTime(int client, float value)

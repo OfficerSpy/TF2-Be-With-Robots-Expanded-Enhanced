@@ -1,3 +1,6 @@
+int g_iFinalWaveFails;
+int g_iTotalWaveFails;
+
 void InitGameEventHooks()
 {
 	HookEvent("player_team", Event_PlayerTeam);
@@ -263,7 +266,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	
 	BWRCooldown_PurgeExpired();
 	BossRobotSystem_UpdateSettings();
-	BossRobotSystem_StartSpawnCooldown();
+	g_arrBossSystem.StartCooldown();
 	
 #if !defined OVERRIDE_PLAYER_RESPAWN_TIME
 	/* Since we control the spawning of robot players, they should never be allowed to respawn themselves
@@ -390,7 +393,7 @@ static void Event_MvmWaveComplete(Event event, const char[] name, bool dontBroad
 	if (!UpdateSentryBusterSpawnData())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
 	
-	BossRobotSystem_Reset();
+	g_arrBossSystem.Reset();
 	
 	for (int i = 1; i <= MaxClients; i++)
 	{
@@ -497,7 +500,7 @@ static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBr
 	if (!UpdateSentryBusterSpawnData())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
 	
-	BossRobotSystem_Reset();
+	g_arrBossSystem.Reset();
 	
 	/* From CTFGameRules::FireGameEvent, when this event is fired all BLUE players are switched to spectator
 	So here we are just going to switch them to RED, but only the actual human players! */
@@ -529,6 +532,8 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 	
 	if (team == TFTeam_Blue)
 	{
+		g_iFinalWaveFails++;
+		
 		bool bBotDefenders = GetTeamHumanClientCount(TFTeam_Red) == 0;
 		
 		for (int i = 1; i <= MaxClients; i++)

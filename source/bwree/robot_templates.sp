@@ -31,6 +31,41 @@ enum eEngineerTeleportType
 	ENGINEER_TELEPORT_BOMB_INFO
 }
 
+enum struct esBossWaveInfo
+{
+	bool bBossAvailable;
+	float flNextSpawnTime;
+	
+	float flSpawnDelay;
+	float flRespawnDelay;
+	bool bProportionalHealth;
+	bool bWaveFailHealthNerf;
+	
+	void Reset()
+	{
+		this.bBossAvailable = false;
+		this.ResetConfiguration();
+	}
+	
+	void ResetConfiguration()
+	{
+		this.flSpawnDelay = 60.0;
+		this.flSpawnDelay = -1.0;
+		this.bProportionalHealth = false;
+		this.bWaveFailHealthNerf = false;
+	}
+	
+	void StartCooldown()
+	{
+		this.flNextSpawnTime = GetGameTime() + this.flSpawnDelay;
+	}
+	
+	bool IsCooldownOver()
+	{
+		return this.flNextSpawnTime <= GetGameTime();
+	}
+}
+
 // Robot template property arrays
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
@@ -262,12 +297,6 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 int g_iRefLastTeleporter = INVALID_ENT_REFERENCE;
 float g_flLastTeleportTime = -1.0;
 
-bool g_bRobotBossesAvailable;
-float g_flBossDelayDuration;
-float g_flBossRespawnDelayDuration;
-bool g_bBossProportionalHealth;
-float g_flNextBossSpawnTime;
-
 static float m_flDestroySentryCooldownDuration; //Cooldown amount specified by the population file
 
 int g_iOverrideTeleportVictim[MAXPLAYERS + 1] = {-1, ...};
@@ -281,12 +310,7 @@ static Action Timer_SuicideBomberDetonate(Handle timer, int data)
 	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data) && CanStartOrResumeAction(data, ROBOT_ACTION_SUICIDE_BOMBER))
 	{
 		MvMSuicideBomber(data).Detonate();
-		
-		//TODO: victim stuff for detonation event
-		if (m_bWasSuccessful[data])
-		{
-			
-		}
+		// MvMSuicideBomber(data).DetonatePost();
 	}
 	
 	m_hDetonateTimer[data] = null;
@@ -635,7 +659,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				
 				//TODO: factor in GetHealthMultiplier for endless waves
 				
-				if (g_bBossProportionalHealth && g_bSpawningAsBossRobot[client])
+				if (g_arrBossSystem.bProportionalHealth && g_bSpawningAsBossRobot[client])
 					CalculateBossRobotHealth(health);
 				
 				ModifyMaxHealth(client, health, _, false);
@@ -1842,11 +1866,11 @@ void SelectPlayerNextRobot(int client)
 	int iSelectedID = ROBOT_TEMPLATE_ID_INVALID;
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
-	if (g_bRobotBossesAvailable && g_flNextBossSpawnTime <= GetGameTime())
+	if (g_arrBossSystem.bBossAvailable && g_arrBossSystem.IsCooldownOver())
 	{
 		roboPlayer.SetMyNextRobot(ROBOT_BOSS, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_BOSS] - 1));
 		g_bSpawningAsBossRobot[client] = true;
-		g_bRobotBossesAvailable = false;
+		g_arrBossSystem.bBossAvailable = false;
 		return;
 	}
 	
@@ -2656,31 +2680,27 @@ bool UpdateSentryBusterSpawnData()
 	return bUpdated;
 }
 
-void BossRobotSystem_Reset()
-{
-	g_bRobotBossesAvailable = false;
-	g_flBossDelayDuration = 60.0;
-	g_flBossRespawnDelayDuration = 0.0;
-	g_bBossProportionalHealth = true;
-}
-
 bool BossRobotSystem_UpdateSettings()
 {
-	BossRobotSystem_Reset();
+	g_arrBossSystem.Reset();
+	
+	//We need this for wave-related things
+	if (!IsValidEntity(g_iObjectiveResource))
+	{
+		LogError("BossRobotSystem_UpdateSettings: Where is objective resource?");
+		return false;
+	}
 	
 	char mapName[PLATFORM_MAX_PATH]; GetCurrentMap(mapName, sizeof(mapName));
 	
 	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "configs/bwree/bosswave/%s.cfg", mapName);
 	
-	if (!FileExists(filePath))
-	{
-		LogError("BossRobotSystem_UpdateSettings: File %s not found.", filePath);
-		return false;
-	}
+	KeyValues kv = new KeyValues("BossWaveConfig");
 	
-	if (!IsValidEntity(g_iObjectiveResource))
+	if (!kv.ImportFromFile(filePath))
 	{
-		LogError("BossRobotSystem_UpdateSettings: Where is objective resource?");
+		kv.Close();
+		LogError("BossRobotSystem_UpdateSettings: File %s not found.", filePath);
 		return false;
 	}
 	
@@ -2694,20 +2714,16 @@ bool BossRobotSystem_UpdateSettings()
 	ReplaceString(missionName, sizeof(missionName), "scripts/population/", "");
 	ReplaceString(missionName, sizeof(missionName), ".pop", "");
 	
-	KeyValues kv = new KeyValues("BossWaveConfig");
-	
-	kv.ImportFromFile(filePath);
-	
 	if (kv.JumpToKey(missionName))
 	{
 		FormatEx(sectionWaveNum, sizeof(sectionWaveNum), "wave%d", waveNumber);
 		
 		if (kv.JumpToKey(sectionWaveNum))
 		{
-			g_bRobotBossesAvailable = true;
-			g_flBossDelayDuration = kv.GetFloat("delay", 60.0);
-			g_flBossRespawnDelayDuration = kv.GetFloat("respawn_delay", 0.0);
-			g_bBossProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", 1));
+			g_arrBossSystem.bBossAvailable = true;
+			g_arrBossSystem.flSpawnDelay = kv.GetFloat("delay", g_arrBossSystem.flSpawnDelay);
+			g_arrBossSystem.flRespawnDelay = kv.GetFloat("respawn_delay", g_arrBossSystem.flRespawnDelay);
+			g_arrBossSystem.bProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", g_arrBossSystem.bProportionalHealth));
 		}
 		else
 		{
@@ -2724,12 +2740,14 @@ bool BossRobotSystem_UpdateSettings()
 		//Allow the boss robot on the final wave
 		if (waveNumber == maxWaveNumber)
 		{
-			g_bRobotBossesAvailable = true;
-			g_flBossDelayDuration = kv.GetFloat("delay", 60.0);
-			g_flBossRespawnDelayDuration = kv.GetFloat("respawn_delay", 0.0);
+			g_arrBossSystem.bBossAvailable = true;
+			g_arrBossSystem.flSpawnDelay = kv.GetFloat("delay", 60.0);
+			g_arrBossSystem.flRespawnDelay = kv.GetFloat("respawn_delay", 0.0);
+			g_arrBossSystem.bProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", g_arrBossSystem.bProportionalHealth));
 		}
 		else
 		{
+			//No bosses for any unspecified mission
 			delete kv;
 		}
 	}
@@ -2743,15 +2761,10 @@ bool BossRobotSystem_UpdateSettings()
 	delete kv;
 	
 #if defined TESTING_ONLY
-	LogMessage("BOSS SYSTEM: available = %d, delay = %f, respawn delay = %f", g_bRobotBossesAvailable ? 1 : 0, g_flBossDelayDuration, g_flBossRespawnDelayDuration);
+	LogMessage("BOSS SYSTEM: available = %d, delay = %f, respawn delay = %f", g_arrBossSystem.bBossAvailable ? 1 : 0, g_arrBossSystem.flSpawnDelay, g_arrBossSystem.flRespawnDelay);
 #endif
 	
 	return true;
-}
-
-void BossRobotSystem_StartSpawnCooldown()
-{
-	g_flNextBossSpawnTime = GetGameTime() + g_flBossDelayDuration;
 }
 
 static void CalculateBossRobotHealth(int &maxHealth)
