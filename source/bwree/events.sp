@@ -1,6 +1,8 @@
 int g_iFinalWaveFails;
 int g_iTotalWaveFails;
 
+static int m_iWaveFailCounterTick;
+
 void InitGameEventHooks()
 {
 	HookEvent("player_team", Event_PlayerTeam);
@@ -20,6 +22,7 @@ void InitGameEventHooks()
 	HookEvent("teamplay_point_captured", Event_TeamplayPointCaptured);
 	HookEvent("player_chargedeployed", Event_PlayerChargedeployed);
 	HookEvent("player_invulned", Event_PlayerInvulned);
+	HookEvent("mvm_wave_failed", Event_MvmWaveFailed);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -703,6 +706,20 @@ static void Event_PlayerInvulned(Event event, const char[] name, bool dontBroadc
 		RememberPlayerUberTarget(medic, GetClientOfUserId(event.GetInt("userid")));
 }
 
+static void Event_MvmWaveFailed(Event event, const char[] name, bool dontBroadcast)
+{
+	m_iWaveFailCounterTick++;
+	
+	if (m_iWaveFailCounterTick > 3)
+	{
+		//Mission restarted
+		g_iFinalWaveFails = 0;
+		g_iTotalWaveFails = 0;
+	}
+	
+	CreateTimer(0.1, Timer_WaveFailed, .flags = TIMER_FLAG_NO_MAPCHANGE);
+}
+
 #if defined FIX_VOTE_CONTROLLER
 static void Event_VoteOptions(Event event, const char[] name, bool dontBroadcast)
 {
@@ -775,7 +792,12 @@ static Action Timer_TFBotSpawn(Handle timer, int data)
 }
 #endif
 
-static void Frame_CheckTFBotBehavior(any client)
+static void Timer_WaveFailed(Handle timer)
+{
+	m_iWaveFailCounterTick = 0;
+}
+
+static void Frame_CheckTFBotBehavior(int client)
 {
 	if (GetRobotPlayerCount() > 0 && GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
 	{

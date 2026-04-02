@@ -53,17 +53,17 @@ enum struct esBossWaveInfo
 	void ResetConfiguration()
 	{
 		this.flSpawnDelay = 60.0;
-		this.flSpawnDelay = -1.0;
-		this.bProportionalHealth = false;
+		this.flRespawnDelay = -1.0;
+		this.bProportionalHealth = true;
 		this.iWaveFailHealthNerf = 1;
 		this.flWaveFailNerfPercent = 10.0;
-		this.iFinalWaveFailLimit = 10;
+		this.iFinalWaveFailLimit = 11;
 		this.iTotalWaveFailLimit = 99;
 	}
 	
-	void StartCooldown()
+	void StartCooldown(bool bRespawn = false)
 	{
-		this.flNextSpawnTime = GetGameTime() + this.flSpawnDelay;
+		this.flNextSpawnTime = GetGameTime() + (bRespawn ? this.flRespawnDelay : this.flSpawnDelay);
 	}
 	
 	bool IsCooldownOver()
@@ -77,16 +77,30 @@ enum struct esBossWaveInfo
 		{
 			case 1:
 			{
-				maxhealth -= (maxHealth * (g_iFinalWaveFails * this.flWaveFailNerfPercent / 100.0));
+				maxHealth -= (maxHealth * (g_iFinalWaveFails * this.flWaveFailNerfPercent / 100.0));
 			}
 			case 2:
 			{
-				maxhealth -= (maxHealth * (g_iTotalWaveFails * this.flWaveFailNerfPercent / 100.0));
+				maxHealth -= (maxHealth * (g_iTotalWaveFails * this.flWaveFailNerfPercent / 100.0));
 			}
 		}
 		
 		if (maxHealth < 1)
 			maxHealth = 1;
+	}
+	
+	bool CanSpawnBossNow()
+	{
+		if (!this.bBossAvailable)
+			return false;
+		
+		if (g_iFinalWaveFails >= this.iFinalWaveFailLimit)
+			return false;
+		
+		if (g_iTotalWaveFails >= this.iTotalWaveFailLimit)
+			return false;
+		
+		return this.IsCooldownOver();
 	}
 }
 
@@ -176,6 +190,9 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		VS_Taunt(this.index, TAUNT_BASE_WEAPON);
 		this.DetonateTimer_Start(2.0);
 		EmitGameSoundToAll("MvM.SentryBusterSpin", this.index);
+		
+		//Absolutely no pathing once we have started detonating!
+		FreezePlayerInput(this.index, true);
 	}
 	
 	public void Detonate()
@@ -1895,11 +1912,20 @@ void SelectPlayerNextRobot(int client)
 	int iSelectedID = ROBOT_TEMPLATE_ID_INVALID;
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
-	if (g_arrBossSystem.bBossAvailable && g_arrBossSystem.IsCooldownOver())
+	if (g_arrBossSystem.CanSpawnBossNow())
 	{
 		roboPlayer.SetMyNextRobot(ROBOT_BOSS, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_BOSS] - 1));
 		g_bSpawningAsBossRobot[client] = true;
-		g_arrBossSystem.bBossAvailable = false;
+		
+		if (g_arrBossSystem.flRespawnDelay >= 0.0)
+		{
+			g_arrBossSystem.StartCooldown(true);
+		}
+		else
+		{
+			g_arrBossSystem.bBossAvailable = false;
+		}
+		
 		return;
 	}
 	
@@ -2753,6 +2779,10 @@ bool BossRobotSystem_UpdateSettings()
 			g_arrBossSystem.flSpawnDelay = kv.GetFloat("delay", g_arrBossSystem.flSpawnDelay);
 			g_arrBossSystem.flRespawnDelay = kv.GetFloat("respawn_delay", g_arrBossSystem.flRespawnDelay);
 			g_arrBossSystem.bProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", g_arrBossSystem.bProportionalHealth));
+			g_arrBossSystem.iWaveFailHealthNerf = kv.GetNum("wave_fail_health_nerf_mode", g_arrBossSystem.iWaveFailHealthNerf);
+			g_arrBossSystem.flWaveFailNerfPercent = kv.GetFloat("wave_fail_health_nerf_percent", g_arrBossSystem.flWaveFailNerfPercent);
+			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
+			g_arrBossSystem.iTotalWaveFailLimit = kv.GetNum("total_wave_fail_limit", g_arrBossSystem.iTotalWaveFailLimit);
 		}
 		else
 		{
@@ -2770,9 +2800,13 @@ bool BossRobotSystem_UpdateSettings()
 		if (waveNumber == maxWaveNumber)
 		{
 			g_arrBossSystem.bBossAvailable = true;
-			g_arrBossSystem.flSpawnDelay = kv.GetFloat("delay", 60.0);
-			g_arrBossSystem.flRespawnDelay = kv.GetFloat("respawn_delay", 0.0);
+			g_arrBossSystem.flSpawnDelay = kv.GetFloat("delay", g_arrBossSystem.flSpawnDelay);
+			g_arrBossSystem.flRespawnDelay = kv.GetFloat("respawn_delay", g_arrBossSystem.flRespawnDelay);
 			g_arrBossSystem.bProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", g_arrBossSystem.bProportionalHealth));
+			g_arrBossSystem.iWaveFailHealthNerf = kv.GetNum("wave_fail_health_nerf_mode", g_arrBossSystem.iWaveFailHealthNerf);
+			g_arrBossSystem.flWaveFailNerfPercent = kv.GetFloat("wave_fail_health_nerf_percent", g_arrBossSystem.flWaveFailNerfPercent);
+			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
+			g_arrBossSystem.iTotalWaveFailLimit = kv.GetNum("total_wave_fail_limit", g_arrBossSystem.iTotalWaveFailLimit);
 		}
 		else
 		{

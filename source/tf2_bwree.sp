@@ -1204,6 +1204,8 @@ public void OnMapStart()
 {
 	g_iMaxEdicts = GetMaxEntities();
 	g_bCanBotsAttackInSpawn = false;
+	g_iFinalWaveFails = 0;
+	g_iTotalWaveFails = 0;
 	m_adtBWRCooldown.Clear();
 	// m_adtPlayersUbered.Clear();
 	
@@ -3959,7 +3961,7 @@ bool MvMDeployBomb_Update(int client)
 		}
 	}
 	
-	if (g_iPenaltyFlags[client] & PENALTY_INVULNERABLE_DEPLOY == 0)
+	if (!(g_iPenaltyFlags[client] & PENALTY_INVULNERABLE_DEPLOY))
 	{
 		if (TF2_IsPlayerInCondition(client, TFCond_Ubercharged)
 		|| TF2_IsPlayerInCondition(client, TFCond_MegaHeal)
