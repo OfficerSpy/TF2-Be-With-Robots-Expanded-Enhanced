@@ -84,6 +84,7 @@ enum
 enum
 {
 	COSMETIC_MODE_NONE = 0,
+	COSMETIC_MODE_ALLOW_OWN_LOADOUT,
 	COSMETIC_MODE_ALLOW_ALWAYS
 }
 
@@ -2149,7 +2150,8 @@ public Action Command_JoinBlue(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	// TF2_RefundPlayer(client);
+	if (!bwr3_allow_readystate.BoolValue)
+		SetPlayerReady(client, false);
 	
 	if (GameRules_GetRoundState() == RoundState_RoundRunning)
 	{

@@ -1333,18 +1333,6 @@ static bool ItemFilterCriteria_FilterByName(int iItemDefIndex, DataPack hDataPac
 	return false;
 }
 
-stock void TF2_RefundPlayer(int client)
-{
-	SetEntProp(client, Prop_Send, "m_bInUpgradeZone", 1);
-	
-	KeyValues kv = new KeyValues("MVM_Respec");
-	
-	FakeClientCommandKeyValues(client, kv);
-	delete kv;
-	
-	SetEntProp(client, Prop_Send, "m_bInUpgradeZone", 0);
-}
-
 stock void LogMVMRobotUnderground(int client)
 {
 	char playerName[MAX_NAME_LENGTH]; GetClientName(client, playerName, sizeof(playerName));
@@ -1846,4 +1834,9 @@ stock bool IsDistanceBetweenLessThanVector(int client, const float target[3], fl
 	SubtractVectors(vec, target, vec);
 	
 	return Vector_IsLengthLessThan(vec, range);
+}
+
+stock void SetPlayerReady(int client, bool state)
+{
+	FakeClientCommand(client, "tournament_player_readystate %d", state);
 }

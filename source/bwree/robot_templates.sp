@@ -13,6 +13,7 @@
 
 enum eRobotTemplateType
 {
+	ROBOT_OWN_LOADOUT = -1,
 	ROBOT_STANDARD,
 	ROBOT_GIANT,
 	ROBOT_GATEBOT,
