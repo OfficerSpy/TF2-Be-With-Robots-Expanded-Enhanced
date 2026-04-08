@@ -555,6 +555,10 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 	
 	switch (type)
 	{
+		case ROBOT_OWN_LOADOUT:
+		{
+			MakePlayerOwnLoadout(client, ROBOT_STANDARD, templateID);
+		}
 		case ROBOT_STANDARD:
 		{
 			bwr3_robot_template_file.GetString(fileName, sizeof(fileName));
@@ -1302,6 +1306,55 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 		}
 		
 		kv.GoBack();
+	}
+}
+
+static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, int nTemplateID)
+{
+	TF2Attrib_RemoveAll(client);
+	
+	//For own loadouts, template ID represents class ID
+	MakePlayerJoinClass(client, nTemplateID);
+	
+	switch (bwr3_cosmetic_mode.IntValue)
+	{
+		case COSMETIC_MODE_NONE:
+		{
+			RemoveEquippedWearables(client, FLAG_REW_COSMETIC | FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
+		}
+		case COSMETIC_MODE_ALLOW_OWN_LOADOUT, COSMETIC_MODE_ALLOW_ALWAYS:
+		{
+			RemoveEquippedWearables(client, FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
+		}
+	}
+	
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
+	
+	roboPlayer.SetAutoJump(0.0, 0.0);
+	roboPlayer.SetMission(CTFBot_NO_MISSION);
+	
+	roboPlayer.ClearEventChangeAttributes();
+	SetEntProp(client, Prop_Send, "m_bIsABot", 1);
+	roboPlayer.ClearTeleportWhere();
+	
+	char sClassname[14];
+	OSTFPlayer player = OSTFPlayer(client);
+	
+	player.GetClassIconName(sClassname, sizeof(sClassname));
+	
+	//Doing this for the same reason we said in Timer_FinishRobotPlayer...
+	if (strcmp(sClassname, g_sClassNamesShort[nTemplateID], false))
+	{
+		strcopy(sClassname, sizeof(sClassname), g_sClassNamesShort[nTemplateID]);
+		player.SetClassIconName(sClassname);
+	}
+	
+	switch (type)
+	{
+		case ROBOT_GIANT:
+		{
+			player.SetIsMiniBoss(true);
+		}
 	}
 }
 
