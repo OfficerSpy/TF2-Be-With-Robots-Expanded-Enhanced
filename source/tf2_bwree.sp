@@ -2235,7 +2235,7 @@ public Action Command_RobotTemplateMenu(int client, int args)
 	{
 		char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 		
-		if (StringToInt(arg1) == 1 && GetUserFlagBits(client) & ADMFLAG_GENERIC)
+		if (StringToInt(arg1) == 1 && GetUserFlagBits(client) & (ADMFLAG_GENERIC | ADMFLAG_ROOT))
 		{
 			RobotPlayer_ChangeRobot(client, true);
 			return Plugin_Handled;

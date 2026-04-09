@@ -557,6 +557,7 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 	{
 		case ROBOT_OWN_LOADOUT:
 		{
+			//For own loadouts, template ID represents class ID
 			MakePlayerOwnLoadout(client, ROBOT_STANDARD, templateID);
 		}
 		case ROBOT_STANDARD:
@@ -677,13 +678,13 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				
 				switch (bwr3_cosmetic_mode.IntValue)
 				{
-					case COSMETIC_MODE_NONE:
-					{
-						RemoveEquippedWearables(client, FLAG_REW_COSMETIC | FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
-					}
 					case COSMETIC_MODE_ALLOW_ALWAYS:
 					{
 						RemoveEquippedWearables(client, FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
+					}
+					default:
+					{
+						RemoveEquippedWearables(client, FLAG_REW_COSMETIC | FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
 					}
 				}
 				
@@ -1309,22 +1310,21 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 	}
 }
 
-static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, int nTemplateID)
+static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassType nClass)
 {
 	TF2Attrib_RemoveAll(client);
 	
-	//For own loadouts, template ID represents class ID
-	MakePlayerJoinClass(client, nTemplateID);
+	MakePlayerJoinClass(client, nClass);
 	
 	switch (bwr3_cosmetic_mode.IntValue)
 	{
-		case COSMETIC_MODE_NONE:
-		{
-			RemoveEquippedWearables(client, FLAG_REW_COSMETIC | FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
-		}
 		case COSMETIC_MODE_ALLOW_OWN_LOADOUT, COSMETIC_MODE_ALLOW_ALWAYS:
 		{
 			RemoveEquippedWearables(client, FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
+		}
+		default:
+		{
+			RemoveEquippedWearables(client, FLAG_REW_COSMETIC | FLAG_REW_CANTEEN | FLAG_REW_CONTRACKER);
 		}
 	}
 	
@@ -1332,30 +1332,167 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, int nTempl
 	
 	roboPlayer.SetAutoJump(0.0, 0.0);
 	roboPlayer.SetMission(CTFBot_NO_MISSION);
-	
 	roboPlayer.ClearEventChangeAttributes();
 	SetEntProp(client, Prop_Send, "m_bIsABot", 1);
 	roboPlayer.ClearTeleportWhere();
 	
-	char sClassname[14];
+	char sClassIcon[14];
 	OSTFPlayer player = OSTFPlayer(client);
 	
-	player.GetClassIconName(sClassname, sizeof(sClassname));
+	player.GetClassIconName(sClassIcon, sizeof(sClassIcon));
 	
 	//Doing this for the same reason we said in Timer_FinishRobotPlayer...
-	if (strcmp(sClassname, g_sClassNamesShort[nTemplateID], false))
+	if (strcmp(sClassIcon, g_sClassNamesShort[nClass], false))
 	{
-		strcopy(sClassname, sizeof(sClassname), g_sClassNamesShort[nTemplateID]);
-		player.SetClassIconName(sClassname);
+		strcopy(sClassIcon, sizeof(sClassIcon), g_sClassNamesShort[nClass]);
+		player.SetClassIconName(sClassIcon);
 	}
+	
+	if (nClass == TFClass_Spy)
+	{
+		int iSpyCount;
+		
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (IsClientInGame(i) && TF2_GetClientTeam(i) == TFTeam_Blue && IsPlayerAlive(i))
+			{
+				if (TF2_IsClass(i, TFClass_Spy))
+					iSpyCount++;
+			}
+		}
+		
+		Event hEvent = CreateEvent("mvm_mission_update");
+
+		if (hEvent)
+		{
+			hEvent.SetInt("class", TFClass_Spy);
+			hEvent.SetInt("count", iSpyCount);
+			hEvent.Fire();
+		}
+	}
+	
+	bool bHalloweenMission = GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN;
+	float flScale;
 	
 	switch (type)
 	{
+		case ROBOT_STANDARD:
+		{
+			player.SetCurrency(GetRandomInt(8, 400));
+			
+			if (!bHalloweenMission)
+			{
+				player.SetCustomModel(g_sBotModels[nClass], true);
+				player.SetBloodColor(DONT_BLEED);
+			}
+			
+			if (bwr3_edit_wavebar.BoolValue)
+			{
+				if (IsValidEntity(g_iObjectiveResource))
+				{
+					OSLib_IncrementWaveIconSpawnCount(g_iObjectiveResource, sClassIcon, MVM_CLASS_FLAG_NORMAL, _, false);
+				}
+			}
+		}
 		case ROBOT_GIANT:
 		{
+			roboPlayer.SetAttribute(CTFBot_MINIBOSS);
 			player.SetIsMiniBoss(true);
+			
+			flScale = g_flMapGiantScale > 0.0 ? g_flMapGiantScale : tf_mvm_miniboss_scale.FloatValue;
+			
+			if (!bHalloweenMission)
+			{
+				player.SetCustomModel(g_sBotBossModels[nClass], true);
+				player.SetBloodColor(DONT_BLEED);
+			}
+			
+			if (bwr3_edit_wavebar.BoolValue)
+			{
+				if (IsValidEntity(g_iObjectiveResource))
+				{
+					OSLib_IncrementWaveIconSpawnCount(g_iObjectiveResource, sClassIcon, MVM_CLASS_FLAG_NORMAL | MVM_CLASS_FLAG_MINIBOSS, _, false);
+				}
+			}
 		}
 	}
+	
+	if (flScale > 0.0)
+		player.SetModelScale(flScale);
+	
+	StartIdleSound(client, nClass);
+	
+	//If possible, add romevision
+	// AddRomevisionCosmetics(client);
+	
+	float here[3];
+	
+	SpawnLocationResult result = FindSpawnLocation(here, flScale > 0.0 ? flScale : 1.0, _, GetRobotPlayerSpawnType(roboPlayer));
+	
+	if (result == SPAWN_LOCATION_TELEPORTER)
+		OnBotTeleported(client);
+	
+	here[2] += TFBOT_STEP_HEIGHT;
+	
+	if (result != SPAWN_LOCATION_NOT_FOUND)
+		TeleportEntity(client, here);
+	else
+		LogError("MakePlayerOwnLoadout: No suitable spawn could be found for %N!", client);
+	
+#if defined MOD_EXT_CBASENPC
+	//Doing this for the same reason said in Timer_FinishRobotPlayer
+	CBaseCombatCharacter(client).UpdateLastKnownArea();
+#endif
+	
+	g_bRobotSpawning[client] = false;
+	
+#if defined TESTING_ONLY
+	PrintToChatAll("[Timer_FinishRobotPlayer] Spawn Location for %N at %6.1f %6.1f %6.1f", client, here[0], here[1], here[2]);
+#endif
+	
+	//This is all copied from Timer_FinishRobotPlayer with very little changes
+	if (nClass == TFClass_Spy)
+	{
+		if (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)
+		{
+			ShowSpyTeleportMenu(client);
+			FreezePlayerInput(client, true);
+		}
+		else
+		{
+			SpyLeaveSpawnRoom_OnStart(client);
+		}
+	}
+	else if (nClass == TFClass_Engineer && roboPlayer.HasAttribute(CTFBot_TELEPORT_TO_HINT))
+	{
+		if (bwr3_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU)
+		{
+			ShowEngineerTeleportMenu(client);
+			FreezePlayerInput(client, true);
+		}
+		else
+		{
+			MvMEngineerTeleportSpawn(client);
+		}
+	}
+	else
+	{
+		if (GetGameTime() - g_flTimeRoundStarted >= nb_update_frequency.FloatValue + 0.1)
+		{
+			if (nClass != TFClass_Medic && !roboPlayer.HasAttribute(CTFBot_AGGRESSIVE))
+			{
+				int flag = GetFlagToFetch(client);
+				
+				if (flag != -1 && CaptureFlag_IsHome(flag))
+				{
+					g_flLastTimeFlagInSpawn[client] = GetGameTime();
+					CTFItemPickup(flag, client, true);
+				}
+			}
+		}
+	}
+	
+	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", ROBOT_NAME_UNDEFINED);
 }
 
 DifficultyType GetSkillFromString(const char[] value)
@@ -2029,6 +2166,12 @@ void SelectPlayerNextRobot(int client)
 		if (bCurrentWaveRobots)
 			iSelectedID = GetWaveBasedRobotTemplateID(ROBOT_STANDARD);
 		
+		if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID && RollRandomChanceFloat(50.0))
+		{
+			roboPlayer.SetMyNextRobot(ROBOT_OWN_LOADOUT, GetRandomInt(TFClass_Scout, TFClass_Engineer));
+			return;
+		}
+		
 		if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID)
 			iSelectedID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_STANDARD] - 1);
 		
@@ -2249,6 +2392,11 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 
 int GetRobotTemplateName(eRobotTemplateType type, int templateID, char[] buffer, int maxlen)
 {
+	if (type == ROBOT_OWN_LOADOUT)
+	{
+		return strcopy(buffer, maxlen, ROBOT_NAME_UNDEFINED);
+	}
+	
 	return strcopy(buffer, maxlen, g_sRobotTemplateName[type][templateID]);
 }
 
