@@ -557,15 +557,19 @@ static void Event_TeamplayRoundWin(Event event, const char[] name, bool dontBroa
 			}
 		}
 		
-		g_iTotalWaveFails++;
-		
-		if (IsValidEntity(g_iObjectiveResource))
+		if (GetRobotPlayerCount() > 0)
 		{
-			int iWaveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
-			int iMaxWaveNumber = TF2_GetMannVsMachineMaxWaveCount(g_iObjectiveResource);
+			//Track the total wave fails possibly caused by robot players
+			g_iTotalWaveFails++;
 			
-			if (iWaveNumber == iMaxWaveNumber)
-				g_iFinalWaveFails++;
+			if (IsValidEntity(g_iObjectiveResource))
+			{
+				int iWaveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
+				int iMaxWaveNumber = TF2_GetMannVsMachineMaxWaveCount(g_iObjectiveResource);
+				
+				if (iWaveNumber == iMaxWaveNumber)
+					g_iFinalWaveFails++;
+			}
 		}
 	}
 }

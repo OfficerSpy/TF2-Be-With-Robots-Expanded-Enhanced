@@ -1049,7 +1049,7 @@ public void OnPluginStart()
 	bwr3_robot_spawn_time_max = CreateConVar("sm_bwr3_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
 	bwr3_robot_taunt_mode = CreateConVar("sm_bwr3_robot_taunt_mode", "0", _, FCVAR_NOTIFY);
 	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "2", _, FCVAR_NOTIFY);
-	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "0", _, FCVAR_NOTIFY);
+	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "1", _, FCVAR_NOTIFY);
 	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
 	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
 	bwr3_allow_movement = CreateConVar("sm_bwr3_allow_movement", "1", _, FCVAR_NOTIFY);
@@ -2149,6 +2149,9 @@ public Action Command_JoinBlue(int client, int args)
 		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Player_Robot_Denied_Cooldown", cooldown);
 		return Plugin_Handled;
 	}
+	
+	//Because we have custom loadouts now, we have to remove all upgrades or else they will carry over
+	VS_GrantOrRemoveAllUpgrades(client, true, false);
 	
 	if (!bwr3_allow_readystate.BoolValue)
 		SetPlayerReady(client, false);

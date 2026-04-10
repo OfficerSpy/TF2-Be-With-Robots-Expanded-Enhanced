@@ -78,11 +78,11 @@ enum struct esBossWaveInfo
 		{
 			case 1:
 			{
-				maxHealth -= (maxHealth * (g_iFinalWaveFails * this.flWaveFailNerfPercent / 100.0));
+				maxHealth -= RoundToNearest(maxHealth * (g_iFinalWaveFails * this.flWaveFailNerfPercent / 100.0));
 			}
 			case 2:
 			{
-				maxHealth -= (maxHealth * (g_iTotalWaveFails * this.flWaveFailNerfPercent / 100.0));
+				maxHealth -= RoundToNearest(maxHealth * (g_iTotalWaveFails * this.flWaveFailNerfPercent / 100.0));
 			}
 		}
 		
@@ -557,7 +557,7 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 	{
 		case ROBOT_OWN_LOADOUT:
 		{
-			//For own loadouts, template ID represents class ID
+			//For own loadouts, template ID represents class index
 			MakePlayerOwnLoadout(client, ROBOT_STANDARD, templateID);
 		}
 		case ROBOT_STANDARD:
@@ -1335,6 +1335,9 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 	roboPlayer.ClearEventChangeAttributes();
 	SetEntProp(client, Prop_Send, "m_bIsABot", 1);
 	roboPlayer.ClearTeleportWhere();
+	roboPlayer.ClearWeaponRestrictions();
+	roboPlayer.SetMaxVisionRange(-1.0);
+	roboPlayer.ClearTags();
 	
 	char sClassIcon[14];
 	OSTFPlayer player = OSTFPlayer(client);
@@ -2122,6 +2125,12 @@ void SelectPlayerNextRobot(int client)
 	
 	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwr3_robot_gatebot_chance.FloatValue);
 	
+	if (!bCurrentWaveRobots && RollRandomChanceFloat(50.0))
+	{
+		roboPlayer.SetMyNextRobot(ROBOT_OWN_LOADOUT, GetRandomInt(TFClass_Scout, TFClass_Engineer));
+		return;
+	}
+	
 	if (AreGiantRobotsAvailable())
 	{
 		if (RollRandomChanceFloat(bwr3_robot_giant_chance.FloatValue))
@@ -2165,12 +2174,6 @@ void SelectPlayerNextRobot(int client)
 	{
 		if (bCurrentWaveRobots)
 			iSelectedID = GetWaveBasedRobotTemplateID(ROBOT_STANDARD);
-		
-		if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID && RollRandomChanceFloat(50.0))
-		{
-			roboPlayer.SetMyNextRobot(ROBOT_OWN_LOADOUT, GetRandomInt(TFClass_Scout, TFClass_Engineer));
-			return;
-		}
 		
 		if (iSelectedID == ROBOT_TEMPLATE_ID_INVALID)
 			iSelectedID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_STANDARD] - 1);
@@ -3012,7 +3015,7 @@ bool BossRobotSystem_UpdateSettings()
 		}
 		else
 		{
-			//No bosses for any unspecified mission
+			//No bosses on any other wave
 			delete kv;
 		}
 	}
