@@ -1546,12 +1546,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 	{
-		if (buttons & IN_ATTACK)
-		{
-			//Sentry buster never attacks
-			BlockAttackForDuration(client, 0.5);
-			buttons &= ~IN_ATTACK;
-		}
+		//Sentry buster never attacks
+		BlockAttackForDuration(client, 0.1);
 		
 		int victim = roboPlayer.GetMissionTarget();
 		
@@ -1606,11 +1602,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	}
 	else if (bHasTheFlag)
 	{
-		if (buttons & IN_ATTACK && !tf_mvm_bot_allow_flag_carrier_to_fight.BoolValue)
+		if (!tf_mvm_bot_allow_flag_carrier_to_fight.BoolValue)
 		{
 			//Not allowed to attack if carrying the bomb
-			BlockAttackForDuration(client, 0.5);
-			buttons &= ~IN_ATTACK;
+			BlockAttackForDuration(client, 0.1);
 		}
 	}
 	
@@ -1643,6 +1638,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				if (Clip1(myWeapon) < TF2Util_GetWeaponMaxClip(myWeapon))
 				{
 					//Our clip has not refiled yet, so don't attack right now
+					BlockAttackForDuration(client, 0.1);
+					
+					//Always fire needs to respect this check too
 					buttons &= ~IN_ATTACK;
 				}
 				else
@@ -1652,47 +1650,41 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 		}
-	}
-	
-	if (buttons & IN_ATTACK)
-	{
-		if (roboPlayer.HasAttribute(CTFBot_SUPPRESS_FIRE) || roboPlayer.HasAttribute(CTFBot_IGNORE_ENEMIES) || !tf_bot_fire_weapon_allowed.BoolValue)
+		
+		if (buttons & IN_ATTACK)
 		{
-			//Never allowed to attack
-			BlockAttackForDuration(client, 0.5);
-			buttons &= ~IN_ATTACK;
-		}
-		else
-		{
-			if (myWeapon != -1)
+			if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter && GetEntPropFloat(myWeapon, Prop_Data, "m_flNextPrimaryAttack") <= GetGameTime() + 0.1) //TODO: replace TF2_GetObjectType with builder stock
 			{
-				if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter && GetEntPropFloat(myWeapon, Prop_Data, "m_flNextPrimaryAttack") <= GetGameTime() + 0.1) //TODO: replace TF2_GetObjectType with builder stock
+				//Only do this when the weapon can attack again to not spam failed checks
+				//We add 0.1s here to catch held input before CTFWeaponBuilder::ItemPostFrame decides to call CTFWeaponBuilder::PrimaryAttack
+				int teleporter = GetEntPropEnt(myWeapon, Prop_Send, "m_hObjectBeingBuilt");
+				
+				if (teleporter != -1)
 				{
-					//Only do this when the weapon can attack again to not spam failed checks
-					//We add 0.1s here to catch held input before CTFWeaponBuilder::ItemPostFrame decides to call CTFWeaponBuilder::PrimaryAttack
-					int teleporter = GetEntPropEnt(myWeapon, Prop_Send, "m_hObjectBeingBuilt");
+					float telePos[3]; GetCurrentBuildOrigin(teleporter, telePos);
+					telePos[2] += TFBOT_STEP_HEIGHT;
 					
-					if (teleporter != -1)
+					if (!IsSpaceToSpawnOnTeleporter(telePos, tf_mvm_miniboss_scale.FloatValue, client))
 					{
-						float telePos[3]; GetCurrentBuildOrigin(teleporter, telePos);
-						telePos[2] += TFBOT_STEP_HEIGHT;
+						buttons &= ~IN_ATTACK;
 						
-						if (!IsSpaceToSpawnOnTeleporter(telePos, tf_mvm_miniboss_scale.FloatValue, client))
-						{
-							buttons &= ~IN_ATTACK;
-							
-							//Delay next placement attempt
-							SetEntPropFloat(myWeapon, Prop_Data, "m_flNextPrimaryAttack", GetGameTime() + 0.3);
-							EmitSoundToClient(client, BAD_TELE_PLACEMENT_SOUND);
-							
+						//Delay next placement attempt
+						SetEntPropFloat(myWeapon, Prop_Data, "m_flNextPrimaryAttack", GetGameTime() + 0.3);
+						EmitSoundToClient(client, BAD_TELE_PLACEMENT_SOUND);
+						
 #if defined TESTING_ONLY
-							PrintToChat(client, "No space for teleporter at %f %f %f!", telePos[0], telePos[1], telePos[2] - TFBOT_STEP_HEIGHT);
+						PrintToChat(client, "No space for teleporter at %f %f %f!", telePos[0], telePos[1], telePos[2] - TFBOT_STEP_HEIGHT);
 #endif
-						}
 					}
 				}
 			}
 		}
+	}
+	
+	if (roboPlayer.HasAttribute(CTFBot_SUPPRESS_FIRE) || roboPlayer.HasAttribute(CTFBot_IGNORE_ENEMIES) || !tf_bot_fire_weapon_allowed.BoolValue)
+	{
+		//Never allowed to attack
+		BlockAttackForDuration(client, 0.1);
 	}
 	
 	if (buttons & IN_ATTACK2)
@@ -2151,7 +2143,7 @@ public Action Command_JoinBlue(int client, int args)
 	}
 	
 	//Because we have custom loadouts now, we have to remove all upgrades or else they will carry over
-	VS_GrantOrRemoveAllUpgrades(client, true, false);
+	VS_GrantOrRemoveAllUpgrades(client, true, true);
 	
 	if (!bwr3_allow_readystate.BoolValue)
 		SetPlayerReady(client, false);

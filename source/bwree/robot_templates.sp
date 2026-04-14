@@ -58,7 +58,7 @@ enum struct esBossWaveInfo
 		this.bProportionalHealth = true;
 		this.iWaveFailHealthNerf = 1;
 		this.flWaveFailNerfPercent = 10.0;
-		this.iFinalWaveFailLimit = 11;
+		this.iFinalWaveFailLimit = 10;
 		this.iTotalWaveFailLimit = 99;
 	}
 	
@@ -95,10 +95,10 @@ enum struct esBossWaveInfo
 		if (!this.bBossAvailable)
 			return false;
 		
-		if (g_iFinalWaveFails >= this.iFinalWaveFailLimit)
+		if (g_iFinalWaveFails > this.iFinalWaveFailLimit)
 			return false;
 		
-		if (g_iTotalWaveFails >= this.iTotalWaveFailLimit)
+		if (g_iTotalWaveFails > this.iTotalWaveFailLimit)
 			return false;
 		
 		return this.IsCooldownOver();
