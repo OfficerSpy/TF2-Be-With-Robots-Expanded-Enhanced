@@ -1499,16 +1499,6 @@ stock void SetTeamNumber(int entity, TFTeam team)
 	SetEntProp(entity, Prop_Send, "m_iTeamNum", team);
 }
 
-stock int GetGroundEntity(int entity)
-{
-	return GetEntPropEnt(entity, Prop_Data, "m_hGroundEntity");
-}
-
-stock bool IsZeroVector(float origin[3])
-{
-	return origin[0] == NULL_VECTOR[0] && origin[1] == NULL_VECTOR[1] && origin[2] == NULL_VECTOR[2];
-}
-
 stock bool RollRandomChanceFloat(float percent)
 {
 	return GetRandomFloat(1.0, 100.0) <= percent;

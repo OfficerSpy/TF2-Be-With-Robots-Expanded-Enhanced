@@ -1033,7 +1033,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.2",
+	version = "1.4.3",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1691,14 +1691,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		if (player.IsClass(TFClass_DemoMan) && player.IsShieldEquipped())
 		{
-			float vecForward[3]; player.EyeVectors(vecForward);
+			//Vector forward is not currently used here
 			bool bShouldCharge = true;
 			
 			if (roboPlayer.HasAttribute(CTFBot_AIR_CHARGE_ONLY))
 			{
 				float myAbsVelocity[3]; myAbsVelocity = GetAbsVelocity(client);
 				
-				if (GetGroundEntity(client) != -1 || myAbsVelocity[2] > 0)
+				if (player.GetGroundEntity() != -1 || myAbsVelocity[2] > 0)
 					bShouldCharge = false;
 				
 				if (!bShouldCharge)
@@ -1855,20 +1855,24 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if (!g_bCanBotsAttackInSpawn)
 			{
-				if (buttons & IN_ATTACK) //TODO: allow attacking if the player robot has always fire
+				if (myWeapon != -1)
 				{
-					if (myWeapon != -1 && !CanWeaponFireInRobotSpawn(myWeapon, IN_ATTACK))
+					switch (TF2Util_GetWeaponID(myWeapon))
 					{
-						BlockAttackForDuration(client, 0.5);
-						buttons &= ~IN_ATTACK;
-					}
-				}
-				
-				if (buttons & IN_ATTACK2)
-				{
-					if (myWeapon != -1 && !CanWeaponFireInRobotSpawn(myWeapon, IN_ATTACK2))
-					{
-						buttons &= ~IN_ATTACK2;
+						case TF_WEAPON_MEDIGUN, TF_WEAPON_BUFF_ITEM, TF_WEAPON_LUNCHBOX:
+						{
+							//These are useable anytime
+						}
+						case TF_WEAPON_BAT_WOOD, TF_WEAPON_BAT_GIFTWRAP:
+						{
+							//No primary attack but can secondary attack
+							buttons &= ~IN_ATTACK;
+						}
+						default:
+						{
+							//No attacking while in spawn room
+							BlockAttackForDuration(client, 0.1);
+						}
 					}
 				}
 			}
@@ -4103,36 +4107,6 @@ bool UpgradeBomb(int client)
 	}
 	
 	return false;
-}
-
-bool CanWeaponFireInRobotSpawn(int weapon, int inputType)
-{
-	if (inputType == IN_ATTACK)
-	{
-		switch (TF2Util_GetWeaponID(weapon))
-		{
-			case TF_WEAPON_MEDIGUN, TF_WEAPON_BUFF_ITEM, TF_WEAPON_LUNCHBOX:
-			{
-				//These are allowed to primary fire
-				return true;
-			}
-			default:	return false;
-		}
-	}
-	else if (inputType == IN_ATTACK2)
-	{
-		switch (TF2Util_GetWeaponID(weapon))
-		{
-			case TF_WEAPON_MINIGUN, TF_WEAPON_SNIPERRIFLE, TF_WEAPON_MECHANICAL_ARM:
-			{
-				//These are not allowed to secondary fire
-				return false;
-			}
-			default:	return true;
-		}
-	}
-	
-	return true;
 }
 
 bool ShouldWeaponBeRestricted(int weapon)
