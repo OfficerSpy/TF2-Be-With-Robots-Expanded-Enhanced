@@ -1537,11 +1537,6 @@ stock void SetTeamRespawnWaveTime(TFTeam team, float value)
 	}
 }
 
-stock void BlockAttackForDuration(int client, float duration)
-{
-	SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + duration);
-}
-
 //Taken from SourceMod Anti-Cheat
 stock bool ArePointsWithinFieldOfView(const float start[3], const float angles[3], const float end[3])
 {

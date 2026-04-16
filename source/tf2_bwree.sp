@@ -403,6 +403,7 @@ static bool m_bIsRobot[MAXPLAYERS + 1];
 static bool m_bBypassBotCheck[MAXPLAYERS + 1];
 static char m_sPlayerName[MAXPLAYERS + 1][MAX_NAME_LENGTH];
 static float m_flNextActionTime[MAXPLAYERS + 1];
+static float m_flNoAttackTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
 // static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
 static eRobotTemplateType m_nNextRobotTemplateType[MAXPLAYERS + 1];
@@ -1241,6 +1242,7 @@ public void OnClientPutInServer(int client)
 	m_bIsRobot[client] = false;
 	m_bBypassBotCheck[client] = false;
 	m_flNextActionTime[client] = 0.0;
+	m_flNoAttackTime[client] = -1.0;
 	m_bIsWaitingForReload[client] = false;
 	
 	MvMRobotPlayer(client).Reset();
@@ -1624,6 +1626,16 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		buttons |= IN_ATTACK;
 	}
 	
+	if (buttons & IN_JUMP && !player.IsJumping())
+	{
+		if (TF2Attrib_HookValueInt(0, "bot_custom_jump_particle", client))
+		{
+			char sEffectName[] = "rocketjump_smoke";
+			EmitParticleEffect(sEffectName, "foot_L", client, PATTACH_POINT_FOLLOW);
+			EmitParticleEffect(sEffectName, "foot_R", client, PATTACH_POINT_FOLLOW);
+		}
+	}
+	
 	int myWeapon = player.GetActiveWeapon();
 	
 	if (myWeapon != -1)
@@ -1855,26 +1867,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if (!g_bCanBotsAttackInSpawn)
 			{
-				if (myWeapon != -1)
-				{
-					switch (TF2Util_GetWeaponID(myWeapon))
-					{
-						case TF_WEAPON_MEDIGUN, TF_WEAPON_BUFF_ITEM, TF_WEAPON_LUNCHBOX:
-						{
-							//These are useable anytime
-						}
-						case TF_WEAPON_BAT_WOOD, TF_WEAPON_BAT_GIFTWRAP:
-						{
-							//No primary attack but can secondary attack
-							buttons &= ~IN_ATTACK;
-						}
-						default:
-						{
-							//No attacking while in spawn room
-							BlockAttackForDuration(client, 0.1);
-						}
-					}
-				}
+				BlockAttackForDuration(client, 0.1);
 			}
 			
 			//Protected while in spawn
@@ -2017,6 +2010,46 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 #else
 	//TODO: alternative
 #endif
+	
+	if (m_flNoAttackTime[client] != -1.0)
+	{
+		if (m_flNoAttackTime[client] <= GetGameTime())
+		{
+			m_flNoAttackTime[client] = -1.0;
+			SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime());
+		}
+		else
+		{
+			if (myWeapon != -1)
+			{
+				switch (TF2Util_GetWeaponID(myWeapon))
+				{
+					case TF_WEAPON_MEDIGUN, TF_WEAPON_BUFF_ITEM, TF_WEAPON_LUNCHBOX:
+					{
+						//These are useable anytime
+					}
+					case TF_WEAPON_BAT_WOOD, TF_WEAPON_BAT_GIFTWRAP:
+					{
+						//No primary attack but can secondary attack
+						buttons &= ~IN_ATTACK;
+					}
+					default:
+					{
+						if (player.GetClassIndex() == TFClass_DemoMan && player.IsShieldEquipped())
+						{
+							//Let the player charge in spawn but don't be able to attack
+							buttons &= ~IN_ATTACK;
+						}
+						else
+						{
+							//No attacking
+							SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + (GetClientAvgLatency(client, NetFlow_Outgoing) * 7.0));
+						}
+					}
+				}
+			}
+		}
+	}
 	
 	return Plugin_Continue;
 }
@@ -4107,6 +4140,11 @@ bool UpgradeBomb(int client)
 	}
 	
 	return false;
+}
+
+void BlockAttackForDuration(int client, float duration)
+{
+	m_flNoAttackTime[client] = GetGameTime() + duration;
 }
 
 bool ShouldWeaponBeRestricted(int weapon)
