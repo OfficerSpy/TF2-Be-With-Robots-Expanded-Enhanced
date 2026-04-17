@@ -2695,7 +2695,8 @@ bool IsSentryBusterRobot(int client)
 	if (IsPlayingAsRobot(client) && MvMRobotPlayer(client).HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 		return true;
 	
-	//TODO: find a better way to determine if a tfbot is a sentry buster
+	if (IsTFBotPlayer(client) && GetTFBotMission(client) == CTFBot_MISSION_DESTROY_SENTRIES)
+		return true;
 	
 	char modelName[PLATFORM_MAX_PATH]; GetClientModel(client, modelName, sizeof(modelName));
 	

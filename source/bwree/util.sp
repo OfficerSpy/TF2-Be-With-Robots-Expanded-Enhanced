@@ -1083,6 +1083,25 @@ bool IsLineOfFireClearPosition(int client, const float from[3], const float to[3
 	return !TR_DidHit();
 }
 
+bool IsBarrageAndReloadWeapon(int client, int weapon)
+{
+	if (weapon == -1)
+		weapon = OSTFPlayer(client).GetActiveWeapon();
+	
+	if (weapon != -1)
+	{
+		switch (TF2Util_GetWeaponID(weapon))
+		{
+			case TF_WEAPON_ROCKETLAUNCHER, TF_WEAPON_DIRECTHIT, TF_WEAPON_GRENADELAUNCHER, TF_WEAPON_PIPEBOMBLAUNCHER, TF_WEAPON_SCATTERGUN:
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {

@@ -43,7 +43,7 @@ Author: ★ Officer Spy ★
 
 #define TELEPORTER_METHOD_MANUAL
 #define FIX_VOTE_CONTROLLER
-#define PLAYER_UBER_LOGIC
+// #define PLAYER_UBER_LOGIC
 #define OVERRIDE_PLAYER_RESPAWN_TIME
 #define SPY_DISGUISE_VISION_OVERRIDE
 // #define ALLOW_BUILDING_BETWEEN_ROUNDS
@@ -1638,7 +1638,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	
 	int myWeapon = player.GetActiveWeapon();
 	
-	if (myWeapon != -1)
+	if (IsBarrageAndReloadWeapon(client, myWeapon))
 	{
 		if (roboPlayer.HasAttribute(CTFBot_HOLD_FIRE_UNTIL_FULL_RELOAD) || tf_bot_always_full_reload.BoolValue)
 		{
@@ -1662,7 +1662,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 			}
 		}
-		
+	}
+	
+	if (myWeapon != -1)
+	{
 		if (buttons & IN_ATTACK)
 		{
 			if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_BUILDER && TF2_GetObjectType(myWeapon) == TFObject_Teleporter && GetEntPropFloat(myWeapon, Prop_Data, "m_flNextPrimaryAttack") <= GetGameTime() + 0.1) //TODO: replace TF2_GetObjectType with builder stock
@@ -2020,7 +2023,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		}
 		else
 		{
-			if (myWeapon != -1)
+			if (myWeapon != -1 && !roboPlayer.HasAttribute(CTFBot_ALWAYS_FIRE_WEAPON))
 			{
 				switch (TF2Util_GetWeaponID(myWeapon))
 				{
@@ -3832,6 +3835,7 @@ void SetRobotPlayer(int client, bool enabled)
 		g_arrPlayerPath[client].Reset();
 		g_bAllowRespawn[client] = true;
 		m_bIsRobot[client] = false;
+		m_flNoAttackTime[client] = -1.0;
 		
 		MvMRobotPlayer(client).Reset();
 		

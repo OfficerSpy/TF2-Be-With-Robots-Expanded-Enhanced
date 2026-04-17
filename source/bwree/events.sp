@@ -256,6 +256,14 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif //CORRECT_VISIBLE_RESPAWN_TIME
 #endif //OVERRIDE_PLAYER_RESPAWN_TIME
+	
+	int entFlags = GetEntityFlags(client);
+	
+	if (entFlags & FL_FROZEN)
+	{
+		//Might have been frozen from FreezePlayerInput, undo it here so spectating doesn't look weird
+		SetEntityFlags(client, entFlags & ~FL_FROZEN);
+	}
 }
 
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)
