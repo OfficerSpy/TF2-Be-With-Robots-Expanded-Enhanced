@@ -1034,7 +1034,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.3",
+	version = "1.4.4",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1323,6 +1323,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+		SDKHook(entity, SDKHook_Spawn, ObjectTeleporter_Spawn);
 	}
 	else if (StrEqual(classname, "obj_attachment_sapper"))
 	{
@@ -2973,6 +2974,22 @@ public Action BaseTrigger_Touch(int entity, int other)
 	//Currently in robot transformation
 	if (g_bRobotSpawning[other])
 		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
+public Action ObjectTeleporter_Spawn(int entity)
+{
+	int builder = TF2_GetBuilder(entity);
+	
+	if (builder != -1 && IsPlayingAsRobot(builder))
+	{
+		if (TF2_GetObjectMode(entity) == TFObjectMode_Entrance)
+		{
+			//Every teleporter built by an engineer is an EXIT not an ENTRANCE
+			TF2_SetObjectMode(entity, TFObjectMode_Exit);
+		}
+	}
 	
 	return Plugin_Continue;
 }
