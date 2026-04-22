@@ -1617,7 +1617,7 @@ stock int GetLivingClientCountOnTeam(TFTeam team)
 	return count;
 }
 
-stock bool IsEntityATrigger(int entity)
+stock bool IsTriggerEntity(int entity)
 {
 	return HasEntProp(entity, Prop_Data, "m_hTouchingEntities");
 }

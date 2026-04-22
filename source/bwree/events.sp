@@ -381,6 +381,15 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 		
 		//Start the sentry at level 3
 		SetEntProp(entity, Prop_Data, "m_nDefaultUpgradeLevel", 2);
+		
+		//This check should be safe here? Robots should never have disposable sentries
+		if (TF2_IsDisposableBuilding(entity))
+		{
+			//Undo the disposable parts as a result of the trickery we did in ObjectSentrygun_SpawnPost
+			SetEntProp(entity, Prop_Send, "m_bDisposableBuilding", 0);
+			TF2_SetObjectMode(entity, MODE_SENTRYGUN_NORMAL);
+			SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 0);
+		}
 	}
 	else if (objectType == TFObject_Teleporter)
 	{

@@ -264,7 +264,7 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 							int attacker = info.GetAttacker();
 							int inflictor = info.GetInflictor();
 							
-							if (inflictor > 0 && IsEntityATrigger(inflictor))
+							if (inflictor > 0 && IsTriggerEntity(inflictor))
 							{
 								bDropPack = false;
 								DistributeCurrencyAmount(dropAmount, -1, true, true);

@@ -1313,6 +1313,7 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
+		SDKHook(entity, SDKHook_SpawnPost, ObjectSentrygun_SpawnPost);
 	}
 	else if (StrEqual(classname, "obj_dispenser"))
 	{
@@ -2976,6 +2977,18 @@ public Action BaseTrigger_Touch(int entity, int other)
 		return Plugin_Handled;
 	
 	return Plugin_Continue;
+}
+
+public void ObjectSentrygun_SpawnPost(int entity)
+{
+	int builder = TF2_GetBuilder(entity);
+	
+	if (builder != -1 && IsPlayingAsRobot(builder))
+	{
+		//Trick the game into thinking we are a disposable sentry so it doesn't turn our second sentry into a disposable one
+		SetEntProp(entity, Prop_Send, "m_bDisposableBuilding", 1);
+		SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 1);
+	}
 }
 
 public Action ObjectTeleporter_Spawn(int entity)
