@@ -1148,6 +1148,12 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	if (roboPlayer.HasAttribute(CTFBot_ALWAYS_CRIT))
 		player.AddCond(TFCond_CritCanteen);
 	
+	if (roboPlayer.HasAttribute(CTFBot_ALWAYS_FIRE_WEAPON))
+	{
+		//Fixes client visuals
+		SetEntProp(client, Prop_Data, "m_bPredictWeapons", 0);
+	}
+	
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", strName);
 	
 #if defined TESTING_ONLY

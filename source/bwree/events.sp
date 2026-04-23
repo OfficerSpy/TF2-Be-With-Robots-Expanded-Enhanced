@@ -264,6 +264,8 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		//Might have been frozen from FreezePlayerInput, undo it here so spectating doesn't look weird
 		SetEntityFlags(client, entFlags & ~FL_FROZEN);
 	}
+	
+	CleanupClientFixes(client);
 }
 
 static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcast)
@@ -377,7 +379,7 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 	if (objectType == TFObject_Sentry)
 	{
 		//Destroy the previous building we have built
-		DetonateAllObjectsOfType(client, TFObject_Sentry, _, entity);
+		DetonatePlayerObjectOfType(client, TFObject_Sentry, _, entity);
 		
 		//Start the sentry at level 3
 		SetEntProp(entity, Prop_Data, "m_nDefaultUpgradeLevel", 2);
@@ -389,11 +391,12 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 			SetEntProp(entity, Prop_Send, "m_bDisposableBuilding", 0);
 			TF2_SetObjectMode(entity, MODE_SENTRYGUN_NORMAL);
 			SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 0);
+			DispatchKeyValue(entity, "body", "0");
 		}
 	}
 	else if (objectType == TFObject_Teleporter)
 	{
-		DetonateAllObjectsOfType(client, TFObject_Teleporter, TFObjectMode_Exit, entity);
+		DetonatePlayerObjectOfType(client, TFObject_Teleporter, TFObjectMode_Exit, entity);
 		
 		int iHealth = BaseEntity_GetMaxHealth(entity) * tf_bot_engineer_building_health_multiplier.IntValue;
 		BaseEntity_SetMaxHealth(entity, iHealth);

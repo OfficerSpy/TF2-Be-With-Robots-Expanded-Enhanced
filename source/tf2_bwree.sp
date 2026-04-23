@@ -135,6 +135,11 @@ enum
 	ROBOT_TELEPORTER_MODE_BOMB_NEAR_HATCH
 }
 
+enum
+{
+	PREF_ROBOT_VIEWMODELS = (1 << 0)
+}
+
 enum struct esPlayerStats
 {
 	int iKills;
@@ -1132,6 +1137,7 @@ public void OnPluginStart()
 	AddCommandListener(CommandListener_Buyback, "td_buyback");
 	AddCommandListener(CommandListener_Jointeam, "jointeam");
 	AddCommandListener(CommandListener_Autoteam, "autoteam");
+	AddCommandListener(CommandListener_Build, "build");
 	
 	AddNormalSoundHook(SoundHook_General);
 	
@@ -1324,7 +1330,6 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		SDKHook(entity, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 		SDKHook(entity, SDKHook_SetTransmit, Actor_SetTransmit);
-		SDKHook(entity, SDKHook_Spawn, ObjectTeleporter_Spawn);
 	}
 	else if (StrEqual(classname, "obj_attachment_sapper"))
 	{
@@ -2266,11 +2271,11 @@ public Action Command_ViewNextRobotTemplate(int client, int args)
 public Action Command_RobotTemplateMenu(int client, int args)
 {
 	if (!IsPlayingAsRobot(client))
-		return Plugin_Handled;
+		return Plugin_Continue;
 	
 	if (args >= 1)
 	{
-		char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
+		char arg1[3]; GetCmdArg(1, arg1, sizeof(arg1));
 		
 		if (StringToInt(arg1) == 1 && GetUserFlagBits(client) & (ADMFLAG_GENERIC | ADMFLAG_ROOT))
 		{
@@ -2780,6 +2785,39 @@ public Action CommandListener_Autoteam(int client, const char[] command, int arg
 	return Plugin_Continue;
 }
 
+public Action CommandListener_Build(int client, const char[] command, int argc)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Continue;
+	
+	if (argc >= 1)
+	{
+		char arg1[3]; GetCmdArg(1, arg1, sizeof(arg1));
+		
+		if (argc == 2)
+		{
+			char arg2[3]; GetCmdArg(2, arg2, sizeof(arg2));
+			
+			if (StringToInt(arg1) == 1 && StringToInt(arg2) == 0)
+			{
+				//Attempted to build an entrance, but will build an exit instead
+				SendBuildCommand(client, TFObject_Teleporter, TFObjectMode_Exit);
+				return Plugin_Handled;
+			}
+		}
+		else
+		{
+			if (StringToInt(arg1) == 1)
+			{
+				SendBuildCommand(client, TFObject_Teleporter, TFObjectMode_Exit);
+				return Plugin_Handled;
+			}
+		}
+	}
+	
+	return Plugin_Continue;
+}
+
 public Action SoundHook_General(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
 	if (entity > MaxClients)
@@ -2989,22 +3027,6 @@ public void ObjectSentrygun_SpawnPost(int entity)
 		SetEntProp(entity, Prop_Send, "m_bDisposableBuilding", 1);
 		SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 1);
 	}
-}
-
-public Action ObjectTeleporter_Spawn(int entity)
-{
-	int builder = TF2_GetBuilder(entity);
-	
-	if (builder != -1 && IsPlayingAsRobot(builder))
-	{
-		if (TF2_GetObjectMode(entity) == TFObjectMode_Entrance)
-		{
-			//Every teleporter built by an engineer is an EXIT not an ENTRANCE
-			TF2_SetObjectMode(entity, TFObjectMode_Exit);
-		}
-	}
-	
-	return Plugin_Continue;
 }
 
 public void ObjectSapper_SpawnPost(int entity)
@@ -3755,7 +3777,7 @@ void RobotPlayer_SpawnNow(int client)
 
 void RobotPlayer_ChangeRobot(int client, bool bAdmin = false)
 {
-	if (!bwr3_robot_menu_allowed.BoolValue)
+	if (!bwr3_robot_menu_allowed.BoolValue && !bAdmin)
 	{
 		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Robot_Menu_Not_Allowed");
 		return;
@@ -3769,7 +3791,7 @@ void RobotPlayer_ChangeRobot(int client, bool bAdmin = false)
 		return;
 	}
 	
-	if (state != RoundState_BetweenRounds)
+	if (state != RoundState_BetweenRounds && !bAdmin)
 	{
 		if (g_bChangeRobotPicked[client])
 		{
@@ -3877,6 +3899,7 @@ void SetRobotPlayer(int client, bool enabled)
 		ForgetUniqueUbersByPlayer(client);
 		ResetRobotPlayerName(client);
 		ResetPlayerProperties(client);
+		CleanupClientFixes(client);
 		
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
 		//In case we switched off during a game, don't let us be stuck with a long respawn time
@@ -3908,6 +3931,18 @@ void ResetPlayerProperties(int client)
 {
 	TF2_SetCustomModel(client, "");
 	TF2Attrib_RemoveAll(client);
+}
+
+void CleanupClientFixes(int client)
+{
+	if (!GetEntProp(client, Prop_Data, "m_bPredictWeapons"))
+	{
+		char sValue[3];
+		
+		if (GetClientInfo(client, "cl_predictweapons", sValue, sizeof(sValue)))
+			if (StringToInt(sValue) != 0)
+				SetEntProp(client, Prop_Data, "m_bPredictWeapons", 1);
+	}
 }
 
 // Called when the player begins to deploy the bomb
