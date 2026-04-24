@@ -1103,6 +1103,29 @@ bool IsBarrageAndReloadWeapon(int client, int weapon)
 	return false;
 }
 
+//CTFPlayer::Weapon_OwnsThisID
+int Weapon_OwnsThisID(int client, int iWeaponID)
+{
+	for (int i = 0; i < MAX_WEAPONS; i++)
+	{
+		int iWpn = GetEntPropEnt(client, Prop_Send, "m_hMyWeapons", i);
+		
+		if (iWpn == -1)
+			continue;
+		
+		if (TF2Util_GetWeaponID(iWpn) == iWeaponID)
+			return iWpn;
+	}
+	
+	return -1;
+}
+
+//CTFWrench::IsPDQ
+bool IsPDQ(int wrench)
+{
+	return TF2Attrib_HookValueInt(0, "wrench_builds_minisentry", wrench) == 1;
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {

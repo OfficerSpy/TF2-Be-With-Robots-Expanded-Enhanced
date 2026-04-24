@@ -6,6 +6,7 @@ Author: ★ Officer Spy ★
 #include <sourcemod>
 #include <tf2_stocks>
 #include <sdkhooks>
+#include <clientprefs>
 #include <dhooks>
 #include <tf2attributes>
 #include <tf2utils>
@@ -137,7 +138,8 @@ enum
 
 enum
 {
-	PREF_ROBOT_VIEWMODELS = (1 << 0)
+	PREFERENCE_NONE = 0,
+	PREFERENCE_ROBOT_VIEWMODELS = (1 << 0)
 }
 
 enum struct esPlayerStats
@@ -370,6 +372,8 @@ bool g_bCanBotsAttackInSpawn;
 
 esCSProperties g_arrCooldownSystem;
 
+Cookie g_hPlayerPreference;
+
 // GLOBAL ENTITIES
 int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
@@ -399,6 +403,7 @@ float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
 esPlayerPathing g_arrPlayerPath[MAXPLAYERS + 1];
 bool g_bAllowRespawn[MAXPLAYERS + 1];
+int g_nPlayerPref[MAXPLAYERS + 1];
 
 //THIS IS FOR BOTS ONLY!
 //It's how we monitor what sentry busters we can currently replace
@@ -1146,6 +1151,7 @@ public void OnPluginStart()
 	InitGameEventHooks();
 	
 	g_hHudText = CreateHudSynchronizer();
+	// g_hPlayerPreference = new Cookie("bwree_preference", "BWR E&E preferences", CookieAccess_Protected);
 	m_adtBWRCooldown = new StringMap();
 	
 #if SOURCEMOD_V_MINOR >= 13
@@ -1273,6 +1279,11 @@ public void OnClientDisconnect(int client)
 		//When we leave, the sound might still persist, so stop it
 		StopIdleSound(client);
 	}
+}
+
+public void OnClientCookiesCached(int client)
+{
+	// g_nPlayerPref[client] = g_hPlayerPreference.GetInt(client);
 }
 
 public void OnConfigsExecuted()
@@ -3021,12 +3032,26 @@ public void ObjectSentrygun_SpawnPost(int entity)
 {
 	int builder = TF2_GetBuilder(entity);
 	
-	if (builder != -1 && IsPlayingAsRobot(builder))
+	if (builder != -1 && IsPlayingAsRobot(builder) && TF2_GetPlayerClass(builder) == TFClass_Engineer)
 	{
 		//Trick the game into thinking we are a disposable sentry so it doesn't turn our second sentry into a disposable one
 		SetEntProp(entity, Prop_Send, "m_bDisposableBuilding", 1);
-		SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 1);
+		
+		int wrench = Weapon_OwnsThisID(builder, TF_WEAPON_WRENCH);
+		
+		if (wrench != -1 && IsPDQ(wrench))
+		{
+			//Do nothing, this is supposed to be a mini-sentry
+		}
+		else
+		{
+			//Also trick the game into thinking we are already a mini-sentry
+			SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 1);
+		}
 	}
+	
+	//First spawn only
+	SDKUnhook(entity, SDKHook_SpawnPost, ObjectSentrygun_SpawnPost);
 }
 
 public void ObjectSapper_SpawnPost(int entity)
@@ -4810,6 +4835,16 @@ void MapConfig_UpdateSettings()
 #if defined TESTING_ONLY
 	LogMessage("MapConfig_UpdateSettings: Giant scale: %f", g_flMapGiantScale);
 #endif
+}
+
+void TogglePlayerPreference(int client, int iPreferenceFlag)
+{
+	if (g_nPlayerPref[client] & iPreferenceFlag)
+		g_nPlayerPref[client] &= ~iPreferenceFlag;
+	else
+		g_nPlayerPref[client] |= iPreferenceFlag;
+	
+	g_hPlayerPreference.SetInt(client, g_nPlayerPref[client]);
 }
 
 eRobotSpawnType GetRobotPlayerSpawnType(MvMRobotPlayer roboPlayer)

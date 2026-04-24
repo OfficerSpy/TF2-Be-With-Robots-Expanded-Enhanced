@@ -2,6 +2,16 @@
 
 static eRobotTemplateType m_nSelectedRobotType[MAXPLAYERS + 1];
 
+void ShowModMainMenu(int client)
+{
+	//TODO
+}
+
+void ShowModPreferenceMenu(int client, int itemPosition = 0)
+{
+	//TODO
+}
+
 // Show the next robot we are going to spawn as
 void ShowPlayerNextRobotMenu(int client)
 {
@@ -195,6 +205,44 @@ void ShowSpyTeleportPlayerMenu(int client)
 	}
 	
 	hMenu.Display(client, DISPLAY_MENU_DURATION);
+}
+
+static void MenuHandler_MainMenu(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			switch (param2)
+			{
+				case 0:	ShowModPreferenceMenu(param1);
+			}
+		}
+		case MenuAction_End:
+		{
+			menu.Close();
+		}
+	}
+}
+
+static void MenuHandler_Preference(Menu menu, MenuAction action, int param1, int param2)
+{
+	switch (action)
+	{
+		case MenuAction_Select:
+		{
+			switch (param2)
+			{
+				case 0:	TogglePlayerPreference(param1, PREFERENCE_ROBOT_VIEWMODELS);
+			}
+			
+			ShowModPreferenceMenu(param1, GetMenuSelectionPosition());
+		}
+		case MenuAction_End:
+		{
+			menu.Close();
+		}
+	}
 }
 
 static int MenuHandler_ViewNextRobot(Menu menu, MenuAction action, int param1, int param2)
