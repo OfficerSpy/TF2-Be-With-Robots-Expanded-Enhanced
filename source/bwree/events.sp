@@ -471,7 +471,7 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 		MvMRobotPlayer(client).ClearTrackedSpyData();
 #endif
 		
-		/* switch (bwr3_robot_custom_viewmodels.IntValue)
+		/* switch (g_arrSettings.iCustomViewmodel)
 		{
 			case 1:	SetPlayerViewModel(client, g_sRobotArmModels[TF2_GetPlayerClass(client)]);
 		} */

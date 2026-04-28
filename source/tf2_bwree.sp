@@ -198,6 +198,16 @@ enum struct esButtonInput
 	}
 }
 
+enum struct esModSettings
+{
+	int iCustomViewmodel;
+	
+	void ResetToDefault()
+	{
+		this.iCustomViewmodel = 0;
+	}
+}
+
 enum struct esCSProperties
 {
 	float flBaseDuration;
@@ -370,6 +380,7 @@ float g_flTimeRoundStarted;
 int g_iRoundCapturablePoints;
 bool g_bCanBotsAttackInSpawn;
 
+esModSettings g_arrSettings;
 esCSProperties g_arrCooldownSystem;
 
 Cookie g_hPlayerPreference;
@@ -481,7 +492,6 @@ ConVar bwr3_robot_menu_giant_cooldown;
 ConVar bwr3_engineer_teleport_method;
 ConVar bwr3_spy_teleport_method;
 ConVar bwr3_robot_teleporter_mode;
-ConVar bwr3_robot_custom_viewmodels;
 
 ConVar tf_mvm_defenders_team_size;
 ConVar nb_update_frequency;
@@ -1044,7 +1054,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.4",
+	version = "1.4.5",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1089,7 +1099,6 @@ public void OnPluginStart()
 	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "0", _, FCVAR_NOTIFY);
 	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "0", _, FCVAR_NOTIFY);
 	bwr3_robot_teleporter_mode = CreateConVar("sm_bwr3_robot_teleporter_mode", "1", _, FCVAR_NOTIFY);
-	bwr3_robot_custom_viewmodels = CreateConVar("sm_bwr3_robot_custom_viewmodels", "0", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_allow_movement, ConVarChanged_AllowMovement);
 	HookConVarChange(bwr3_player_change_name, ConVarChanged_PlayerChangeName);
@@ -1099,7 +1108,6 @@ public void OnPluginStart()
 	HookConVarChange(bwr3_robot_gatebot_giant_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_sentrybuster_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_boss_template_file, ConVarChanged_RobotTemplateFile);
-	HookConVarChange(bwr3_robot_custom_viewmodels, ConVarChanged_RobotCustomViewmodels);
 	
 	RegConsoleCmd("sm_bwr", Command_JoinBlue, "Join the blue team and become a robot!");
 	RegConsoleCmd("sm_joinblu", Command_JoinBlue, "Join the blue team and become a robot!");
@@ -1294,8 +1302,6 @@ public void OnConfigsExecuted()
 	{
 		g_arrBusterControl[i].Reset();
 	}
-	
-	PrepareCustomViewModelAssets(bwr3_robot_custom_viewmodels.IntValue);
 	
 	// HookConVarChange(tf_mvm_miniboss_scale, ConVarChanged_MinibossScale);
 	
@@ -2164,11 +2170,6 @@ public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue
 		UpdateRobotTemplateDataForType(ROBOT_SENTRYBUSTER);
 	else if (convar == bwr3_robot_boss_template_file)
 		UpdateRobotTemplateDataForType(ROBOT_BOSS);
-}
-
-public void ConVarChanged_RobotCustomViewmodels(ConVar convar, const char[] oldValue, const char[] newValue)
-{
-	PrepareCustomViewModelAssets(StringToInt(newValue));
 }
 
 /* public void ConVarChanged_MinibossScale(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -3202,7 +3203,7 @@ public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
 		return;
 	
-	switch (bwr3_robot_custom_viewmodels.IntValue)
+	switch (g_arrSettings.iCustomViewmodel)
 	{
 		case 1:
 		{
@@ -4720,6 +4721,7 @@ bool IsPlayerNoticedByRobot(int client, int subject)
 void MainConfig_UpdateSettings()
 {
 	//Reset data
+	g_arrSettings.ResetToDefault();
 	g_arrCooldownSystem.ResetToDefault();
 	
 	char sFilePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, sFilePath, sizeof(sFilePath), "%s/general.cfg", PLUGIN_CONFIG_DIRECTORY);
@@ -4733,6 +4735,8 @@ void MainConfig_UpdateSettings()
 		LogError("MainConfig_UpdateSettings: File not found (%s)", sFilePath);
 		return;
 	}
+	
+	g_arrSettings.iCustomViewmodel = kv.GetNum("custom_viewmodel_set", g_arrSettings.iCustomViewmodel);
 	
 	if (kv.JumpToKey("CooldownSystem"))
 	{
@@ -4765,6 +4769,10 @@ void MainConfig_UpdateSettings()
 	}
 	
 	CloseHandle(kv);
+	
+	//This setting in particular has to be checked every update to ensure assets are always loaded
+	//This is mostly important for map changes or manual configuration reload
+	PrepareCustomViewModelAssets(g_arrSettings.iCustomViewmodel);
 	
 #if defined TESTING_ONLY
 	LogMessage("MainConfig_UpdateSettings: CS DEFAULT DURATION = %f", g_arrCooldownSystem.flBaseDuration);
