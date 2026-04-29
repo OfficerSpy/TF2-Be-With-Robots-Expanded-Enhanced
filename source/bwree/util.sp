@@ -600,7 +600,7 @@ int GetItemDefinitionIndexByName(const char[] szItemName)
 	}
 }
 
-void PressAltFireButton(int client)
+void PressAltFireButton(int client, float duration = -1.0)
 {
 	if (TF2_IsControlStunned(client) || TF2_IsLoserStateStunned(client) || MvMRobotPlayer(client).HasAttribute(CTFBot_SUPPRESS_FIRE))
 	{
@@ -608,7 +608,7 @@ void PressAltFireButton(int client)
 		return;
 	}
 	
-	g_arrExtraButtons[client].PressButtons(IN_ATTACK2);
+	g_arrExtraButtons[client].PressButtons(IN_ATTACK2, duration);
 }
 
 //Based on DoTeleporterOverride
@@ -1125,6 +1125,27 @@ bool IsPDQ(int wrench)
 {
 	return TF2Attrib_HookValueInt(0, "wrench_builds_minisentry", wrench) == 1;
 }
+
+/* int GetObjectOfType(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None)
+{
+	for (int i = 0; i < TF2Util_GetPlayerObjectCount(client); i++)
+	{
+		int iObj = TF2Util_GetPlayerObject(client, i);
+		
+		if (TF2_GetObjectType(iObj) != type)
+			continue;
+		
+		if (mode > TFObjectMode_None && TF2_GetObjectMode(iObj) != mode)
+			continue;
+		
+		if (TF2_IsDisposableBuilding(iObj))
+			continue;
+		
+		return iObj;
+	}
+	
+	return -1;
+} */
 
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
@@ -1752,11 +1773,6 @@ stock bool IsLeftForInvasionMode()
 	return isEnabled;
 }
 
-stock void SendBuildCommand(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None)
-{
-	FakeClientCommand(client, "build %d %d", type, mode);
-}
-
 stock void ShowAnnotationToClient(int client, char[] message, int target, float duration, char[] sound = "")
 {
 	Event event = CreateEvent("show_annotation");
@@ -1767,24 +1783,6 @@ stock void ShowAnnotationToClient(int client, char[] message, int target, float 
 	event.SetString("play_sound", sound);
 	event.FireToClient(client);
 	event.Cancel();
-}
-
-stock int GetPlayerBuilding(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None)
-{
-	for (int i = 0; i < TF2Util_GetPlayerObjectCount(client); i++)
-	{
-		int building = TF2Util_GetPlayerObject(client, i);
-		
-		if (TF2_GetObjectType(building) != type)
-			continue;
-		
-		if (mode > TFObjectMode_None && TF2_GetObjectMode(building) != mode)
-			continue;
-		
-		return building;
-	}
-	
-	return -1;
 }
 
 //This seems heavily based on PlayerLocomotion::Approach
@@ -1867,4 +1865,9 @@ stock bool IsDistanceBetweenLessThanVector(int client, const float target[3], fl
 stock void SetPlayerReady(int client, bool state)
 {
 	FakeClientCommand(client, "tournament_player_readystate %d", state);
+}
+
+stock void SendBuildCommand(int client, TFObjectType type, TFObjectMode mode = TFObjectMode_None)
+{
+	FakeClientCommand(client, "build %d %d", type, mode);
 }

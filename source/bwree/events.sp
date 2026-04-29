@@ -390,8 +390,14 @@ static void Event_PlayerBuiltObject(Event event, const char[] name, bool dontBro
 			//Undo the disposable parts as a result of the trickery we did in ObjectSentrygun_SpawnPost
 			SetEntProp(entity, Prop_Send, "m_bDisposableBuilding", 0);
 			TF2_SetObjectMode(entity, MODE_SENTRYGUN_NORMAL);
-			SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 0);
-			DispatchKeyValue(entity, "body", "0");
+			
+			int wrench = Weapon_OwnsThisID(client, TF_WEAPON_WRENCH);
+			
+			if (wrench == -1 || !IsPDQ(wrench))
+			{
+				SetEntProp(entity, Prop_Send, "m_bMiniBuilding", 0);
+				DispatchKeyValue(entity, "body", "0");
+			}
 		}
 	}
 	else if (objectType == TFObject_Teleporter)

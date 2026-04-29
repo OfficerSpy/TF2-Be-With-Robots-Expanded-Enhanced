@@ -101,6 +101,23 @@
 	{
 		"en"	"Change robot"
 	}
+	"Menu_BWREE_MainMenu"
+	{
+		"en"	"Main Menu"
+	}
+	"Menu_BWREE_Preference"
+	{
+		"en"	"Mod Preferences"
+	}
+	"Menu_Preference"
+	{
+		"en"	"Preferences"
+	}
+	"Menu_Preference_CustomViewmodels"
+	{
+		"#format"	"{1:t}"
+		"en"	"Custom Viewmodels: {1}"
+	}
 	"Spy_Teleport_Victm_Not_Found"
 	{
 		"en"	"Your victim could not be found."
@@ -203,6 +220,11 @@
 	{
 		"#format"	"{1:s}"
 		"en"	"Type {1} to play as a Sentry Buster."
+	}
+	"Robot_Name_Own_Loadout"
+	{
+		"#format"	"{1:s}"
+		"en"	"Your Own Loadout ({1})"
 	}
 	"Changed_Heal_Target"
 	{

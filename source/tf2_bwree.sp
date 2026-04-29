@@ -414,7 +414,7 @@ float g_flChangeRobotCooldown[MAXPLAYERS + 1];
 bool g_bSpawningAsBossRobot[MAXPLAYERS + 1];
 esPlayerPathing g_arrPlayerPath[MAXPLAYERS + 1];
 bool g_bAllowRespawn[MAXPLAYERS + 1];
-int g_nPlayerPref[MAXPLAYERS + 1];
+static int m_nPlayerPref[MAXPLAYERS + 1];
 
 //THIS IS FOR BOTS ONLY!
 //It's how we monitor what sentry busters we can currently replace
@@ -1064,6 +1064,7 @@ public void OnPluginStart()
 	PrintToServer("%s compiled for use with extension CBaseNPC", PLUGIN_NAME);
 #endif
 	
+	LoadTranslations("common.phrases");
 	LoadTranslations("bwree.phrases");
 	
 	bwr3_robot_spawn_time_min = CreateConVar("sm_bwr3_robot_spawn_time_min", "12", _, FCVAR_NOTIFY);
@@ -1127,6 +1128,8 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_newspawn", Command_FindUseNewSpawnLocation);
 	RegConsoleCmd("sm_ns", Command_FindUseNewSpawnLocation);
 	RegConsoleCmd("sm_buster", Command_BecomeSentryBuster);
+	RegConsoleCmd("sm_bwree_preference", Command_Preference);
+	RegConsoleCmd("sm_bwree_pref", Command_Preference);
 	
 	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
 	RegAdminCmd("sm_bwr3_robots", Command_ListRobots, ADMFLAG_GENERIC);
@@ -1159,7 +1162,7 @@ public void OnPluginStart()
 	InitGameEventHooks();
 	
 	g_hHudText = CreateHudSynchronizer();
-	// g_hPlayerPreference = new Cookie("bwree_preference", "BWR E&E preferences", CookieAccess_Protected);
+	g_hPlayerPreference = new Cookie("bwree_preference", "BWR E&E preferences", CookieAccess_Protected);
 	m_adtBWRCooldown = new StringMap();
 	
 #if SOURCEMOD_V_MINOR >= 13
@@ -1291,7 +1294,7 @@ public void OnClientDisconnect(int client)
 
 public void OnClientCookiesCached(int client)
 {
-	// g_nPlayerPref[client] = g_hPlayerPreference.GetInt(client);
+	m_nPlayerPref[client] = g_hPlayerPreference.GetInt(client, g_arrSettings.iCustomViewmodel > 0 ? PREFERENCE_ROBOT_VIEWMODELS : PREFERENCE_NONE);
 }
 
 public void OnConfigsExecuted()
@@ -2394,6 +2397,18 @@ public Action Command_BecomeSentryBuster(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_MainMenu(int client, int args)
+{
+	ShowModMainMenu(client);
+	return Plugin_Handled;
+}
+
+public Action Command_Preference(int client, int args)
+{
+	ShowModPreferenceMenu(client);
+	return Plugin_Handled;
+}
+
 public Action Command_PlayAsRobotType(int client, int args)
 {
 	if (args < 3)
@@ -3033,7 +3048,7 @@ public void ObjectSentrygun_SpawnPost(int entity)
 {
 	int builder = TF2_GetBuilder(entity);
 	
-	if (builder != -1 && IsPlayingAsRobot(builder) && TF2_GetPlayerClass(builder) == TFClass_Engineer)
+	if (builder != -1 && IsPlayingAsRobot(builder) && TF2_GetPlayerClass(builder) == TFClass_Engineer /* && GetObjectOfType(builder, TFObject_Sentry) != -1 */)
 	{
 		//Trick the game into thinking we are a disposable sentry so it doesn't turn our second sentry into a disposable one
 		SetEntProp(entity, Prop_Send, "m_bDisposableBuilding", 1);
@@ -3201,6 +3216,9 @@ public Action PlayerRobot_WeaponCanSwitchTo(int client, int weapon)
 public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 {
 	if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+		return;
+	
+	if (!ShouldUseCustomViewmodels(client))
 		return;
 	
 	switch (g_arrSettings.iCustomViewmodel)
@@ -3589,6 +3607,14 @@ void BWRCooldown_PurgeExpired()
 	}
 	
 	CloseHandle(shot);
+}
+
+bool ShouldUseCustomViewmodels(int client)
+{
+	if (g_arrSettings.iCustomViewmodel < 1)
+		return false;
+	
+	return PlayerHasPreference(client, PREFERENCE_ROBOT_VIEWMODELS);
 }
 
 /* REMEMBER UNIQUE UBERS BY PLAYERS
@@ -4847,12 +4873,17 @@ void MapConfig_UpdateSettings()
 
 void TogglePlayerPreference(int client, int iPreferenceFlag)
 {
-	if (g_nPlayerPref[client] & iPreferenceFlag)
-		g_nPlayerPref[client] &= ~iPreferenceFlag;
+	if (m_nPlayerPref[client] & iPreferenceFlag)
+		m_nPlayerPref[client] &= ~iPreferenceFlag;
 	else
-		g_nPlayerPref[client] |= iPreferenceFlag;
+		m_nPlayerPref[client] |= iPreferenceFlag;
 	
-	g_hPlayerPreference.SetInt(client, g_nPlayerPref[client]);
+	g_hPlayerPreference.SetInt(client, m_nPlayerPref[client]);
+}
+
+bool PlayerHasPreference(int client, int iPreferenceFlag)
+{
+	return m_nPlayerPref[client] & iPreferenceFlag;
 }
 
 eRobotSpawnType GetRobotPlayerSpawnType(MvMRobotPlayer roboPlayer)

@@ -4,12 +4,28 @@ static eRobotTemplateType m_nSelectedRobotType[MAXPLAYERS + 1];
 
 void ShowModMainMenu(int client)
 {
-	//TODO
+	Menu hMenu = new Menu(MenuHandler_MainMenu);
+	// hMenu.SetTitle("%t", "Menu_BWREE_MainMenu");
+	
+	char sFormat[12];
+	
+	FormatEx(sFormat, sizeof(sFormat), "%t", "Menu_Preference");
+	hMenu.AddItem("0", sFormat);
+	
+	hMenu.Display(client, DISPLAY_MENU_DURATION);
 }
 
 void ShowModPreferenceMenu(int client, int itemPosition = 0)
 {
-	//TODO
+	Menu hMenu = new Menu(MenuHandler_Preference);
+	// hMenu.SetTitle("%t", "Menu_BWREE_Preference");
+	
+	char sFormat[24];
+	
+	FormatEx(sFormat, sizeof(sFormat), "%t", "Menu_Preference_CustomViewmodels", PlayerHasPreference(client, PREFERENCE_ROBOT_VIEWMODELS) ? "Yes" : "No");
+	hMenu.AddItem("0", sFormat);
+	
+	hMenu.DisplayAt(client, itemPosition, DISPLAY_MENU_DURATION);
 }
 
 // Show the next robot we are going to spawn as
@@ -20,7 +36,7 @@ void ShowPlayerNextRobotMenu(int client)
 	if (roboPlayer.MyNextRobotTemplateID == ROBOT_TEMPLATE_ID_INVALID)
 		ThrowError("Client %N (%d) does not have a valid robot template selected!", client, client);
 	
-	Menu hMenu = new Menu(MenuHandler_ViewNextRobot, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_ViewNextRobot, MENU_ACTIONS_DEFAULT);
 	char robotName[MAX_NAME_LENGTH]; GetRobotTemplateName(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID, robotName, sizeof(robotName));
 	
 	hMenu.SetTitle("%t", "Menu_ViewNextRobot", robotName);
@@ -39,7 +55,7 @@ void ShowPlayerNextRobotMenu(int client)
 // List the robot variant type categories that are available
 void ShowRobotVariantTypeMenu(int client, bool bAdmin = false)
 {
-	Menu hMenu = new Menu(MenuHandler_RobotVariantType, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_RobotVariantType, MENU_ACTIONS_DEFAULT);
 	
 	hMenu.AddItem("0", "Standard");
 	
@@ -76,7 +92,7 @@ void ShowRobotTemplateClassMenu(int client, eRobotTemplateType type)
 		return;
 	}
 	
-	Menu hMenu = new Menu(MenuHandler_RobotTemplateClasses, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_RobotTemplateClasses, MENU_ACTIONS_DEFAULT);
 	
 	hMenu.AddItem("0", "Scout");
 	hMenu.AddItem("1", "Soldier");
@@ -97,7 +113,7 @@ void ShowRobotTemplateClassMenu(int client, eRobotTemplateType type)
 bool ShowRobotTemplatesForClassMenu(int client, eRobotTemplateType type, TFClassType class)
 {
 	bool bCurrentWaveRobots = bwr3_player_robot_template_mode.IntValue == ROBOT_TEMPLATE_MODE_WAVE_BOTS;
-	Menu hMenu = new Menu(MenuHandler_RobotTemplatesForClass, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_RobotTemplatesForClass, MENU_ACTIONS_DEFAULT);
 	int count = 0;
 	
 	for (int i = 0; i < g_iTotalRobotTemplates[type]; i++)
@@ -135,7 +151,7 @@ bool ShowRobotTemplatesForClassMenu(int client, eRobotTemplateType type, TFClass
 
 void ShowEngineerTeleportMenu(int client)
 {
-	Menu hMenu = new Menu(MenuHandler_EngineerTeleport, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_EngineerTeleport, MENU_ACTIONS_DEFAULT);
 	hMenu.SetTitle("%t", "Menu_EngineerTeleport");
 	
 	char textFormatBuffer[32];
@@ -160,7 +176,7 @@ void ShowEngineerTeleportMenu(int client)
 
 void ShowSpyTeleportMenu(int client)
 {
-	Menu hMenu = new Menu(MenuHandler_SpyTeleporting, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_SpyTeleporting, MENU_ACTIONS_DEFAULT);
 	hMenu.SetTitle("%t", "Menu_SpyTeleport");
 	
 	char textFormatBuffer[32];
@@ -180,7 +196,7 @@ void ShowSpyTeleportMenu(int client)
 
 void ShowSpyTeleportPlayerMenu(int client)
 {
-	Menu hMenu = new Menu(MenuHandler_SpyTeleportPlayer, MENU_ACTIONS_ALL);
+	Menu hMenu = new Menu(MenuHandler_SpyTeleportPlayer, MENU_ACTIONS_DEFAULT);
 	hMenu.SetTitle("%t", "Menu_SpyTeleportPlayer");
 	
 	char info[4], name[MAX_NAME_LENGTH];
