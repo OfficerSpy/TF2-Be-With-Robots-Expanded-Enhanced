@@ -147,6 +147,20 @@ public char g_strModelHumans[][] =
 };
 #endif
 
+public char g_sLocalizedClassNames[][] =
+{
+	"#undefined",
+	"#TF_Class_Name_Scout",
+	"#TF_Class_Name_Sniper",
+	"#TF_Class_Name_Soldier",
+	"#TF_Class_Name_Demoman",
+	"#TF_Class_Name_Medic",
+	"#TF_Class_Name_HWGuy",
+	"#TF_Class_Name_Pyro",
+	"#TF_Class_Name_Spy",
+	"#TF_Class_Name_Engineer"
+};
+
 public char g_sRobotArmModels[][] =
 {
 	"",

@@ -427,7 +427,7 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 		else
 		{
 			//Failed too many times, just give up
-			FreezePlayerInput(data, false);
+			FreezePlayerInput(data, false, 0);
 			PrintToChat(data, "%t", "Spy_Teleport_Failed_MaxTries", m_iSpyTeleportAttempt[data]);
 			LogError("Timer_SpyLeaveSpawnRoom: %L failed to teleport after %d tries!", data, m_iSpyTeleportAttempt[data]);
 		}
@@ -440,7 +440,7 @@ static Action Timer_SpyLeaveSpawnRoom(Handle timer, int data)
 	}
 	
 	//We successfully teleported near someone
-	FreezePlayerInput(data, false);
+	FreezePlayerInput(data, false, 0);
 	
 	//Now we hide and might tease the victim later
 	MvMRobotPlayer(data).TalkTimer_Start(GetRandomFloat(5.0, 10.0));
@@ -1099,7 +1099,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		{
 			//Let him choose how he teleports
 			ShowSpyTeleportMenu(client);
-			FreezePlayerInput(client, true);
+			FreezePlayerInput(client, true, 0);
 		}
 		else
 		{
@@ -1345,12 +1345,31 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 	roboPlayer.SetMaxVisionRange(-1.0);
 	roboPlayer.ClearTags();
 	
+	DataPack hPack;
+	CreateDataTimer(0.1, Timer_FinishCustomLoadout, hPack, TIMER_FLAG_NO_MAPCHANGE);
+	hPack.WriteCell(client);
+	hPack.WriteCell(type);
+	hPack.WriteCell(nClass);
+}
+
+public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
+{
+	hPack.Reset();
+	int client = hPack.ReadCell();
+	
+	if (!IsClientInGame(client) || !IsPlayerAlive(client))
+		return;
+	
+	eRobotTemplateType type = hPack.ReadCell();
+	TFClassType nClass = hPack.ReadCell();
+	
 	char sClassIcon[14];
 	OSTFPlayer player = OSTFPlayer(client);
 	
 	player.GetClassIconName(sClassIcon, sizeof(sClassIcon));
 	
 	//Doing this for the same reason we said in Timer_FinishRobotPlayer...
+	//Here we only assume the default class icon
 	if (strcmp(sClassIcon, g_sClassNamesShort[nClass], false))
 	{
 		strcopy(sClassIcon, sizeof(sClassIcon), g_sClassNamesShort[nClass]);
@@ -1380,6 +1399,7 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 		}
 	}
 	
+	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	bool bHalloweenMission = GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN;
 	float flScale;
 	
@@ -1465,7 +1485,7 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 		if (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)
 		{
 			ShowSpyTeleportMenu(client);
-			FreezePlayerInput(client, true);
+			FreezePlayerInput(client, true, 0);
 		}
 		else
 		{
@@ -1501,7 +1521,8 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 		}
 	}
 	
-	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", ROBOT_NAME_UNDEFINED);
+	char sName[MAX_NAME_LENGTH]; GetRobotTemplateName(ROBOT_OWN_LOADOUT, nClass, sName, sizeof(sName));
+	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", sName);
 }
 
 DifficultyType GetSkillFromString(const char[] value)
@@ -2403,7 +2424,8 @@ int GetRobotTemplateName(eRobotTemplateType type, int templateID, char[] buffer,
 {
 	if (type == ROBOT_OWN_LOADOUT)
 	{
-		return strcopy(buffer, maxlen, ROBOT_NAME_UNDEFINED);
+		//Template ID is class index in your own loadouts
+		return FormatEx(buffer, maxlen, "%t", "Robot_Name_Own_Loadout", g_sLocalizedClassNames[templateID]);
 	}
 	
 	return strcopy(buffer, maxlen, g_sRobotTemplateName[type][templateID]);
@@ -2725,7 +2747,7 @@ void SpyLeaveSpawnRoom_OnStart(int client)
 	
 	m_iSpyTeleportAttempt[client] = 0;
 	
-	FreezePlayerInput(client, true);
+	FreezePlayerInput(client, true, 0);
 	
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Spy_Teleporting");
 }

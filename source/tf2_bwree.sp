@@ -4158,15 +4158,48 @@ void MvMDeployBomb_OnEnd(int client)
 		SetForcedTauntCam(client, 0);
 }
 
-void FreezePlayerInput(int client, bool bFreeze)
+void FreezePlayerInput(int client, bool bFreeze, int iMethod = 1)
 {
-	if (bFreeze)
+	switch (iMethod)
 	{
-		SetEntityFlags(client, GetEntityFlags(client) | FL_FROZEN);
-	}
-	else
-	{
-		SetEntityFlags(client, GetEntityFlags(client) & ~FL_FROZEN);
+		case -1:
+		{
+			//Go for all of them
+			FreezePlayerInput(client, bFreeze, 0);
+			FreezePlayerInput(client, bFreeze, 1);
+			FreezePlayerInput(client, bFreeze, 2);
+			//Not case 3 cause it's tied to the same command in case 2
+		}
+		case 0:
+		{
+			if (bFreeze)
+				TF2_AddCondition(client, TFCond_FreezeInput);
+			else
+				TF2_RemoveCondition(client, TFCond_FreezeInput);
+		}
+		case 1:
+		{
+			if (bFreeze)
+				SetEntityFlags(client, GetEntityFlags(client) | FL_FROZEN);
+			else
+				SetEntityFlags(client, GetEntityFlags(client) & ~FL_FROZEN);
+		}
+		case 2:
+		{
+			FakeClientCommand(client, "cyoa_pda_open %d", bFreeze);
+		}
+		case 3:
+		{
+			if (bFreeze)
+			{
+				BasePlayer_SetMaxSpeed(client, 0.0);
+			}
+			else
+			{
+				//Call CTFPlayer::TeamFortress_SetSpeed
+				FakeClientCommand(client, "cyoa_pda_open 0");
+			}
+		}
 	}
 }
 
