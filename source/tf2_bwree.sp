@@ -4186,6 +4186,7 @@ void FreezePlayerInput(int client, bool bFreeze, int iMethod = 1)
 		}
 		case 2:
 		{
+			//We do not want to set m_bViewingCYOAPDA directly or else it won't update the max speed
 			FakeClientCommand(client, "cyoa_pda_open %d", bFreeze);
 		}
 		case 3:

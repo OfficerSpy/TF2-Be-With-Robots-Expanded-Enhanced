@@ -1154,6 +1154,8 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		SetEntProp(client, Prop_Data, "m_bPredictWeapons", 0);
 	}
 	
+	ApplyTemplateFixes(client, iClass);
+	
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", strName);
 	
 #if defined TESTING_ONLY
@@ -1520,6 +1522,8 @@ public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
 			}
 		}
 	}
+	
+	ApplyTemplateFixes(client, nClass, true);
 	
 	char sName[MAX_NAME_LENGTH]; GetRobotTemplateName(ROBOT_OWN_LOADOUT, nClass, sName, sizeof(sName));
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", sName);
@@ -1902,6 +1906,24 @@ static void AddRomevisionCosmetics(int client)
 	}
 	
 	// PostInventoryApplication(client);
+}
+
+void ApplyTemplateFixes(int client, TFClassType iClass, bool bOwnLoadout = false)
+{
+	if (iClass == TFClass_Engineer)
+	{
+		//Visual fix to let us place another sentry from the PDA HUD when we already have one active
+		TF2Attrib_SetByName(client, "engy disposable sentries", 1.0);
+	}
+	
+	if (bOwnLoadout)
+	{
+		if (iClass == TFClass_Engineer)
+		{
+			//Hack to fix your own loadout being able to carry buildings
+			TF2Attrib_SetByName(client, "cannot pick up buildings", 1.0);
+		}
+	}
 }
 
 void ReplaceSentryBuster(int iTFBot, int iReplacement)
