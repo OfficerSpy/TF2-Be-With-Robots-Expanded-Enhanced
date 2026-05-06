@@ -1270,6 +1270,8 @@ public void OnClientPutInServer(int client)
 	
 	MvMRobotPlayer(client).Reset();
 	
+	SDKHook(client, SDKHook_OnTakeDamageAlive, Player_OnTakeDamageAlive);
+	SDKHook(client, SDKHook_OnTakeDamageAlivePost, Player_OnTakeDamageAlivePost);
 	SDKHook(client, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 	SDKHook(client, SDKHook_SetTransmit, Actor_SetTransmit);
 	
@@ -1386,6 +1388,16 @@ public void OnEntityCreated(int entity, const char[] classname)
 	{
 		SDKHook(entity, SDKHook_Touch, RegenerateZone_Touch);
 		SDKHook(entity, SDKHook_Touch, BaseTrigger_Touch);
+	}
+	else if (!strcmp(classname, "tf_projectile_stun_ball"))
+	{
+		SDKHook(entity, SDKHook_Touch, StunBall_Touch);
+		SDKHook(entity, SDKHook_TouchPost, StunBall_TouchPost);
+	}
+	else if (!strcmp(classname, "tf_projectile_rocket"))
+	{
+		SDKHook(entity, SDKHook_Touch, BaseRocket_Touch);
+		SDKHook(entity, SDKHook_TouchPost, BaseRocket_TouchPost);
 	}
 	
 	if (StrEqual(classname, "trigger") || StrContains(classname, "trigger_") != -1)
@@ -2928,6 +2940,39 @@ public void Frame_CaptureFlagOnPickup(int data)
 	}
 }
 
+public Action Player_OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
+{
+	/* This callback is used to detour around CTFGameRules::ApplyOnDamageAliveModifyRules
+	Allow the player's damage to be affected by the population manager's damage multiplier checked in said function
+	Whether they were a victim or the attacker, all robot players should be seen as bots in this regard */
+	
+	//Not relevant if we hurt ourselves
+	if (attacker == victim)
+		return Plugin_Continue;
+	
+	if (IsPlayingAsRobot(victim))
+		SetClientAsBot(victim, true);
+	
+	if (BaseEntity_IsPlayer(attacker) && IsPlayingAsRobot(attacker))
+		SetClientAsBot(attacker, true);
+	
+	return Plugin_Continue;
+}
+
+public void Player_OnTakeDamageAlivePost(int victim, int attacker, int inflictor, float damage, int damagetype, int weapon, const float damageForce[3], const float damagePosition[3], int damagecustom)
+{
+	if (attacker == victim)
+		return;
+	
+	//Here we revert the changes we did above
+	
+	if (IsPlayingAsRobot(victim))
+		SetClientAsBot(victim, false);
+	
+	if (BaseEntity_IsPlayer(attacker) && IsPlayingAsRobot(attacker))
+		SetClientAsBot(attacker, false);
+}
+
 public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
 	if (BaseEntity_IsPlayer(attacker))
@@ -3081,6 +3126,56 @@ public void ObjectSapper_SpawnPost(int entity)
 		int nFlags = TF2_GetObjectFlags(entity);
 		TF2_SetObjectFlags(entity, nFlags | OF_ALLOW_REPEAT_PLACEMENT);
 	}
+}
+
+public Action StunBall_Touch(int entity, int other)
+{
+	if (!BaseEntity_IsPlayer(other))
+		return Plugin_Continue;
+	
+	/* This callback is to detour around CTFStunBall::ApplyBallImpactEffectOnVictim
+	It applies the special rules for ball stun based on the player's scale or is miniboss
+	Sanity checks here so we don't unnecessarily apply this change */
+	if (IsPlayingAsRobot(other) && BaseEntity_GetTeamNumber(entity) != GetClientTeam(other) && OSTFPlayer(other).m_takedamage != DAMAGE_NO)
+		SetClientAsBot(other, true);
+	
+	return Plugin_Continue;
+}
+
+public void StunBall_TouchPost(int entity, int other)
+{
+	if (!BaseEntity_IsPlayer(other))
+		return Plugin_Continue;
+	
+	//Revert change regardless
+	if (IsPlayingAsRobot(other))
+		SetClientAsBot(other, false);
+	
+	return Plugin_Continue;
+}
+
+public Action BaseRocket_Touch(int entity, int other)
+{
+	/* This callback is used to detour around CTFBaseRocket::CheckForStunOnImpact
+	It does an achievement check when directly striking robot players
+	Sanity checks here cause yes */
+	
+	if (BaseEntity_IsPlayer(other) && IsPlayingAsRobot(other))
+	{
+		int attacker = BaseEntity_GetOwnerEntity(entity);
+		
+		if (attacker != -1 && BaseEntity_GetTeamNumber(attacker) == TFTeam_Red)
+			SetClientAsBot(other, true);
+	}
+	
+	return Plugin_Continue;
+}
+
+public void BaseRocket_TouchPost(int entity, int other)
+{
+	//Revert the change regardless
+	if (BaseEntity_IsPlayer(other) && IsPlayingAsRobot(other))
+		SetClientAsBot(other, false);
 }
 
 public void PlayerRobot_TouchPost(int entity, int other)
