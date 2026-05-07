@@ -1161,6 +1161,17 @@ bool IsPDQ(int wrench)
 	return -1;
 } */
 
+int GetRocketOwner(int iRocket)
+{
+	int iOwner = BaseEntity_GetOwnerEntity(iRocket);
+	
+	//TODO: surely there's a better way to check for CObjectSentrygun...
+	if (BaseEntity_IsBaseObject(iOwner) && TF2_GetObjectType(iOwner) == TFObject_Sentry)
+		return OSBaseObject(iOwner).GetOwner();
+	
+	return iOwner;
+}
+
 #if defined MOD_EXT_CBASENPC
 void CalculateMeleeDamageForce(CTakeDamageInfo &info, const float vecMeleeDir[3], const float vecForceOrigin[3], float flScale)
 {

@@ -1054,7 +1054,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.5",
+	version = "1.4.6",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -2111,6 +2111,22 @@ public void TF2_OnConditionAdded(int client, TFCond condition)
 		//Particle is handled client-side and only shows up on bots, so just do this
 		// EmitParticleEffect("bot_radio_waves", "head", client, PATTACH_POINT_FOLLOW);
 	}
+	else if (condition == TFCond_MarkedForDeath)
+	{
+		int attacker = TF2Util_GetPlayerConditionProvider(client, TFCond_MarkedForDeath);
+		
+		//NOTE: this is not a perfect check, but perhaps better than having to detour CTFWeaponBase::ApplyOnHitAttributes
+		if (attacker != INVALID_ENT_REFERENCE && BaseEntity_IsPlayer(attacker) && TF2_GetPlayerClass(attacker) == TFClass_Scout && Weapon_OwnsThisID(attacker, TF_WEAPON_BAT_WOOD))
+		{
+			Event hEvent = CreateEvent("mvm_scout_marked_for_death");
+			
+			if (hEvent)
+			{
+				hEvent.SetInt("player", attacker);
+				hEvent.Fire();
+			}
+		}
+	}
 }
 
 public void TF2_OnConditionRemoved(int client, TFCond condition)
@@ -3145,13 +3161,11 @@ public Action StunBall_Touch(int entity, int other)
 public void StunBall_TouchPost(int entity, int other)
 {
 	if (!BaseEntity_IsPlayer(other))
-		return Plugin_Continue;
+		return;
 	
 	//Revert change regardless
 	if (IsPlayingAsRobot(other))
 		SetClientAsBot(other, false);
-	
-	return Plugin_Continue;
 }
 
 public Action BaseRocket_Touch(int entity, int other)
@@ -3162,7 +3176,7 @@ public Action BaseRocket_Touch(int entity, int other)
 	
 	if (BaseEntity_IsPlayer(other) && IsPlayingAsRobot(other))
 	{
-		int attacker = BaseEntity_GetOwnerEntity(entity);
+		int attacker = GetRocketOwner(entity);
 		
 		if (attacker != -1 && BaseEntity_GetTeamNumber(attacker) == TFTeam_Red)
 			SetClientAsBot(other, true);
