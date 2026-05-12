@@ -77,6 +77,11 @@
 				"windows"	"\x55\x8B\xEC\x53\x56\x57\x8B\xF9\x33\xF6\x39\xB7\x2A\x2A\x2A\x2A\x7E\x2A\x8B\x5D\x2A\xEB"
 				"linux"		"@_ZNK6CTFBot24GetEventChangeAttributesEPKc"
 			}
+			"CTFPlayer::FeignDeath"
+			{
+				"windows"	"\x55\x8B\xEC\x83\xEC\x08\x53\x56\x57\x6A\x00\x6A\x00"
+				"linux"		"@_ZN9CTFPlayer10FeignDeathERK15CTakeDamageInfob"
+			}
 			"CBaseObject::FindSnapToBuildPos"
 			{
 				"windows"	"\x55\x8B\xEC\x83\xEC\x58\x53\x57\x8B\xF9\x89\x7D\xF4"
@@ -120,11 +125,6 @@
 			{
 				"windows"	"199"
 				"linux"		"200"
-			}
-			"CBaseCombatCharacter::ShouldGib"
-			{
-				"windows"	"297"
-				"linux"		"298"
 			}
 			"CBaseEntity::AcceptInput"
 			{
@@ -226,6 +226,25 @@
 					}
 				}
 			}
+			"CTFPlayer::FeignDeath"
+			{
+				"signature"	"CTFPlayer::FeignDeath"
+				"callconv"	"thiscall"
+				"return"	"void"
+				"this"		"entity"
+				"arguments"
+				{
+					"info"
+					{
+						"type"	"objectptr"
+						"flags"	"byref"
+					}
+					"bDeathnotice"
+					{
+						"type"	"bool"
+					}
+				}
+			}
 			"CBaseObject::FindSnapToBuildPos"
 			{
 				"signature"	"CBaseObject::FindSnapToBuildPos"
@@ -309,21 +328,6 @@
 					"pEntity"
 					{
 						"type"	"cbaseentity"
-					}
-				}
-			}
-			"CBaseCombatCharacter::ShouldGib"
-			{
-				"offset"	"CBaseCombatCharacter::ShouldGib"
-				"hooktype"	"entity"
-				"return"	"bool"
-				"this"		"entity"
-				"arguments"
-				{
-					"info"
-					{
-						"type"	"objectptr"
-						"flags"	"byref"
 					}
 				}
 			}

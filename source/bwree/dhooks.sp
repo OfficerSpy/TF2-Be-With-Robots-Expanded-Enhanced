@@ -1,7 +1,6 @@
 static DynamicHook m_hShouldTransmit;
 static DynamicHook m_hEventKilled;
 static DynamicHook m_hPassesFilterImp1;
-static DynamicHook m_hShouldGib;
 static DynamicHook m_hAcceptInput;
 static DynamicHook m_hForceRespawn;
 
@@ -14,6 +13,9 @@ bool InitDHooks(GameData hGamedata)
 	int iFailCount = 0;
 	
 	if (!RegisterDetour(hGamedata, "CTFBot::GetEventChangeAttributes", DHookCallback_GetEventChangeAttributes_Pre, DHookCallback_GetEventChangeAttributes_Post))
+		iFailCount++;
+	
+	if (!RegisterDetour(hGamedata, "CTFPlayer::FeignDeath", DHookCallback_FeignDeath_Pre, DHookCallback_FeignDeath_Post))
 		iFailCount++;
 	
 	if (!RegisterDetour(hGamedata, "CBaseObject::FindSnapToBuildPos", DHookCallback_FindSnapToBuildPos_Pre, DHookCallback_FindSnapToBuildPos_Post))
@@ -32,9 +34,6 @@ bool InitDHooks(GameData hGamedata)
 		iFailCount++;
 	
 	if (!RegisterHook(hGamedata, m_hPassesFilterImp1, "CBaseFilter::PassesFilterImpl"))
-		iFailCount++;
-	
-	if (!RegisterHook(hGamedata, m_hShouldGib, "CBaseCombatCharacter::ShouldGib"))
 		iFailCount++;
 	
 	if (!RegisterHook(hGamedata, m_hAcceptInput, "CBaseEntity::AcceptInput"))
@@ -73,7 +72,6 @@ public void DHooks_OnClientPutInServer(int client)
 	m_hShouldTransmit.HookEntity(Hook_Pre, client, DHookCallback_ShouldTransmit_Pre);
 	m_hEventKilled.HookEntity(Hook_Pre, client, DHookCallback_EventKilled_Pre);
 	m_hEventKilled.HookEntity(Hook_Post, client, DHookCallback_EventKilled_Post);
-	m_hShouldGib.HookEntity(Hook_Pre, client, DHookCallback_ShouldGib_Pre);
 	m_hForceRespawn.HookEntity(Hook_Pre, client, DHookCallback_ForceRespawn_Pre);
 }
 
@@ -108,6 +106,27 @@ static MRESReturn DHookCallback_GetEventChangeAttributes_Post(int pThis, DHookRe
 		//For right now, we assume RevertGateBotsBehavior is always what gets called here
 		//Potentially, this could be moved to the input for point_populator_interface
 		MvMRobotPlayer(pThis).OnEventChangeAttributes("RevertGateBotsBehavior");
+	}
+	
+	return MRES_Ignored;
+}
+
+static MRESReturn DHookCallback_FeignDeath_Pre(int pThis, DHookParam hParams)
+{
+	if (IsPlayingAsRobot(pThis))
+	{
+		//Don't drop ammo pack when faking death
+		SetClientAsBot(pThis, true);
+	}
+	
+	return MRES_Ignored;
+}
+
+static MRESReturn DHookCallback_FeignDeath_Post(int pThis, DHookParam hParams)
+{
+	if (IsPlayingAsRobot(pThis))
+	{
+		SetClientAsBot(pThis, false);
 	}
 	
 	return MRES_Ignored;
@@ -392,21 +411,6 @@ static MRESReturn DHookCallback_PassesFilterImp1_Pre(int pThis, DHookReturn hRet
 	return MRES_Supercede;
 }
 
-static MRESReturn DHookCallback_ShouldGib_Pre(int pThis, DHookReturn hReturn, DHookParam hParams)
-{
-	//Allow robot players to gib like MvM bots
-	if (IsPlayingAsRobot(pThis))
-	{
-		if (TF2_IsMiniBoss(pThis) || BaseAnimating_GetModelScale(pThis) > 1.0)
-		{
-			hReturn.Value = true;
-			return MRES_Supercede;
-		}
-	}
-	
-	return MRES_Ignored;
-}
-
 static MRESReturn DHookCallback_AcceptInput_Post(int pThis, DHookReturn hReturn, DHookParam hParams)
 {
 	if (hReturn.Value == true)
@@ -487,4 +491,9 @@ static bool RegisterHook(GameData gd, DynamicHook &hook, const char[] fnName)
 	}
 	
 	return true;
+}
+
+static bool ShouldRobotGib(int client)
+{
+	return TF2_IsMiniBoss(client) || BaseAnimating_GetModelScale(client) > 1.0;
 }
