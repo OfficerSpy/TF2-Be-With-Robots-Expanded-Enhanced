@@ -237,7 +237,7 @@
 					"info"
 					{
 						"type"	"objectptr"
-						"flags"	"byref"
+						//"flags"	"byref"
 					}
 					"bDeathnotice"
 					{

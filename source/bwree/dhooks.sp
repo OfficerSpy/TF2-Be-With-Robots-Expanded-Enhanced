@@ -117,6 +117,9 @@ static MRESReturn DHookCallback_FeignDeath_Pre(int pThis, DHookParam hParams)
 	{
 		//Don't drop ammo pack when faking death
 		SetClientAsBot(pThis, true);
+		
+		if (RobotShouldGib(pThis))
+			ForcePlayerGibbing(true);
 	}
 	
 	return MRES_Ignored;
@@ -127,6 +130,7 @@ static MRESReturn DHookCallback_FeignDeath_Post(int pThis, DHookParam hParams)
 	if (IsPlayingAsRobot(pThis))
 	{
 		SetClientAsBot(pThis, false);
+		ForcePlayerGibbing(false);
 	}
 	
 	return MRES_Ignored;
@@ -332,6 +336,9 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 				}
 			}
 		}
+		
+		if (RobotShouldGib(pThis))
+			ForcePlayerGibbing(true);
 	}
 	
 	return MRES_Ignored;
@@ -363,6 +370,8 @@ static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 			}
 		}
 #endif
+		
+		ForcePlayerGibbing(false);
 	}
 	
 	return MRES_Ignored;
@@ -493,7 +502,38 @@ static bool RegisterHook(GameData gd, DynamicHook &hook, const char[] fnName)
 	return true;
 }
 
-static bool ShouldRobotGib(int client)
+static bool RobotShouldGib(int client)
 {
 	return TF2_IsMiniBoss(client) || BaseAnimating_GetModelScale(client) > 1.0;
+}
+
+static void ForcePlayerGibbing(bool bValue)
+{
+	static ConVar tf_playergib;
+	tf_playergib = FindConVar("tf_playergib");
+	
+	static int iOldValue = -1;
+	
+	if (iOldValue == -1)
+	{
+		//Not necessary if server has us to always gib anyway
+		if (tf_playergib.IntValue > 1)
+			return;
+		
+		//We ignore the case of when gibbing is disabled, cause CTFBot::ShouldGib doesn't care about it
+	}
+	
+	if (bValue)
+	{
+		iOldValue = tf_playergib.IntValue;
+		tf_playergib.SetInt(2);
+	}
+	else
+	{
+		if (iOldValue != -1)
+		{
+			tf_playergib.SetInt(iOldValue);
+			iOldValue = -1;
+		}
+	}
 }
