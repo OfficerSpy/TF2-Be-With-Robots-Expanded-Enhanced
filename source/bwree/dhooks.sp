@@ -27,6 +27,9 @@ bool InitDHooks(GameData hGamedata)
 	if (!RegisterDetour(hGamedata, "CTFPlayer::CanBeForcedToLaugh", DHookCallback_CanBeForcedToLaugh_Pre))
 		iFailCount++;
 	
+	if (!RegisterDetour(hGamedata, "CTFPlayer::ApplyAbsVelocityImpulse", DHookCallback_ApplyAbsVelocityImpulse_Pre, DHookCallback_ApplyAbsVelocityImpulse_Post))
+		iFailCount++;
+	
 	if (!RegisterHook(hGamedata, m_hShouldTransmit, "CBaseEntity::ShouldTransmit"))
 		iFailCount++;
 	
@@ -228,6 +231,23 @@ static MRESReturn DHookCallback_CanBeForcedToLaugh_Pre(int pThis, DHookReturn hR
 		hReturn.Value = false;
 		return MRES_Supercede;
 	}
+	
+	return MRES_Ignored;
+}
+
+static MRESReturn DHookCallback_ApplyAbsVelocityImpulse_Pre(int pThis, DHookParam hParams)
+{
+	//Does not suffer a pushback when using a parachute
+	if (IsPlayingAsRobot(pThis))
+		SetClientAsBot(pThis, true);
+	
+	return MRES_Ignored;
+}
+
+static MRESReturn DHookCallback_ApplyAbsVelocityImpulse_Post(int pThis, DHookParam hParams)
+{
+	if (IsPlayingAsRobot(pThis))
+		SetClientAsBot(pThis, false);
 	
 	return MRES_Ignored;
 }
@@ -523,9 +543,13 @@ static void ForcePlayerGibbing(bool bValue)
 		//We ignore the case of when gibbing is disabled, cause CTFBot::ShouldGib doesn't care about it
 	}
 	
+	static int iOldFlags = FCVAR_NONE;
+	
 	if (bValue)
 	{
 		iOldValue = tf_playergib.IntValue;
+		iOldFlags = tf_playergib.Flags;
+		tf_playergib.Flags &= ~FCVAR_NOTIFY;
 		tf_playergib.SetInt(2);
 	}
 	else
@@ -534,6 +558,8 @@ static void ForcePlayerGibbing(bool bValue)
 		{
 			tf_playergib.SetInt(iOldValue);
 			iOldValue = -1;
+			tf_playergib.Flags = iOldFlags;
+			// iOldFlags = FCVAR_NONE;
 		}
 	}
 }
