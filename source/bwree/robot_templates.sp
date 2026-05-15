@@ -212,7 +212,20 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		{
 			MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SENTRY_BUSTER_DOWN, view_as<int>(TFTeam_Red));
 			
-			//TODO: decide to award achievement here
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+			Address pData = GetAchievementData(this.index);
+			
+			if (pData)
+			{
+				for (int i = 1; i <= MaxClients; i++)
+				{
+					if (IsValidEntity(i) && IsDamagerInHistory(pData, i, 5.0))
+					{
+						BaseMultiplayerPlayer_AwardAchievement(i, ACHIEVEMENT_TF_MVM_KILL_SENTRY_BUSTER);
+					}
+				}
+			}
+#endif
 		}
 		
 		//The actual game function uses two CUtlVector objects for players
@@ -2174,7 +2187,7 @@ void SelectPlayerNextRobot(int client)
 	
 	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwr3_robot_gatebot_chance.FloatValue);
 	
-	if (!bCurrentWaveRobots && RollRandomChanceFloat(50.0))
+	if (!bCurrentWaveRobots && RollRandomChanceFloat(25.0))
 	{
 		roboPlayer.SetMyNextRobot(ROBOT_OWN_LOADOUT, GetRandomInt(TFClass_Scout, TFClass_Engineer));
 		return;

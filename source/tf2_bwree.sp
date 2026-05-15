@@ -53,6 +53,7 @@ Author: ★ Officer Spy ★
 // #define MANUAL_DEATH_WAVEBAR_EDIT
 #define CORRECT_VISIBLE_RESPAWN_TIME
 #define NO_UPGRADE_TELEPORTER
+#define SERIOUS_ACHIEVEMENT_CHECK
 
 enum ePlayerPenalty
 {
@@ -1142,6 +1143,11 @@ public void OnPluginStart()
 	
 #if defined TESTING_ONLY	
 	RegConsoleCmd("sm_johnblue", Command_JoinBlue, "Join the blue team and become a robot!");
+#endif
+	
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+	RegAdminCmd("sm_bwr3_debug_damagers", Command_DebugDamagers, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwr3_debug_pushers", Command_DebugPushers, ADMFLAG_GENERIC);
 #endif
 	
 	AddCommandListener(CommandListener_Voicemenu, "voicemenu");
@@ -2672,6 +2678,44 @@ public Action Command_DebugWaveData(int client, int args)
 	return Plugin_Handled;
 }
 
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+public Action Command_DebugDamagers(int client, int args)
+{
+	Address pData = GetAchievementData(client);
+	
+	if (pData)
+	{
+		ReplyToCommand(client, "Your damagers are:");
+		
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (IsValidEntity(i) && IsDamagerInHistory(pData, i, 60.0))
+				ReplyToCommand(client, "%N", i);
+		}
+	}
+	
+	return Plugin_Handled;
+}
+
+public Action Command_DebugPushers(int client, int args)
+{
+	Address pData = GetAchievementData(client);
+	
+	if (pData)
+	{
+		ReplyToCommand(client, "Your pushers are:");
+		
+		for (int i = 1; i <= MaxClients; i++)
+		{
+			if (IsValidEntity(i) && IsPusherInHistory(pData, i, 60.0))
+				ReplyToCommand(client, "%N", i);
+		}
+	}
+	
+	return Plugin_Handled;
+}
+#endif
+
 public Action CommandListener_Voicemenu(int client, const char[] command, int argc)
 {
 	if (argc >= 2 && IsPlayingAsRobot(client))
@@ -4156,7 +4200,29 @@ bool MvMDeployBomb_Update(int client)
 		
 		if (Player_IsRangeGreaterThanVec(client, m_vecDeployPos[client], movedRange))
 		{
-			//TODO: whoever pushed us away, fire an event for them
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+			Address pData = GetAchievementData(client);
+			
+			if (pData)
+			{
+				for (int i = 1; i <= MaxClients; i++)
+				{
+					if (IsClientInGame(i) && TF2_GetClientTeam(i) == TFTeam_Red)
+					{
+						if (IsPusherInHistory(pData, i, 2.0))
+						{
+							Event hEvent = CreateEvent("mvm_bomb_deploy_reset_by_player");
+							
+							if (hEvent)
+							{
+								hEvent.SetInt("player", i);
+								hEvent.Fire();
+							}
+						}
+					}
+				}
+			}
+#endif
 			
 			//Remove deploy penalty since we were pushed off of it
 			g_iPenaltyFlags[client] &= ~PENALTY_INVULNERABLE_DEPLOY;

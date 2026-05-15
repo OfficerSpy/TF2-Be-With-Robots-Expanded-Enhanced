@@ -55,6 +55,11 @@ static Handle m_hClip1;
 static Handle m_hPickup;
 static Handle m_hShouldCollide;
 
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+static Handle m_hIsDamagerInHistory;
+static Handle m_hIsPusherInHistory;
+#endif
+
 bool InitSDKCalls(GameData hGamedata)
 {
 	int iFailCount = 0;
@@ -186,6 +191,30 @@ bool InitSDKCalls(GameData hGamedata)
 	
 	hTempConf.Close();
 	
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CAchievementData::IsDamagerInHistory");
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	if ((m_hIsDamagerInHistory = EndPrepSDKCall()) == null)
+	{
+		LogError("Failed to create SDKCall for CAchievementData::IsDamagerInHistory!");
+		iFailCount++;
+	}
+	
+	StartPrepSDKCall(SDKCall_Raw);
+	PrepSDKCall_SetFromConf(hGamedata, SDKConf_Signature, "CAchievementData::IsPusherInHistory");
+	PrepSDKCall_AddParameter(SDKType_CBaseEntity, SDKPass_Pointer);
+	PrepSDKCall_AddParameter(SDKType_Float, SDKPass_Plain);
+	PrepSDKCall_SetReturnInfo(SDKType_Bool, SDKPass_ByValue);
+	if ((m_hIsPusherInHistory = EndPrepSDKCall()) == null)
+	{
+		LogError("Failed to create SDKCall for CAchievementData::IsPusherInHistory!");
+		iFailCount++;
+	}
+#endif
+	
 	if (iFailCount > 0)
 	{
 		LogError("InitSDKCalls: GameData file has %d problem(s)!", iFailCount);
@@ -259,3 +288,15 @@ bool ShouldCollide(int entity, int collisionGroup, int contentsMask)
 {
 	return SDKCall(m_hShouldCollide, entity, collisionGroup, contentsMask);
 }
+
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+bool IsDamagerInHistory(Address pAchievementData, int pPlayer, float flTimeWindow)
+{
+	return SDKCall(m_hIsDamagerInHistory, pAchievementData, pPlayer, flTimeWindow);
+}
+
+bool IsPusherInHistory(Address pAchievementData, int pPlayer, float flTimeWindow)
+{
+	return SDKCall(m_hIsPusherInHistory, pAchievementData, pPlayer, flTimeWindow);
+}
+#endif

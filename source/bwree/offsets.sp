@@ -6,6 +6,10 @@ void InitOffsets(GameData hGamedata)
 {
 	m_adtOffsets = new StringMap();
 	
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+	SetOffset(hGamedata, "CTFPlayer", "m_AchievementData");
+#endif
+	
 	SetOffset(hGamedata, "CTFPlayer", "m_nDeployingBombState");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsMissionEnemy");
 	SetOffset(hGamedata, "CTFPlayer", "m_bIsSupportEnemy");
@@ -22,6 +26,9 @@ void InitOffsets(GameData hGamedata)
 	
 #if defined TESTING_ONLY
 	//Dump offsets
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+	LogMessage("InitOffsets: CTFPlayer->m_AchievementData = %d", GetOffset("CTFPlayer", "m_AchievementData"));
+#endif
 	LogMessage("InitOffsets: CTFPlayer->m_nDeployingBombState = %d", GetOffset("CTFPlayer", "m_nDeployingBombState"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsMissionEnemy = %d", GetOffset("CTFPlayer", "m_bIsMissionEnemy"));
 	LogMessage("InitOffsets: CTFPlayer->m_bIsSupportEnemy = %d", GetOffset("CTFPlayer", "m_bIsSupportEnemy"));
@@ -96,6 +103,13 @@ static void SetOffset(GameData hGamedata, const char[] cls, const char[] prop)
 		m_adtOffsets.SetValue(key, offset);
 	}
 }
+
+#if defined SERIOUS_ACHIEVEMENT_CHECK
+Address GetAchievementData(int client)
+{
+	return GetEntityAddress(client) + GetOffset("CTFPlayer", "m_AchievementData");
+}
+#endif
 
 /* This only exists to set the variable that is factored in damage knockback
 when the game checks for it in CTFPlayer::ApplyPushFromDamage */
