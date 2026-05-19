@@ -1055,7 +1055,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.7",
+	version = "1.4.8",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -2065,6 +2065,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			m_flNoAttackTime[client] = -1.0;
 			SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime());
+			SetEntPropFloat(client, Prop_Data, "m_flNextAttack", GetGameTime());
 		}
 		else
 		{
@@ -2090,8 +2091,13 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						}
 						else
 						{
+							float flPredValue = GetGameTime() + (GetClientAvgLatency(client, NetFlow_Outgoing) * 7.0);
+							
 							//No attacking
-							SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime() + (GetClientAvgLatency(client, NetFlow_Outgoing) * 7.0));
+							SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", flPredValue);
+							
+							//Prevent weird muzzle flash on the short circuit when holding down attack input
+							SetEntPropFloat(client, Prop_Data, "m_flNextAttack", flPredValue);
 						}
 					}
 				}
@@ -3346,6 +3352,9 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 
 public Action PlayerRobot_WeaponCanSwitchTo(int client, int weapon)
 {
+	if (g_bRobotSpawning[client])
+		return Plugin_Continue;
+	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
 	if (roboPlayer.HasWeaponRestriction(CTFBot_ANY_WEAPON) || !ShouldWeaponBeRestricted(weapon))

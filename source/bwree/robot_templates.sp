@@ -217,6 +217,7 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 			
 			if (pData)
 			{
+				//NOTE: this is NOT exactly how the game does it, but i think it's close enough
 				for (int i = 1; i <= MaxClients; i++)
 				{
 					if (IsValidEntity(i) && IsDamagerInHistory(pData, i, 5.0))
@@ -1359,6 +1360,7 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 	roboPlayer.ClearWeaponRestrictions();
 	roboPlayer.SetMaxVisionRange(-1.0);
 	roboPlayer.ClearTags();
+	roboPlayer.ClearAllAttributes();
 	
 	DataPack hPack;
 	CreateDataTimer(0.1, Timer_FinishCustomLoadout, hPack, TIMER_FLAG_NO_MAPCHANGE);
