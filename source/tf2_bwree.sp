@@ -1103,6 +1103,7 @@ public void OnPluginStart()
 	bwr3_robot_teleporter_mode = CreateConVar("sm_bwr3_robot_teleporter_mode", "1", _, FCVAR_NOTIFY);
 	
 	HookConVarChange(bwr3_allow_movement, ConVarChanged_AllowMovement);
+	HookConVarChange(bwr3_allow_readystate, ConVarChanged_AllowReadystate);
 	HookConVarChange(bwr3_player_change_name, ConVarChanged_PlayerChangeName);
 	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
 	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
@@ -1841,9 +1842,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	//Heehee I'm a spy!
 	if (player.IsClass(TFClass_Spy))
 	{
-		bool bSpyHiding = true;
+		bool bSpyHiding = player.IsStealthed() || player.IsFeignDeathReady();
 		
-		if (myWeapon != -1 && IsMeleeWeapon(myWeapon) && !player.IsStealthed())
+		if (buttons & IN_FORWARD && myWeapon != -1 && IsMeleeWeapon(myWeapon) && !bSpyHiding)
 		{
 			int threat = GetEnemyPlayerNearestToMe(client, roboPlayer.GetMaxVisionRange(), true);
 			
@@ -2071,7 +2072,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		{
 			if (myWeapon != -1 && !roboPlayer.HasAttribute(CTFBot_ALWAYS_FIRE_WEAPON))
 			{
-				switch (TF2Util_GetWeaponID(myWeapon))
+				int iWeaponID = TF2Util_GetWeaponID(myWeapon);
+				
+				switch (iWeaponID)
 				{
 					case TF_WEAPON_MEDIGUN, TF_WEAPON_BUFF_ITEM, TF_WEAPON_LUNCHBOX:
 					{
@@ -2096,9 +2099,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							//No attacking
 							SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", flPredValue);
 							
-							//Prevent weird muzzle flash on the short circuit when holding down attack input
-							SetEntPropFloat(client, Prop_Data, "m_flNextAttack", flPredValue);
+							if (iWeaponID == TF_WEAPON_MECHANICAL_ARM)
+							{
+								//Prevent weird muzzle flash on the short circuit when holding down attack input
+								SetEntPropFloat(client, Prop_Data, "m_flNextAttack", flPredValue);
+							}
 						}
+						
+						//We may not have autoreload, force it here to ensure we fill to the max clip size when leaving spawn
+						// buttons |= IN_RELOAD;
 					}
 				}
 			}
@@ -2166,6 +2175,21 @@ public void ConVarChanged_AllowMovement(ConVar convar, const char[] oldValue, co
 	for (int i = 1; i <= MaxClients; i++)
 		if (IsClientInGame(i) && IsPlayingAsRobot(i))
 			SetPlayerToMove(i, StringToInt(newValue) ? true : false);
+}
+
+public void ConVarChanged_AllowReadystate(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	if (GameRules_GetRoundState() != RoundState_BetweenRounds)
+		return;
+	
+	//Only if we're disabling it
+	if (StringToInt(newValue) != 0)
+		return;
+	
+	//If we're told to disable, unready all blue players
+	for (int i = 1; i <= MaxClients; i++)
+		if (IsClientInGame(i) && IsPlayingAsRobot(i))
+			SetPlayerReady(i, false);
 }
 
 public void ConVarChanged_PlayerChangeName(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -3006,6 +3030,9 @@ public void Frame_CaptureFlagOnPickup(int data)
 	}
 }
 
+//Other mods can override our attacker, so remember it manually since this part is pretty important
+static int m_iOTDAAttacker = -1;
+
 public Action Player_OnTakeDamageAlive(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
 	/* This callback is used to detour around CTFGameRules::ApplyOnDamageAliveModifyRules
@@ -3020,7 +3047,10 @@ public Action Player_OnTakeDamageAlive(int victim, int &attacker, int &inflictor
 		SetClientAsBot(victim, true);
 	
 	if (BaseEntity_IsPlayer(attacker) && IsPlayingAsRobot(attacker))
+	{
 		SetClientAsBot(attacker, true);
+		m_iOTDAAttacker = attacker;
+	}
 	
 	return Plugin_Continue;
 }
@@ -3035,8 +3065,11 @@ public void Player_OnTakeDamageAlivePost(int victim, int attacker, int inflictor
 	if (IsPlayingAsRobot(victim))
 		SetClientAsBot(victim, false);
 	
-	if (BaseEntity_IsPlayer(attacker) && IsPlayingAsRobot(attacker))
-		SetClientAsBot(attacker, false);
+	if (m_iOTDAAttacker != -1)
+	{
+		SetClientAsBot(m_iOTDAAttacker, false);
+		m_iOTDAAttacker = -1;
+	}
 }
 
 public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
@@ -4342,7 +4375,7 @@ void MvMDeployBomb_OnEnd(int client)
 		SetForcedTauntCam(client, 0);
 }
 
-void FreezePlayerInput(int client, bool bFreeze, int iMethod = 1)
+void FreezePlayerInput(int client, bool bFreeze, int iMethod = 2)
 {
 	switch (iMethod)
 	{

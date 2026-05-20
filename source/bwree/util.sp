@@ -1896,3 +1896,8 @@ stock void SendBuildCommand(int client, TFObjectType type, TFObjectMode mode = T
 {
 	FakeClientCommand(client, "build %d %d", type, mode);
 }
+
+stock bool IsPlayerReady(int client)
+{
+	return GameRules_GetProp("m_bPlayerReady", 1, client);
+}
