@@ -40,6 +40,7 @@ enum struct esBossWaveInfo
 	float flSpawnDelay;
 	float flRespawnDelay;
 	bool bProportionalHealth;
+	int iHealthScaleMaxDefenders;
 	int iWaveFailHealthNerf;
 	float flWaveFailNerfPercent;
 	int iFinalWaveFailLimit;
@@ -56,6 +57,7 @@ enum struct esBossWaveInfo
 		this.flSpawnDelay = 60.0;
 		this.flRespawnDelay = -1.0;
 		this.bProportionalHealth = true;
+		this.iHealthScaleMaxDefenders = MVM_DEFAULT_DEFENDER_TEAM_SIZE;
 		this.iWaveFailHealthNerf = 1;
 		this.flWaveFailNerfPercent = 10.0;
 		this.iFinalWaveFailLimit = 10;
@@ -193,7 +195,8 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		EmitGameSoundToAll("MvM.SentryBusterSpin", this.index);
 		
 		//Absolutely no pathing once we have started detonating!
-		FreezePlayerInput(this.index, true);
+		if (!player.IsTaunting())
+			FreezePlayerInput(this.index, true);
 	}
 	
 	public void Detonate()
@@ -3050,6 +3053,7 @@ bool BossRobotSystem_UpdateSettings()
 			g_arrBossSystem.flSpawnDelay = kv.GetFloat("delay", g_arrBossSystem.flSpawnDelay);
 			g_arrBossSystem.flRespawnDelay = kv.GetFloat("respawn_delay", g_arrBossSystem.flRespawnDelay);
 			g_arrBossSystem.bProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", g_arrBossSystem.bProportionalHealth));
+			g_arrBossSystem.iHealthScaleMaxDefenders = kv.GetNum("health_scale_max_defenders", g_arrBossSystem.iHealthScaleMaxDefenders);
 			g_arrBossSystem.iWaveFailHealthNerf = kv.GetNum("wave_fail_health_nerf_mode", g_arrBossSystem.iWaveFailHealthNerf);
 			g_arrBossSystem.flWaveFailNerfPercent = kv.GetFloat("wave_fail_health_nerf_percent", g_arrBossSystem.flWaveFailNerfPercent);
 			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
@@ -3074,6 +3078,7 @@ bool BossRobotSystem_UpdateSettings()
 			g_arrBossSystem.flSpawnDelay = kv.GetFloat("delay", g_arrBossSystem.flSpawnDelay);
 			g_arrBossSystem.flRespawnDelay = kv.GetFloat("respawn_delay", g_arrBossSystem.flRespawnDelay);
 			g_arrBossSystem.bProportionalHealth = view_as<bool>(kv.GetNum("proportional_health", g_arrBossSystem.bProportionalHealth));
+			g_arrBossSystem.iHealthScaleMaxDefenders = kv.GetNum("health_scale_max_defenders", g_arrBossSystem.iHealthScaleMaxDefenders);
 			g_arrBossSystem.iWaveFailHealthNerf = kv.GetNum("wave_fail_health_nerf_mode", g_arrBossSystem.iWaveFailHealthNerf);
 			g_arrBossSystem.flWaveFailNerfPercent = kv.GetFloat("wave_fail_health_nerf_percent", g_arrBossSystem.flWaveFailNerfPercent);
 			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
@@ -3105,11 +3110,11 @@ static void CalculateBossRobotHealth(int &maxHealth)
 {
 	int defenderCount = GetTeamClientCount(TFTeam_Red);
 	
-	if (defenderCount >= MVM_DEFAULT_DEFENDER_TEAM_SIZE)
+	if (defenderCount >= g_arrBossSystem.iHealthScaleMaxDefenders)
 		return;
 	
 	int baseHealth = maxHealth / 10;
-	int healthPerPlayer = (maxHealth - baseHealth) / MVM_DEFAULT_DEFENDER_TEAM_SIZE;
+	int healthPerPlayer = (maxHealth - baseHealth) / g_arrBossSystem.iHealthScaleMaxDefenders;
 	
 	maxHealth = baseHealth + (defenderCount * healthPerPlayer);
 }

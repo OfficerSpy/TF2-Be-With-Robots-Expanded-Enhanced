@@ -2157,6 +2157,10 @@ public void TF2_OnConditionRemoved(int client, TFCond condition)
 	
 	if (condition == TFCond_Taunting)
 	{
+		//Restrict movement if we were detonating but stopped taunting for whatever reason
+		if (MvMSuicideBomber(client).DetonateTimer_HasStarted())
+			FreezePlayerInput(client, true);
+		
 		//Taunting is considered an action
 		SetNextBehaviorActionTime(client, nb_update_frequency.FloatValue);
 	}
@@ -2789,7 +2793,7 @@ public Action CommandListener_TournamentPlayerReadystate(int client, const char[
 {
 	if (IsPlayingAsRobot(client))
 	{
-		if (!bwr3_allow_readystate.BoolValue)
+		if (!bwr3_allow_readystate.BoolValue && !IsPlayerReady(client))
 			return Plugin_Handled;
 	}
 	
@@ -2972,11 +2976,11 @@ static Action Timer_Taunt(Handle timer, int data)
 	if (!IsClientInGame(data) || !IsPlayingAsRobot(data) || !IsPlayerAlive(data))
 		return Plugin_Stop;
 	
-	//NOTE: we use Taunt instead of HandleTauntCommand to prevent us from accidentally doing partner taunts
-	VS_Taunt(data, TAUNT_BASE_WEAPON);
-	
 	if (bwr3_robot_taunt_mode.IntValue >= TAUNTING_MODE_BEHAVORIAL_ON_KILL)
 		FreezePlayerInput(data, false);
+	
+	//NOTE: we use Taunt instead of HandleTauntCommand to prevent us from accidentally doing partner taunts
+	VS_Taunt(data, TAUNT_BASE_WEAPON);
 	
 	return Plugin_Stop;
 }
@@ -4385,7 +4389,7 @@ void FreezePlayerInput(int client, bool bFreeze, int iMethod = 2)
 			FreezePlayerInput(client, bFreeze, 0);
 			FreezePlayerInput(client, bFreeze, 1);
 			FreezePlayerInput(client, bFreeze, 2);
-			//Not case 3 cause it's tied to the same command in case 2
+			//Not case 3 or 4 cause it's tied to the same command in case 2
 		}
 		case 0:
 		{
@@ -4403,10 +4407,23 @@ void FreezePlayerInput(int client, bool bFreeze, int iMethod = 2)
 		}
 		case 2:
 		{
+			if (bFreeze)
+			{
+				//Set it directly to skip the taunt check
+				SetEntProp(client, Prop_Send, "m_bViewingCYOAPDA", 1);
+			}
+			else
+			{
+				//Call CTFPlayer::TeamFortress_SetSpeed
+				FakeClientCommand(client, "cyoa_pda_open 0");
+			}
+		}
+		case 3:
+		{
 			//We do not want to set m_bViewingCYOAPDA directly or else it won't update the max speed
 			FakeClientCommand(client, "cyoa_pda_open %d", bFreeze);
 		}
-		case 3:
+		case 4:
 		{
 			if (bFreeze)
 			{
