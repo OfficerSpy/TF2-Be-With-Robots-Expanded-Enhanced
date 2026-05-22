@@ -487,6 +487,7 @@ ConVar bwr3_robot_boss_template_file;
 ConVar bwr3_robot_giant_chance;
 ConVar bwr3_robot_boss_chance;
 ConVar bwr3_robot_gatebot_chance;
+ConVar bwr3_robot_own_loadout_chance;
 ConVar bwr3_robot_menu_allowed;
 ConVar bwr3_robot_menu_cooldown;
 ConVar bwr3_robot_menu_giant_cooldown;
@@ -1095,6 +1096,7 @@ public void OnPluginStart()
 	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
+	bwr3_robot_own_loadout_chance = CreateConVar("sm_bwr3_robot_own_loadout_chance", "25", _, FCVAR_NOTIFY);
 	bwr3_robot_menu_allowed = CreateConVar("sm_bwr3_robot_menu_allowed", "0", _, FCVAR_NOTIFY);
 	bwr3_robot_menu_cooldown = CreateConVar("sm_bwr3_robot_menu_cooldown", "30.0", _, FCVAR_NOTIFY);
 	bwr3_robot_menu_giant_cooldown = CreateConVar("sm_bwr3_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
@@ -1161,6 +1163,7 @@ public void OnPluginStart()
 	AddCommandListener(CommandListener_Jointeam, "jointeam");
 	AddCommandListener(CommandListener_Autoteam, "autoteam");
 	AddCommandListener(CommandListener_Build, "build");
+	AddCommandListener(CommandListener_CYOAPdaOpen, "cyoa_pda_open");
 	
 	AddNormalSoundHook(SoundHook_General);
 	
@@ -2951,6 +2954,17 @@ public Action CommandListener_Build(int client, const char[] command, int argc)
 	return Plugin_Continue;
 }
 
+public Action CommandListener_CYOAPdaOpen(int client, const char[] command, int argc)
+{
+	if (!IsPlayingAsRobot(client))
+		return Plugin_Continue;
+	
+	if (!m_bBypassBotCheck[client])
+		return Plugin_Handled;
+	
+	return Plugin_Continue;
+}
+
 public Action SoundHook_General(int clients[MAXPLAYERS], int &numClients, char sample[PLATFORM_MAX_PATH], int &entity, int &channel, float &volume, int &level, int &pitch, int &flags, char soundEntry[PLATFORM_MAX_PATH], int &seed)
 {
 	if (entity > MaxClients)
@@ -4414,8 +4428,13 @@ void FreezePlayerInput(int client, bool bFreeze, int iMethod = 2)
 			}
 			else
 			{
-				//Call CTFPlayer::TeamFortress_SetSpeed
+				//Reusing this variable in CommandListener_CYOAPdaOpen
+				m_bBypassBotCheck[client] = true;
+				
+				//Reset the max speed here in case we were doing something else that recalculates our max speed
 				FakeClientCommand(client, "cyoa_pda_open 0");
+				
+				m_bBypassBotCheck[client] = false;
 			}
 		}
 		case 3:

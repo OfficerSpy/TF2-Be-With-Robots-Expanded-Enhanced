@@ -257,14 +257,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 #endif //CORRECT_VISIBLE_RESPAWN_TIME
 #endif //OVERRIDE_PLAYER_RESPAWN_TIME
 	
-	int entFlags = GetEntityFlags(client);
-	
-	if (entFlags & FL_FROZEN)
-	{
-		//Might have been frozen from FreezePlayerInput, undo it here so spectating doesn't look weird
-		SetEntityFlags(client, entFlags & ~FL_FROZEN);
-	}
-	
+	FreezePlayerInput(client, false); //Current method leaves us frozen afterwards
 	CleanupClientFixes(client);
 }
 

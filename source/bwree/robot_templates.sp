@@ -2192,7 +2192,7 @@ void SelectPlayerNextRobot(int client)
 	
 	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwr3_robot_gatebot_chance.FloatValue);
 	
-	if (!bCurrentWaveRobots && RollRandomChanceFloat(25.0))
+	if (!bCurrentWaveRobots && RollRandomChanceFloat(bwr3_robot_own_loadout_chance.FloatValue))
 	{
 		roboPlayer.SetMyNextRobot(ROBOT_OWN_LOADOUT, GetRandomInt(TFClass_Scout, TFClass_Engineer));
 		return;
