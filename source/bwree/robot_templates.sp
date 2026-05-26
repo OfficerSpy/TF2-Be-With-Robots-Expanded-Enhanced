@@ -32,6 +32,14 @@ enum eEngineerTeleportType
 	ENGINEER_TELEPORT_BOMB_INFO
 }
 
+// Robot template property arrays
+int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
+char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
+// char g_sRobotTemplateDescription[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][ROBOT_DESC_MAX_LENGTH];
+TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
+char g_sRobotTemplateClassIcon[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
+float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
+
 enum struct esBossWaveInfo
 {
 	bool bBossAvailable;
@@ -126,14 +134,6 @@ enum struct esBossWaveInfo
 		return this.IsCooldownOver();
 	}
 }
-
-// Robot template property arrays
-int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
-char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
-// char g_sRobotTemplateDescription[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][ROBOT_DESC_MAX_LENGTH];
-TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
-char g_sRobotTemplateClassIcon[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
-float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
 float g_vecMapEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
 
