@@ -272,6 +272,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	
 	BWRCooldown_PurgeExpired();
 	BossRobotSystem_UpdateSettings();
+	g_arrBossSystem.SelectNewBoss();
 	g_arrBossSystem.StartCooldown();
 	
 #if !defined OVERRIDE_PLAYER_RESPAWN_TIME

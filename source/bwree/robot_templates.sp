@@ -35,6 +35,7 @@ enum eEngineerTeleportType
 enum struct esBossWaveInfo
 {
 	bool bBossAvailable;
+	int iSelectedBossID;
 	float flNextSpawnTime;
 	
 	float flSpawnDelay;
@@ -64,8 +65,24 @@ enum struct esBossWaveInfo
 		this.iTotalWaveFailLimit = 99;
 	}
 	
+	void SelectNewBoss()
+	{
+		if (!this.bBossAvailable)
+			return;
+		
+		this.iSelectedBossID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_BOSS] - 1);
+	}
+	
+	bool IsBossSelected()
+	{
+		return this.iSelectedBossID != ROBOT_TEMPLATE_ID_INVALID;
+	}
+	
 	void StartCooldown(bool bRespawn = false)
 	{
+		if (!this.bBossAvailable)
+			return;
+		
 		this.flNextSpawnTime = GetGameTime() + (bRespawn ? this.flRespawnDelay : this.flSpawnDelay);
 	}
 	
@@ -96,6 +113,9 @@ enum struct esBossWaveInfo
 	{
 		if (!this.bBossAvailable)
 			return false;
+		
+		// if (!this.IsBossSelected())
+			// return false;
 		
 		if (g_iFinalWaveFails > this.iFinalWaveFailLimit)
 			return false;
@@ -2175,7 +2195,7 @@ void SelectPlayerNextRobot(int client)
 	
 	if (g_arrBossSystem.CanSpawnBossNow())
 	{
-		roboPlayer.SetMyNextRobot(ROBOT_BOSS, GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_BOSS] - 1));
+		roboPlayer.SetMyNextRobot(ROBOT_BOSS, g_arrBossSystem.iSelectedBossID);
 		g_bSpawningAsBossRobot[client] = true;
 		
 		if (g_arrBossSystem.flRespawnDelay >= 0.0)

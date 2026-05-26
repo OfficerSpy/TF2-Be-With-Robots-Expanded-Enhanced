@@ -2070,6 +2070,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			m_flNoAttackTime[client] = -1.0;
 			SetEntPropFloat(client, Prop_Send, "m_flStealthNoAttackExpire", GetGameTime());
 			SetEntPropFloat(client, Prop_Data, "m_flNextAttack", GetGameTime());
+			
+			if (myWeapon != -1)
+				SetEntProp(myWeapon, Prop_Data, "m_flNextSecondaryAttack", GetGameTime());
 		}
 		else
 		{
@@ -2106,6 +2109,11 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							{
 								//Prevent weird muzzle flash on the short circuit when holding down attack input
 								SetEntPropFloat(client, Prop_Data, "m_flNextAttack", flPredValue);
+							}
+							else if (iWeaponID == TF_WEAPON_RAYGUN_REVENGE)
+							{
+								//For some reason, secondary attack doesn't obey CTFWeaponBase::CanAttack
+								SetEntProp(myWeapon, Prop_Data, "m_flNextSecondaryAttack", flPredValue);
 							}
 						}
 						
