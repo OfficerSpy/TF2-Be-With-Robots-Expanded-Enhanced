@@ -54,6 +54,7 @@ enum struct esBossWaveInfo
 	float flWaveFailNerfPercent;
 	int iFinalWaveFailLimit;
 	int iTotalWaveFailLimit;
+	bool bPreserveBoss;
 	
 	void Reset()
 	{
@@ -71,12 +72,23 @@ enum struct esBossWaveInfo
 		this.flWaveFailNerfPercent = 10.0;
 		this.iFinalWaveFailLimit = 10;
 		this.iTotalWaveFailLimit = 99;
+		this.bPreserveBoss = false;
 	}
 	
 	void SelectNewBoss()
 	{
 		if (!this.bBossAvailable)
+		{
+			//We only select a new boss if the current wave allows it, otherwise we reset it here in case we were preserving it previously
+			this.iSelectedBossID = ROBOT_TEMPLATE_ID_INVALID;
 			return;
+		}
+		
+		if (this.bPreserveBoss && this.IsBossSelected())
+		{
+			//We want to keep it
+			return;
+		}
 		
 		this.iSelectedBossID = GetRandomInt(0, g_iTotalRobotTemplates[ROBOT_BOSS] - 1);
 	}
@@ -3078,6 +3090,7 @@ bool BossRobotSystem_UpdateSettings()
 			g_arrBossSystem.flWaveFailNerfPercent = kv.GetFloat("wave_fail_health_nerf_percent", g_arrBossSystem.flWaveFailNerfPercent);
 			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
 			g_arrBossSystem.iTotalWaveFailLimit = kv.GetNum("total_wave_fail_limit", g_arrBossSystem.iTotalWaveFailLimit);
+			g_arrBossSystem.bPreserveBoss = view_as<bool>(kv.GetNum("preserve_boss", g_arrBossSystem.bPreserveBoss));
 		}
 		else
 		{
@@ -3103,6 +3116,7 @@ bool BossRobotSystem_UpdateSettings()
 			g_arrBossSystem.flWaveFailNerfPercent = kv.GetFloat("wave_fail_health_nerf_percent", g_arrBossSystem.flWaveFailNerfPercent);
 			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
 			g_arrBossSystem.iTotalWaveFailLimit = kv.GetNum("total_wave_fail_limit", g_arrBossSystem.iTotalWaveFailLimit);
+			g_arrBossSystem.bPreserveBoss = view_as<bool>(kv.GetNum("preserve_boss", g_arrBossSystem.bPreserveBoss));
 		}
 		else
 		{

@@ -2072,7 +2072,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			SetEntPropFloat(client, Prop_Data, "m_flNextAttack", GetGameTime());
 			
 			if (myWeapon != -1)
-				SetEntProp(myWeapon, Prop_Data, "m_flNextSecondaryAttack", GetGameTime());
+				SetEntPropFloat(myWeapon, Prop_Data, "m_flNextSecondaryAttack", GetGameTime());
 		}
 		else
 		{
@@ -2113,7 +2113,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							else if (iWeaponID == TF_WEAPON_RAYGUN_REVENGE)
 							{
 								//For some reason, secondary attack doesn't obey CTFWeaponBase::CanAttack
-								SetEntProp(myWeapon, Prop_Data, "m_flNextSecondaryAttack", flPredValue);
+								SetEntPropFloat(myWeapon, Prop_Data, "m_flNextSecondaryAttack", flPredValue);
 							}
 						}
 						
