@@ -1708,6 +1708,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				{
 					//We have fully reloaded
 					m_bIsWaitingForReload[client] = false;
+					BlockAttackForDuration(client, 0.0);
 				}
 			}
 		}
@@ -2114,11 +2115,17 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 							{
 								//For some reason, secondary attack doesn't obey CTFWeaponBase::CanAttack
 								SetEntPropFloat(myWeapon, Prop_Data, "m_flNextSecondaryAttack", flPredValue);
+								
+								//Does not stop attack if we were holding it previously
+								buttons &= ~IN_ATTACK2;
 							}
 						}
 						
 						//We may not have autoreload, force it here to ensure we fill to the max clip size when leaving spawn
 						// buttons |= IN_RELOAD;
+						
+						//They already can't attack, but this prevents them from aborting the reload
+						buttons &= ~IN_ATTACK;
 					}
 				}
 			}
