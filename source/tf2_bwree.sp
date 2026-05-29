@@ -2117,8 +2117,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 								SetEntPropFloat(myWeapon, Prop_Data, "m_flNextSecondaryAttack", flPredValue);
 								
 								//Does not stop attack if we were holding it previously
-								buttons &= ~IN_ATTACK2;
-								SetEntProp(myWeapon, Prop_Send, "m_bResetParity", 1);
+								if (GetEntPropFloat(myWeapon, Prop_Send, "m_flChargeBeginTime") > 0.0)
+									SetEntProp(myWeapon, Prop_Send, "m_bResetParity", !GetEntProp(myWeapon, Prop_Send, "m_bResetParity"));
 							}
 						}
 						
