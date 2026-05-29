@@ -2118,6 +2118,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 								
 								//Does not stop attack if we were holding it previously
 								buttons &= ~IN_ATTACK2;
+								SetEntProp(myWeapon, Prop_Send, "m_bResetParity", 1);
 							}
 						}
 						
