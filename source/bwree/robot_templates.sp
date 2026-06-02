@@ -55,6 +55,8 @@ enum struct esBossWaveInfo
 	int iFinalWaveFailLimit;
 	int iTotalWaveFailLimit;
 	bool bPreserveBoss;
+	char sTemplateFile[PLATFORM_MAX_PATH];
+	float flSpawnChance;
 	
 	void Reset()
 	{
@@ -73,6 +75,13 @@ enum struct esBossWaveInfo
 		this.iFinalWaveFailLimit = 10;
 		this.iTotalWaveFailLimit = 99;
 		this.bPreserveBoss = false;
+		this.ResetTemplateFile();
+		this.flSpawnChance = 100.0;
+	}
+	
+	void ResetTemplateFile()
+	{
+		bwr3_robot_boss_template_file.GetString(this.sTemplateFile, sizeof(this.sTemplateFile));
 	}
 	
 	void SelectNewBoss()
@@ -143,7 +152,26 @@ enum struct esBossWaveInfo
 		if (g_iTotalWaveFails > this.iTotalWaveFailLimit)
 			return false;
 		
-		return this.IsCooldownOver();
+		if (!this.IsCooldownOver())
+			return false;
+		
+		return RollRandomChanceFloat(this.flSpawnChance);
+	}
+	
+	bool ValidateTemplateFile()
+	{
+		char sPath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, sPath, sizeof(sPath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, this.sTemplateFile);
+		
+		if (!FileExists(sPath))
+		{
+			LogError("ValidateTemplateFile: File %s not found!", sPath);
+			return false;
+		}
+		
+		//Update all data accordingly for this new template file
+		UpdateRobotTemplateDataForType(ROBOT_BOSS);
+		
+		return true;
 	}
 }
 
@@ -614,11 +642,15 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 			bwr3_robot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find standard robot config file: %s", filePath);
-			
 			KeyValues kv = new KeyValues("RobotStandardTemplates");
-			kv.ImportFromFile(filePath);
+			
+			if (!kv.ImportFromFile(filePath))
+			{
+				kv.Close();
+				g_bRobotSpawning[client] = false;
+				ThrowError("Could not find standard robot config file: %s", filePath);
+				return;
+			}
 			
 			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
@@ -628,11 +660,15 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 			bwr3_robot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find giant robot config file: %s", filePath);
-			
 			KeyValues kv = new KeyValues("RobotGiantTemplates");
-			kv.ImportFromFile(filePath);
+			
+			if (!kv.ImportFromFile(filePath))
+			{
+				kv.Close();
+				g_bRobotSpawning[client] = false;
+				ThrowError("Could not find giant robot config file: %s", filePath);
+				return;
+			}
 			
 			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
@@ -642,11 +678,15 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 			bwr3_robot_gatebot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find gatebot robot config file: %s", filePath);
-			
 			KeyValues kv = new KeyValues("RobotGatebotTemplates");
-			kv.ImportFromFile(filePath);
+			
+			if (!kv.ImportFromFile(filePath))
+			{
+				kv.Close();
+				g_bRobotSpawning[client] = false;
+				ThrowError("Could not find gatebot robot config file: %s", filePath);
+				return;
+			}
 			
 			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
@@ -656,11 +696,15 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 			bwr3_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find giant gatebot robot config file: %s", filePath);
-			
 			KeyValues kv = new KeyValues("RobotGatebotGiantTemplates");
-			kv.ImportFromFile(filePath);
+			
+			if (!kv.ImportFromFile(filePath))
+			{
+				kv.Close();
+				g_bRobotSpawning[client] = false;
+				ThrowError("Could not find giant gatebot robot config file: %s", filePath);
+				return;
+			}
 			
 			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
@@ -670,25 +714,32 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 			bwr3_robot_sentrybuster_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find sentry buster robot config file: %s", filePath);
-			
 			KeyValues kv = new KeyValues("RobotSentryBusterTemplates");
-			kv.ImportFromFile(filePath);
+			
+			if (!kv.ImportFromFile(filePath))
+			{
+				kv.Close();
+				g_bRobotSpawning[client] = false;
+				ThrowError("Could not find sentry buster robot config file: %s", filePath);
+				return;
+			}
 			
 			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
 		}
 		case ROBOT_BOSS:
 		{
-			bwr3_robot_boss_template_file.GetString(fileName, sizeof(fileName));
-			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
-			
-			if (!FileExists(filePath))
-				ThrowError("Could not find boss robot config file: %s", filePath);
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, g_arrBossSystem.sTemplateFile);
 			
 			KeyValues kv = new KeyValues("RobotBossTemplates");
-			kv.ImportFromFile(filePath);
+			
+			if (!kv.ImportFromFile(filePath))
+			{
+				kv.Close();
+				g_bRobotSpawning[client] = false;
+				ThrowError("Could not find boss robot config file: %s", filePath);
+				return;
+			}
 			
 			ParseTemplateOntoPlayerFromKeyValues(kv, client, templateID);
 			delete kv;
@@ -2389,18 +2440,12 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			bwr3_robot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find standard robot config file: %s", filePath);
-			
 			kv = new KeyValues("RobotStandardTemplates");
 		}
 		case ROBOT_GIANT:
 		{
 			bwr3_robot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
-			
-			if (!FileExists(filePath))
-				ThrowError("Could not find giant robot config file: %s", filePath);
 			
 			kv = new KeyValues("RobotGiantTemplates");
 		}
@@ -2409,18 +2454,12 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			bwr3_robot_gatebot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find gatebot robot config file: %s", filePath);
-			
 			kv = new KeyValues("RobotGatebotTemplates");
 		}
 		case ROBOT_GATEBOT_GIANT:
 		{
 			bwr3_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
-			
-			if (!FileExists(filePath))
-				ThrowError("Could not find giant gatebot robot config file: %s", filePath);
 			
 			kv = new KeyValues("RobotGatebotGiantTemplates");
 		}
@@ -2429,18 +2468,11 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 			bwr3_robot_sentrybuster_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
-			if (!FileExists(filePath))
-				ThrowError("Could not find sentry buster robot config file: %s", filePath);
-			
 			kv = new KeyValues("RobotSentryBusterTemplates");
 		}
 		case ROBOT_BOSS:
 		{
-			bwr3_robot_boss_template_file.GetString(fileName, sizeof(fileName));
-			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
-			
-			if (!FileExists(filePath))
-				ThrowError("Could not find boss robot config file: %s", filePath);
+			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, g_arrBossSystem.sTemplateFile);
 			
 			kv = new KeyValues("RobotBossTemplates");
 		}
@@ -2486,7 +2518,7 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 	}
 	else
 	{
-		ThrowError("Could not import KeyValues from file %s", filePath);
+		LogError("UpdateRobotTemplateDataForType: Could not import KeyValues from file %s", filePath);
 	}
 	
 	delete kv;
@@ -3091,6 +3123,8 @@ bool BossRobotSystem_UpdateSettings()
 			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
 			g_arrBossSystem.iTotalWaveFailLimit = kv.GetNum("total_wave_fail_limit", g_arrBossSystem.iTotalWaveFailLimit);
 			g_arrBossSystem.bPreserveBoss = view_as<bool>(kv.GetNum("preserve_boss", g_arrBossSystem.bPreserveBoss));
+			kv.GetString("template_file", g_arrBossSystem.sTemplateFile, sizeof(g_arrBossSystem.sTemplateFile), g_arrBossSystem.sTemplateFile);
+			g_arrBossSystem.flSpawnChance = kv.GetFloat("spawn_chance", g_arrBossSystem.flSpawnChance);
 		}
 		else
 		{
@@ -3117,6 +3151,8 @@ bool BossRobotSystem_UpdateSettings()
 			g_arrBossSystem.iFinalWaveFailLimit = kv.GetNum("final_wave_fail_limit", g_arrBossSystem.iFinalWaveFailLimit);
 			g_arrBossSystem.iTotalWaveFailLimit = kv.GetNum("total_wave_fail_limit", g_arrBossSystem.iTotalWaveFailLimit);
 			g_arrBossSystem.bPreserveBoss = view_as<bool>(kv.GetNum("preserve_boss", g_arrBossSystem.bPreserveBoss));
+			kv.GetString("template_file", g_arrBossSystem.sTemplateFile, sizeof(g_arrBossSystem.sTemplateFile), g_arrBossSystem.sTemplateFile);
+			g_arrBossSystem.flSpawnChance = kv.GetFloat("spawn_chance", g_arrBossSystem.flSpawnChance);
 		}
 		else
 		{
@@ -3132,6 +3168,11 @@ bool BossRobotSystem_UpdateSettings()
 	}
 	
 	delete kv;
+	
+	//Ensure validity, if not, revert
+	if (g_arrBossSystem.bBossAvailable)
+		if (!g_arrBossSystem.ValidateTemplateFile())
+			g_arrBossSystem.ResetTemplateFile();
 	
 #if defined TESTING_ONLY
 	LogMessage("BOSS SYSTEM: available = %d, delay = %f, respawn delay = %f", g_arrBossSystem.bBossAvailable ? 1 : 0, g_arrBossSystem.flSpawnDelay, g_arrBossSystem.flRespawnDelay);

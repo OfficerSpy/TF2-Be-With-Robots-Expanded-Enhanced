@@ -1056,7 +1056,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.4.9",
+	version = "1.5.0",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -2259,7 +2259,15 @@ public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue
 	else if (convar == bwr3_robot_sentrybuster_template_file)
 		UpdateRobotTemplateDataForType(ROBOT_SENTRYBUSTER);
 	else if (convar == bwr3_robot_boss_template_file)
-		UpdateRobotTemplateDataForType(ROBOT_BOSS);
+	{
+		//Boss robot template file can actually be customized per wave per mission and this is used as a default
+		//Do not set the new default here though if the current wave is using bosses cause we might be using a custom file for it
+		if (!g_arrBossSystem.bBossAvailable)
+		{
+			g_arrBossSystem.ResetTemplateFile();
+			g_arrBossSystem.ValidateTemplateFile();
+		}
+	}
 }
 
 /* public void ConVarChanged_MinibossScale(ConVar convar, const char[] oldValue, const char[] newValue)
