@@ -152,6 +152,7 @@ enum struct esPlayerStats
 	int iHealing;
 	int iPointCaptures;
 	int iPlayersUbered;
+	float flBossFactor;
 	int iSuccessiveRoundsPlayed;
 	
 	void Reset(bool bFullReset = false)
@@ -163,6 +164,7 @@ enum struct esPlayerStats
 		this.iHealing = 0;
 		this.iPointCaptures = 0;
 		this.iPlayersUbered = 0;
+		this.flBossFactor = 0.0;
 		
 		if (bFullReset)
 		{

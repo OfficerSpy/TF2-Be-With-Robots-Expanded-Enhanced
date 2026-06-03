@@ -152,10 +152,12 @@ enum struct esBossWaveInfo
 		if (g_iTotalWaveFails > this.iTotalWaveFailLimit)
 			return false;
 		
-		if (!this.IsCooldownOver())
-			return false;
-		
-		return RollRandomChanceFloat(this.flSpawnChance);
+		return this.IsCooldownOver();
+	}
+	
+	bool CheckBossEligibility(int client)
+	{
+		return RollRandomChanceFloat(this.flSpawnChance - (Pow(g_arrRobotPlayerStats[client].flBossFactor, 2.0) * 0.1));
 	}
 	
 	bool ValidateTemplateFile()
@@ -2256,7 +2258,7 @@ void SelectPlayerNextRobot(int client)
 	int iSelectedID = ROBOT_TEMPLATE_ID_INVALID;
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
-	if (g_arrBossSystem.CanSpawnBossNow())
+	if (g_arrBossSystem.CanSpawnBossNow() && g_arrBossSystem.CheckBossEligibility(client))
 	{
 		roboPlayer.SetMyNextRobot(ROBOT_BOSS, g_arrBossSystem.iSelectedBossID);
 		g_bSpawningAsBossRobot[client] = true;
