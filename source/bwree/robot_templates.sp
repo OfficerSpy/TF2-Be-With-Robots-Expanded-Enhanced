@@ -157,7 +157,10 @@ enum struct esBossWaveInfo
 	
 	bool CheckBossEligibility(int client)
 	{
-		return RollRandomChanceFloat(this.flSpawnChance - (Pow(g_arrRobotPlayerStats[client].flBossFactor, 2.0) * 0.1));
+		//TODO: change this! we can drop into negatives if our risk factor accumulates too high
+		//Internally it is not a problem cause it is basically just 0% chance here, but it is too punishing to recover from!
+		//Wgat we should be doing is scaling a portion to nerf of the current percentage which would prevent this from dropping to zero in the first place
+		return RollRandomChanceFloat(this.flSpawnChance - (g_arrRobotPlayerStats[client].flRiskFactor * 0.1));
 	}
 	
 	bool ValidateTemplateFile()

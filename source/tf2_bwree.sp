@@ -152,7 +152,7 @@ enum struct esPlayerStats
 	int iHealing;
 	int iPointCaptures;
 	int iPlayersUbered;
-	float flBossFactor;
+	float flRiskFactor;
 	int iSuccessiveRoundsPlayed;
 	
 	void Reset(bool bFullReset = false)
@@ -164,12 +164,29 @@ enum struct esPlayerStats
 		this.iHealing = 0;
 		this.iPointCaptures = 0;
 		this.iPlayersUbered = 0;
-		this.flBossFactor = 0.0;
+		this.flRiskFactor = 0.0;
 		
 		if (bFullReset)
 		{
 			this.iSuccessiveRoundsPlayed = 0;
 		}
+	}
+	
+	void IncreaseRiskFactor()
+	{
+		this.flRiskFactor += 60.0;
+	}
+	
+	void RiskFactorDecreasing()
+	{
+		//This decreases over time, but it should never fall below zero
+		if (this.flRiskFactor == 0)
+			return;
+		
+		this.flRiskFactor -= GetTickInterval();
+		
+		if (this.flRiskFactor < 0.0)
+			this.flRiskFactor = 0.0;
 	}
 }
 
@@ -1503,6 +1520,8 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		return Plugin_Continue;
 	}
 	
+	g_arrRobotPlayerStats[client].RiskFactorDecreasing();
+	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
 	if (!IsPlayerAlive(client))
@@ -2411,6 +2430,8 @@ public Action Command_ReselectRobot(int client, int args)
 	if (MvMRobotPlayer(client).MyNextRobotTemplateType != ROBOT_BOSS)
 		g_bSpawningAsBossRobot[client] = false;
 	
+	g_arrRobotPlayerStats[client].IncreaseRiskFactor();
+	
 	return Plugin_Handled;
 }
 
@@ -2699,6 +2720,7 @@ public Action Command_DebugPlayerStats(int client, int args)
 		ReplyToCommand(client, "HEALING: %d", g_arrRobotPlayerStats[target_list[i]].iHealing);
 		ReplyToCommand(client, "POINT CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iPointCaptures);
 		ReplyToCommand(client, "TOTAL PLAYERS UBERED: %d", g_arrRobotPlayerStats[target_list[i]].iPlayersUbered);
+		ReplyToCommand(client, "BOSS RISK FACTOR: %f", g_arrRobotPlayerStats[target_list[i]].flRiskFactor);
 		ReplyToCommand(client, "ROUNDS PLAYED IN A ROW: %d", g_arrRobotPlayerStats[target_list[i]].iSuccessiveRoundsPlayed);
 	}
 	
@@ -4062,6 +4084,7 @@ void RobotPlayer_SpawnNow(int client)
 	
 	TurnPlayerIntoHisNextRobot(client);
 	SelectPlayerNextRobot(client);
+	g_arrRobotPlayerStats[client].IncreaseRiskFactor();
 	
 	LogAction(client, -1, "%L forcibly spawned as their next robot.", client);
 }
