@@ -504,7 +504,6 @@ ConVar bwr3_robot_gatebot_giant_template_file;
 ConVar bwr3_robot_sentrybuster_template_file;
 ConVar bwr3_robot_boss_template_file;
 ConVar bwr3_robot_giant_chance;
-ConVar bwr3_robot_boss_chance;
 ConVar bwr3_robot_gatebot_chance;
 ConVar bwr3_robot_own_loadout_chance;
 ConVar bwr3_robot_menu_allowed;
@@ -1113,7 +1112,6 @@ public void OnPluginStart()
 	bwr3_robot_sentrybuster_template_file = CreateConVar("sm_bwr3_robot_sentrybuster_template_file", "robot_sentrybuster.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_boss_template_file = CreateConVar("sm_bwr3_robot_boss_template_file", "robot_boss.cfg", _, FCVAR_NOTIFY);
 	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
-	bwr3_robot_boss_chance = CreateConVar("sm_bwr3_robot_boss_chance", "1", _, FCVAR_NOTIFY);
 	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
 	bwr3_robot_own_loadout_chance = CreateConVar("sm_bwr3_robot_own_loadout_chance", "25", _, FCVAR_NOTIFY);
 	bwr3_robot_menu_allowed = CreateConVar("sm_bwr3_robot_menu_allowed", "0", _, FCVAR_NOTIFY);
