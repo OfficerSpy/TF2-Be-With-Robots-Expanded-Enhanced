@@ -228,6 +228,31 @@ enum struct esModSettings
 	}
 }
 
+// These are separated from esMapSettings because arrays in structs can only have one dimension
+char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MAX_PATH];
+
+ConVar tf_mvm_miniboss_scale;
+
+enum struct esMapSettings
+{
+	float flGiantScale;
+	// char sSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MAX_PATH];
+	
+	void ResetToDefault()
+	{
+		this.flGiantScale = -1.0;
+		
+		for (int i = 0; i < sizeof(g_sMapSpawnNames); i++)
+			for (int j = 0; j < sizeof(g_sMapSpawnNames[]); j++)
+				g_sMapSpawnNames[i][j] = NULL_STRING;
+	}
+	
+	float GetGiantScale()
+	{
+		return this.flGiantScale > 0.0 ? this.flGiantScale : tf_mvm_miniboss_scale.FloatValue;
+	}
+}
+
 enum struct esCSProperties
 {
 	float flBaseDuration;
@@ -402,16 +427,13 @@ bool g_bCanBotsAttackInSpawn;
 
 esModSettings g_arrSettings;
 esCSProperties g_arrCooldownSystem;
+esMapSettings g_arrMapConfig;
 
 Cookie g_hPlayerPreference;
 
 // GLOBAL ENTITIES
 int g_iObjectiveResource = -1;
 int g_iPopulationManager = -1;
-
-// MAP SETTINGS
-float g_flMapGiantScale;
-char g_sMapSpawnNames[ROBOT_SPAWN_TYPE_COUNT][MAX_ROBOT_SPAWN_NAMES][PLATFORM_MAX_PATH];
 
 //KEY is player steamID, VALUE is the time when his ban expires
 static StringMap m_adtBWRCooldown;
@@ -524,7 +546,7 @@ ConVar tf_mvm_bot_flag_carrier_interval_to_3rd_upgrade;
 ConVar tf_mvm_bot_flag_carrier_health_regen;
 ConVar tf_bot_always_full_reload;
 ConVar tf_bot_fire_weapon_allowed;
-ConVar tf_mvm_miniboss_scale;
+// ConVar tf_mvm_miniboss_scale;
 ConVar tf_mvm_engineer_teleporter_uber_duration;
 ConVar tf_bot_suicide_bomb_range;
 ConVar tf_bot_engineer_building_health_multiplier;
@@ -1074,7 +1096,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.5.0",
+	version = "1.5.0.1",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -5143,11 +5165,7 @@ void MainConfig_UpdateSettings()
 void MapConfig_UpdateSettings()
 {
 	//Reset all data
-	g_flMapGiantScale = -1.0;
-	
-	for (int i = 0; i < sizeof(g_sMapSpawnNames); i++)
-		for (int j = 0; j < sizeof(g_sMapSpawnNames[]); j++)
-			g_sMapSpawnNames[i][j] = NULL_STRING;
+	g_arrMapConfig.ResetToDefault();
 	
 	char mapName[PLATFORM_MAX_PATH]; GetCurrentMap(mapName, sizeof(mapName));
 	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s.cfg", MAP_CONFIG_DIRECTORY, mapName);
@@ -5160,7 +5178,7 @@ void MapConfig_UpdateSettings()
 		
 		if (kv.JumpToKey("Settings"))
 		{
-			g_flMapGiantScale = kv.GetFloat("giant_scale", -1.0);
+			g_arrMapConfig.flGiantScale = kv.GetFloat("giant_scale", -1.0);
 			kv.GoBack();
 		}
 		
@@ -5201,7 +5219,7 @@ void MapConfig_UpdateSettings()
 	}
 	
 #if defined TESTING_ONLY
-	LogMessage("MapConfig_UpdateSettings: Giant scale: %f", g_flMapGiantScale);
+	LogMessage("MapConfig_UpdateSettings: Giant scale: %f", g_arrMapConfig.flGiantScale);
 #endif
 }
 

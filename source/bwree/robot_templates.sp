@@ -32,13 +32,18 @@ enum eEngineerTeleportType
 	ENGINEER_TELEPORT_BOMB_INFO
 }
 
+enum struct esRobotTemplateData
+{
+	char sName[MAX_NAME_LENGTH];
+	// char sDescription[ROBOT_DESC_MAX_LENGTH];
+	TFClassType nClass;
+	char sClassIcon[MAX_NAME_LENGTH];
+	float flCooldown;
+}
+
 // Robot template property arrays
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
-char g_sRobotTemplateName[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
-// char g_sRobotTemplateDescription[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][ROBOT_DESC_MAX_LENGTH];
-TFClassType g_nRobotTemplateClass[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
-char g_sRobotTemplateClassIcon[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES][MAX_NAME_LENGTH];
-float g_flRobotTemplateCooldown[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
+esRobotTemplateData g_arrRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
 
 enum struct esBossWaveInfo
 {
@@ -977,7 +982,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	//Check for custom giant robot scaling
 	if (flScale <= 0.0 && roboPlayer.HasAttribute(CTFBot_MINIBOSS))
-		flScale = g_flMapGiantScale > 0.0 ? g_flMapGiantScale : tf_mvm_miniboss_scale.FloatValue;
+		flScale = g_arrMapConfig.GetGiantScale();
 	
 	if (flScale > 0.0)
 		player.SetModelScale(flScale);
@@ -1536,7 +1541,7 @@ public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
 			roboPlayer.SetAttribute(CTFBot_MINIBOSS);
 			player.SetIsMiniBoss(true);
 			
-			flScale = g_flMapGiantScale > 0.0 ? g_flMapGiantScale : tf_mvm_miniboss_scale.FloatValue;
+			flScale = g_arrMapConfig.GetGiantScale();
 			
 			if (!bHalloweenMission)
 			{
@@ -2503,17 +2508,17 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 				}
 				
 				//Store these details for later
-				kv.GetString("Name", g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateName[][]), ROBOT_NAME_UNDEFINED);
-				// kv.GetString("Description", g_sRobotTemplateDescription[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateDescription[][]));
+				kv.GetString("Name", g_arrRobotTemplates[type][g_iTotalRobotTemplates[type]].sName, sizeof(g_arrRobotTemplates[][].sName), ROBOT_NAME_UNDEFINED);
+				// kv.GetString("Description", g_arrRobotTemplates[type][g_iTotalRobotTemplates[type]].sDescription, sizeof(g_arrRobotTemplates[][].sDescription));
 				
 				kv.GetString("Class", className, sizeof(className));
-				g_nRobotTemplateClass[type][g_iTotalRobotTemplates[type]] = TF2_GetClassIndexFromString(className);
+				g_arrRobotTemplates[type][g_iTotalRobotTemplates[type]].nClass = TF2_GetClassIndexFromString(className);
 				
-				if (g_nRobotTemplateClass[type][g_iTotalRobotTemplates[type]] <= TFClass_Unknown)
-					LogError("UpdateRobotTemplateDataForType: Template %d (%s) of type %d does not have a valid class set!", g_iTotalRobotTemplates[type], g_sRobotTemplateName[type][g_iTotalRobotTemplates[type]], type);
+				if (g_arrRobotTemplates[type][g_iTotalRobotTemplates[type]].nClass <= TFClass_Unknown)
+					LogError("UpdateRobotTemplateDataForType: Template %d (%s) of type %d does not have a valid class set!", g_iTotalRobotTemplates[type], g_arrRobotTemplates[type][g_iTotalRobotTemplates[type]].sName, type);
 				
-				kv.GetString("ClassIcon", g_sRobotTemplateClassIcon[type][g_iTotalRobotTemplates[type]], sizeof(g_sRobotTemplateClassIcon[][]));
-				g_flRobotTemplateCooldown[type][g_iTotalRobotTemplates[type]] = kv.GetFloat("cooldown", 0.0);
+				kv.GetString("ClassIcon", g_arrRobotTemplates[type][g_iTotalRobotTemplates[type]].sClassIcon, sizeof(g_arrRobotTemplates[][].sClassIcon));
+				g_arrRobotTemplates[type][g_iTotalRobotTemplates[type]].flCooldown = kv.GetFloat("cooldown", 0.0);
 				
 				g_iTotalRobotTemplates[type]++;
 			} while (kv.GotoNextKey(false))
@@ -2537,24 +2542,24 @@ int GetRobotTemplateName(eRobotTemplateType type, int templateID, char[] buffer,
 		return FormatEx(buffer, maxlen, "%t", "Robot_Name_Own_Loadout", g_sLocalizedClassNames[templateID]);
 	}
 	
-	return strcopy(buffer, maxlen, g_sRobotTemplateName[type][templateID]);
+	return strcopy(buffer, maxlen, g_arrRobotTemplates[type][templateID].sName);
 }
 
 /* int GetRobotTemplateDescription(eRobotTemplateType type, int templateID, char[] buffer, int maxlen)
 {
-	return strcopy(buffer, maxlen, g_sRobotTemplateDescription[type][templateID]);
+	return strcopy(buffer, maxlen, g_arrRobotTemplates[type][templateID].sDescription);
 } */
 
 TFClassType GetRobotTemplateClass(eRobotTemplateType type, int templateID)
 {
-	return g_nRobotTemplateClass[type][templateID];
+	return g_arrRobotTemplates[type][templateID].nClass;
 }
 
 int GetRobotTemplateClassIcon(eRobotTemplateType type, int templateID, char[] buffer, int maxlen)
 {
-	if (strlen(g_sRobotTemplateClassIcon[type][templateID]) > 0)
+	if (strlen(g_arrRobotTemplates[type][templateID].sClassIcon) > 0)
 	{
-		return strcopy(buffer, maxlen, g_sRobotTemplateClassIcon[type][templateID]);
+		return strcopy(buffer, maxlen, g_arrRobotTemplates[type][templateID].sClassIcon);
 	}
 	else
 	{
@@ -2567,7 +2572,7 @@ int GetRobotTemplateClassIcon(eRobotTemplateType type, int templateID, char[] bu
 
 float GetRobotTemplateCooldown(eRobotTemplateType type, int templateID)
 {
-	return g_flRobotTemplateCooldown[type][templateID];
+	return g_arrRobotTemplates[type][templateID].flCooldown;
 }
 
 void UpdateEngineerHintLocations()
