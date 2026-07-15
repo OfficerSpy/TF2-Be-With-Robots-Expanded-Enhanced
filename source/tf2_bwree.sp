@@ -1096,7 +1096,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.5.0.1",
+	version = "1.5.1",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1321,6 +1321,7 @@ public void OnClientPutInServer(int client)
 	
 	SDKHook(client, SDKHook_OnTakeDamageAlive, Player_OnTakeDamageAlive);
 	SDKHook(client, SDKHook_OnTakeDamageAlivePost, Player_OnTakeDamageAlivePost);
+	SDKHook(client, SDKHook_ShouldCollide, Player_ShouldCollide);
 	SDKHook(client, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 	SDKHook(client, SDKHook_SetTransmit, Actor_SetTransmit);
 	
@@ -3156,6 +3157,20 @@ public void Player_OnTakeDamageAlivePost(int victim, int attacker, int inflictor
 		SetClientAsBot(m_iOTDAAttacker, false);
 		m_iOTDAAttacker = -1;
 	}
+}
+
+public bool Player_ShouldCollide(int entity, int collisiongroup, int contentsmask, bool originalResult)
+{
+	//No point in testing against our teammates, we pass through them
+	if (TF2_GetClientTeam(entity) != TFTeam_Red)
+		return originalResult;
+	
+	//TODO: determine the entity that is moving to hit us is a sentry buster robot player?
+	//Not sure how sdkhooks could provide us with this information...
+	if (collisiongroup == COLLISION_GROUP_PLAYER_MOVEMENT && contentsmask & (CONTENTS_BLUETEAM | MASK_PLAYERSOLID))
+		return false;
+	
+	return originalResult;
 }
 
 public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
