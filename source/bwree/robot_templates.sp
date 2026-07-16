@@ -1075,8 +1075,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		
 		// MultiplayRules_HaveAllPlayersSpeakConceptIfAllowed(MP_CONCEPT_MVM_SENTRY_BUSTER, view_as<int>(TFTeam_Red));
 		
-		/* TODO: replace this as this is a jank way of letting the player phase through other players
-		They will only phase through if the colliding entity is actually moving, otherwise the player will still be blocked */
+		//Lets enemy players pass through us, the other half of this is handled elsewhere though...
 		SetEntityCollisionGroup(client, COLLISION_GROUP_PROJECTILE);
 		
 		/* Address pWave = GetCurrentWave(g_iPopulationManager);

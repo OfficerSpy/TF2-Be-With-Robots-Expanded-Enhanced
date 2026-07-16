@@ -14,6 +14,7 @@ Author: ★ Officer Spy ★
 
 #define MOD_EXT_CBASENPC
 // #define MOD_EXT_TF2_ECON_DYNAMIC
+#define MOD_EXT_COLLISIONHOOK
 
 #if defined MOD_EXT_CBASENPC
 #include <cbasenpc>
@@ -22,6 +23,12 @@ Author: ★ Officer Spy ★
 
 #if defined MOD_EXT_TF2_ECON_DYNAMIC
 #include <tf_econ_dynamic>
+#endif
+
+#if defined MOD_EXT_COLLISIONHOOK
+#undef REQUIRE_EXTENSIONS
+#include <collisionhook>
+#define REQUIRE_EXTENSIONS
 #endif
 
 #pragma semicolon 1
@@ -1321,7 +1328,6 @@ public void OnClientPutInServer(int client)
 	
 	SDKHook(client, SDKHook_OnTakeDamageAlive, Player_OnTakeDamageAlive);
 	SDKHook(client, SDKHook_OnTakeDamageAlivePost, Player_OnTakeDamageAlivePost);
-	SDKHook(client, SDKHook_ShouldCollide, Player_ShouldCollide);
 	SDKHook(client, SDKHook_OnTakeDamage, Actor_OnTakeDamage);
 	SDKHook(client, SDKHook_SetTransmit, Actor_SetTransmit);
 	
@@ -3159,20 +3165,6 @@ public void Player_OnTakeDamageAlivePost(int victim, int attacker, int inflictor
 	}
 }
 
-public bool Player_ShouldCollide(int entity, int collisiongroup, int contentsmask, bool originalResult)
-{
-	//No point in testing against our teammates, we pass through them
-	if (TF2_GetClientTeam(entity) != TFTeam_Red)
-		return originalResult;
-	
-	//TODO: determine the entity that is moving to hit us is a sentry buster robot player?
-	//Not sure how sdkhooks could provide us with this information...
-	if (collisiongroup == COLLISION_GROUP_PLAYER_MOVEMENT && contentsmask & (CONTENTS_BLUETEAM | MASK_PLAYERSOLID))
-		return false;
-	
-	return originalResult;
-}
-
 public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, float &damage, int &damagetype, int &weapon, float damageForce[3], float damagePosition[3], int damagecustom)
 {
 	if (BaseEntity_IsPlayer(attacker))
@@ -3555,6 +3547,24 @@ public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 		}
 	}
 }
+
+#if defined MOD_EXT_COLLISIONHOOK
+public Action CH_PassFilter(int ent1, int ent2, bool &result)
+{
+	//Only care if the robot player is colliding with the enemy player
+	if (!BaseEntity_IsPlayer(ent2) || TF2_GetClientTeam(ent2) != TFTeam_Red)
+		return Plugin_Continue;
+	
+	//Prevent sentry busters from getting stuck with enemy players
+	if (BaseEntity_IsPlayer(ent1) && IsPlayingAsRobot(ent1) && MvMRobotPlayer(ent1).GetMission() == CTFBot_MISSION_DESTROY_SENTRIES)
+	{
+		result = false;
+		return Plugin_Changed;
+	}
+	
+	return Plugin_Continue;
+}
+#endif
 
 void FindGameConsoleVariables()
 {
