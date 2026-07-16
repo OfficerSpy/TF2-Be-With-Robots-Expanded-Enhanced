@@ -3552,11 +3552,11 @@ public void PlayerRobot_WeaponEquipPost(int client, int weapon)
 public Action CH_PassFilter(int ent1, int ent2, bool &result)
 {
 	//Only care if the robot player is colliding with the enemy player
-	if (!BaseEntity_IsPlayer(ent2) || TF2_GetClientTeam(ent2) != TFTeam_Red)
+	if (!BaseEntity_IsPlayer(ent1) || TF2_GetClientTeam(ent1) != TFTeam_Red)
 		return Plugin_Continue;
 	
 	//Prevent sentry busters from getting stuck with enemy players
-	if (BaseEntity_IsPlayer(ent1) && IsPlayingAsRobot(ent1) && MvMRobotPlayer(ent1).GetMission() == CTFBot_MISSION_DESTROY_SENTRIES)
+	if (BaseEntity_IsPlayer(ent2) && IsPlayingAsRobot(ent2) && MvMRobotPlayer(ent2).GetMission() == CTFBot_MISSION_DESTROY_SENTRIES)
 	{
 		result = false;
 		return Plugin_Changed;
