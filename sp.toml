@@ -15,5 +15,9 @@ url = "https://github.com/TF2-DMB/CBaseNPC/tree/master/scripting/include"
 path = "."
 
 [[dependency]]
+url = "https://github.com/voided/CollisionHook/blob/master/sourcemod/scripting/include/collisionhook.inc"
+path = "."
+
+[[dependency]]
 url = "https://github.com/OfficerSpy/SM_Stock_OfficerSpy"
 path = "."
