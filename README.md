@@ -5,6 +5,8 @@ Allows you to play as an enemy robot (or enemy invader) in Mann vs. Machine.
 - [TF2 Utils](https://github.com/nosoop/SM-TFUtils)
 - [[TF2] Econ Data](https://github.com/nosoop/SM-TFEconData)
 - [CBaseNPC](https://github.com/TF2-DMB/CBaseNPC)
+## Optional
+- [CollisionHook](https://github.com/voided/CollisionHook)
 ## Compilation Only
 - [stocklib_officerspy](https://github.com/OfficerSpy/SM_Stock_OfficerSpy)
 # Notes
