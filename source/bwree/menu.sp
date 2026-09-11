@@ -112,7 +112,7 @@ void ShowRobotTemplateClassMenu(int client, eRobotTemplateType type)
 // List the names of robots that are available for the specified class under the specified robot variant type
 bool ShowRobotTemplatesForClassMenu(int client, eRobotTemplateType type, TFClassType class)
 {
-	bool bCurrentWaveRobots = bwr3_player_robot_template_mode.IntValue == ROBOT_TEMPLATE_MODE_WAVE_BOTS;
+	bool bCurrentWaveRobots = bwree_player_robot_template_mode.IntValue == ROBOT_TEMPLATE_MODE_WAVE_BOTS;
 	Menu hMenu = new Menu(MenuHandler_RobotTemplatesForClass, MENU_ACTIONS_DEFAULT);
 	int count = 0;
 	

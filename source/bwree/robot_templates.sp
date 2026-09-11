@@ -86,7 +86,7 @@ enum struct esBossWaveInfo
 	
 	void ResetTemplateFile()
 	{
-		bwr3_robot_boss_template_file.GetString(this.sTemplateFile, sizeof(this.sTemplateFile));
+		bwree_robot_boss_template_file.GetString(this.sTemplateFile, sizeof(this.sTemplateFile));
 	}
 	
 	void SelectNewBoss()
@@ -649,7 +649,7 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 		}
 		case ROBOT_STANDARD:
 		{
-			bwr3_robot_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			KeyValues kv = new KeyValues("RobotStandardTemplates");
@@ -667,7 +667,7 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 		}
 		case ROBOT_GIANT:
 		{
-			bwr3_robot_giant_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			KeyValues kv = new KeyValues("RobotGiantTemplates");
@@ -685,7 +685,7 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 		}
 		case ROBOT_GATEBOT:
 		{
-			bwr3_robot_gatebot_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_gatebot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			KeyValues kv = new KeyValues("RobotGatebotTemplates");
@@ -703,7 +703,7 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 		}
 		case ROBOT_GATEBOT_GIANT:
 		{
-			bwr3_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			KeyValues kv = new KeyValues("RobotGatebotGiantTemplates");
@@ -721,7 +721,7 @@ void TurnPlayerIntoRobot(int client, const eRobotTemplateType type, const int te
 		}
 		case ROBOT_SENTRYBUSTER:
 		{
-			bwr3_robot_sentrybuster_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_sentrybuster_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			KeyValues kv = new KeyValues("RobotSentryBusterTemplates");
@@ -786,7 +786,7 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				//After joining a class, remove their weapons and cosmetics
 				StripWeapons(client, true, TFWeaponSlot_Building, true);
 				
-				switch (bwr3_cosmetic_mode.IntValue)
+				switch (bwree_cosmetic_mode.IntValue)
 				{
 					case COSMETIC_MODE_ALLOW_ALWAYS:
 					{
@@ -1054,7 +1054,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (nMission == CTFBot_MISSION_DESTROY_SENTRIES)
 	{
-		if (bwr3_edit_wavebar.BoolValue)
+		if (bwree_edit_wavebar.BoolValue)
 		{
 			// SetAsMissionEnemy(client, true);
 			
@@ -1106,7 +1106,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (nMission >= CTFBot_MISSION_SNIPER && nMission <= CTFBot_MISSION_ENGINEER)
 	{
-		if (bwr3_edit_wavebar.BoolValue)
+		if (bwree_edit_wavebar.BoolValue)
 		{
 			//Since we increment the icon in the wavebar, set them as the mission enemy so it decrements the icon with MVM_CLASS_FLAG_MISSION when they die
 			SetAsMissionEnemy(client, true);
@@ -1129,7 +1129,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (!bAddedClassIconToWavebar)
 	{
-		if (bwr3_edit_wavebar.BoolValue)
+		if (bwree_edit_wavebar.BoolValue)
 		{
 			if (IsValidEntity(g_iObjectiveResource))
 			{
@@ -1204,7 +1204,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (iClass == TFClass_Spy)
 	{
-		if (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)
+		if (bwree_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)
 		{
 			//Let him choose how he teleports
 			ShowSpyTeleportMenu(client);
@@ -1218,7 +1218,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	}
 	else if (iClass == TFClass_Engineer && roboPlayer.HasAttribute(CTFBot_TELEPORT_TO_HINT))
 	{
-		if (bwr3_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU)
+		if (bwree_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU)
 		{
 			//Let him choose how he teleports
 			ShowEngineerTeleportMenu(client);
@@ -1271,7 +1271,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	LogAction(client, -1, "%3.2f: %L spawned as robot %s", GetGameTime(), client, strName);
 #endif
 	
-	if (bwr3_player_change_name.BoolValue)
+	if (bwree_player_change_name.BoolValue)
 	{
 		SaveRobotPlayerName(client, false);
 		
@@ -1297,7 +1297,7 @@ static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool b
 	
 #if defined TESTING_ONLY
 	//Dump the current block of EventChangeAttributes here
-	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "data/bwr3_eventchangeattributes.txt");
+	char filePath[PLATFORM_MAX_PATH]; BuildPath(Path_SM, filePath, sizeof(filePath), "data/bwree_eventchangeattributes.txt");
 	kv.ExportToFile(filePath);
 	PrintToServer("[BWR E&E] Dumped EventChangeAttributes data to %s", filePath);
 #endif
@@ -1433,7 +1433,7 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 	
 	MakePlayerJoinClass(client, nClass);
 	
-	switch (bwr3_cosmetic_mode.IntValue)
+	switch (bwree_cosmetic_mode.IntValue)
 	{
 		case COSMETIC_MODE_ALLOW_OWN_LOADOUT, COSMETIC_MODE_ALLOW_ALWAYS:
 		{
@@ -1527,7 +1527,7 @@ public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
 				player.SetBloodColor(DONT_BLEED);
 			}
 			
-			if (bwr3_edit_wavebar.BoolValue)
+			if (bwree_edit_wavebar.BoolValue)
 			{
 				if (IsValidEntity(g_iObjectiveResource))
 				{
@@ -1548,7 +1548,7 @@ public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
 				player.SetBloodColor(DONT_BLEED);
 			}
 			
-			if (bwr3_edit_wavebar.BoolValue)
+			if (bwree_edit_wavebar.BoolValue)
 			{
 				if (IsValidEntity(g_iObjectiveResource))
 				{
@@ -1594,7 +1594,7 @@ public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
 	//This is all copied from Timer_FinishRobotPlayer with very little changes
 	if (nClass == TFClass_Spy)
 	{
-		if (bwr3_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)
+		if (bwree_spy_teleport_method.IntValue == SPY_TELEPORT_METHOD_MENU)
 		{
 			ShowSpyTeleportMenu(client);
 			FreezePlayerInput(client, true, 0);
@@ -1606,7 +1606,7 @@ public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
 	}
 	else if (nClass == TFClass_Engineer && roboPlayer.HasAttribute(CTFBot_TELEPORT_TO_HINT))
 	{
-		if (bwr3_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU)
+		if (bwree_engineer_teleport_method.IntValue == ENGINEER_TELEPORT_METHOD_MENU)
 		{
 			ShowEngineerTeleportMenu(client);
 			FreezePlayerInput(client, true);
@@ -2044,7 +2044,7 @@ void ReplaceSentryBuster(int iTFBot, int iReplacement)
 	ForcePlayerSuicide(iTFBot);
 	// g_arrBusterControl[iTFBot].Reset();
 	
-	if (bwr3_edit_wavebar.BoolValue && IsPlayerAlive(iReplacement))
+	if (bwree_edit_wavebar.BoolValue && IsPlayerAlive(iReplacement))
 		DecrementRobotPlayerClassIcon(iReplacement);
 	
 	g_bAllowRespawn[iReplacement] = true;
@@ -2058,7 +2058,7 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 	
 	if (!bIgnoreTeleporter)
 	{
-		if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_RECENTLY_USED)
+		if (bwree_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_RECENTLY_USED)
 		{
 			int activeTeleporter = EntRefToEntIndex(g_iRefLastTeleporter);
 			
@@ -2083,17 +2083,17 @@ SpawnLocationResult FindSpawnLocation(float vSpawnPosition[3], float playerScale
 		
 		if (adtTeleporter.Length > 0)
 		{
-			switch (bwr3_robot_teleporter_mode.IntValue)
+			switch (bwree_robot_teleporter_mode.IntValue)
 			{
 				case ROBOT_TELEPORTER_MODE_RANDOM_BOMB, ROBOT_TELEPORTER_MODE_BOMB_NEAR_HATCH:
 				{
 					int flag = -1;
 					
-					if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_RANDOM_BOMB)
+					if (bwree_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_RANDOM_BOMB)
 					{
 						//TODO: get random flag to teleport near
 					}
-					else if (bwr3_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_BOMB_NEAR_HATCH)
+					else if (bwree_robot_teleporter_mode.IntValue == ROBOT_TELEPORTER_MODE_BOMB_NEAR_HATCH)
 					{
 						flag = FindBombNearestToHatch();
 					}
@@ -2241,7 +2241,7 @@ void OnBotTeleported(int client)
 
 bool AreGiantRobotsAvailable()
 {
-	return GetTeamClientCount(view_as<int>(TFTeam_Red)) >= bwr3_min_players_for_giants.IntValue;
+	return GetTeamClientCount(view_as<int>(TFTeam_Red)) >= bwree_min_players_for_giants.IntValue;
 }
 
 bool AreGatebotsAvailable()
@@ -2261,7 +2261,7 @@ void ResetRobotSpawnerData()
 // Determine the next robot template the player should use on their next spawn
 void SelectPlayerNextRobot(int client)
 {
-	bool bCurrentWaveRobots = bwr3_player_robot_template_mode.IntValue == ROBOT_TEMPLATE_MODE_WAVE_BOTS;
+	bool bCurrentWaveRobots = bwree_player_robot_template_mode.IntValue == ROBOT_TEMPLATE_MODE_WAVE_BOTS;
 	int iSelectedID = ROBOT_TEMPLATE_ID_INVALID;
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
@@ -2282,9 +2282,9 @@ void SelectPlayerNextRobot(int client)
 		return;
 	}
 	
-	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwr3_robot_gatebot_chance.FloatValue);
+	bool bShouldBeGatebot = AreGatebotsAvailable() && RollRandomChanceFloat(bwree_robot_gatebot_chance.FloatValue);
 	
-	if (!bCurrentWaveRobots && RollRandomChanceFloat(bwr3_robot_own_loadout_chance.FloatValue))
+	if (!bCurrentWaveRobots && RollRandomChanceFloat(bwree_robot_own_loadout_chance.FloatValue))
 	{
 		roboPlayer.SetMyNextRobot(ROBOT_OWN_LOADOUT, GetRandomInt(TFClass_Scout, TFClass_Engineer));
 		return;
@@ -2292,7 +2292,7 @@ void SelectPlayerNextRobot(int client)
 	
 	if (AreGiantRobotsAvailable())
 	{
-		if (RollRandomChanceFloat(bwr3_robot_giant_chance.FloatValue))
+		if (RollRandomChanceFloat(bwree_robot_giant_chance.FloatValue))
 		{
 			if (bShouldBeGatebot)
 			{
@@ -2422,13 +2422,13 @@ void TurnPlayerIntoHisNextRobot(int client)
 		{
 			case ROBOT_STANDARD, ROBOT_GATEBOT:
 			{
-				if (bwr3_robot_menu_cooldown.IntValue >= 0)
-					g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+				if (bwree_robot_menu_cooldown.IntValue >= 0)
+					g_flChangeRobotCooldown[client] = GetGameTime() + bwree_robot_menu_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 			}
 			case ROBOT_GIANT, ROBOT_GATEBOT_GIANT:
 			{
-				if (bwr3_robot_menu_giant_cooldown.IntValue >= 0)
-					g_flChangeRobotCooldown[client] = GetGameTime() + bwr3_robot_menu_giant_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
+				if (bwree_robot_menu_giant_cooldown.IntValue >= 0)
+					g_flChangeRobotCooldown[client] = GetGameTime() + bwree_robot_menu_giant_cooldown.FloatValue + GetRobotTemplateCooldown(roboPlayer.MyNextRobotTemplateType, roboPlayer.MyNextRobotTemplateID);
 			}
 		}
 		
@@ -2446,35 +2446,35 @@ void UpdateRobotTemplateDataForType(eRobotTemplateType type = ROBOT_STANDARD)
 	{
 		case ROBOT_STANDARD:
 		{
-			bwr3_robot_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			kv = new KeyValues("RobotStandardTemplates");
 		}
 		case ROBOT_GIANT:
 		{
-			bwr3_robot_giant_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			kv = new KeyValues("RobotGiantTemplates");
 		}
 		case ROBOT_GATEBOT:
 		{
-			bwr3_robot_gatebot_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_gatebot_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			kv = new KeyValues("RobotGatebotTemplates");
 		}
 		case ROBOT_GATEBOT_GIANT:
 		{
-			bwr3_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_gatebot_giant_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			kv = new KeyValues("RobotGatebotGiantTemplates");
 		}
 		case ROBOT_SENTRYBUSTER:
 		{
-			bwr3_robot_sentrybuster_template_file.GetString(fileName, sizeof(fileName));
+			bwree_robot_sentrybuster_template_file.GetString(fileName, sizeof(fileName));
 			BuildPath(Path_SM, filePath, sizeof(filePath), "%s/%s", ROBOT_TEMPLATE_CONFIG_DIRECTORY, fileName);
 			
 			kv = new KeyValues("RobotSentryBusterTemplates");

@@ -282,18 +282,18 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 		SetClientAsBot(pThis, true);
 		
 #if defined MANUAL_DEATH_WAVEBAR_EDIT
-		if (bwr3_edit_wavebar.BoolValue)
+		if (bwree_edit_wavebar.BoolValue)
 		{
 			SetAsSupportEnemy(pThis, true);
 			DecrementRobotPlayerClassIcon(pThis);
 		}
 #else
 		//Don't decrement the class icon in the wavebar
-		if (!bwr3_edit_wavebar.BoolValue)
+		if (!bwree_edit_wavebar.BoolValue)
 			SetAsSupportEnemy(pThis, true);
 #endif
 		
-		if (bwr3_drop_credits.IntValue > CREDITS_DROP_NONE)
+		if (bwree_drop_credits.IntValue > CREDITS_DROP_NONE)
 		{
 			/* The amount of money we are going to drop we stored as our currency when we became a robot
 			We do this here instead of post because the game will set the property to 0 in this function
@@ -302,7 +302,7 @@ static MRESReturn DHookCallback_EventKilled_Pre(int pThis, DHookParam hParams)
 			
 			if (dropAmount)
 			{
-				switch (bwr3_drop_credits.IntValue)
+				switch (bwree_drop_credits.IntValue)
 				{
 					case CREDITS_DROP_NORMAL:
 					{
@@ -374,7 +374,7 @@ static MRESReturn DHookCallback_EventKilled_Post(int pThis, DHookParam hParams)
 		SetClientAsBot(pThis, false);
 		
 #if !defined MANUAL_DEATH_WAVEBAR_EDIT
-		if (bwr3_edit_wavebar.BoolValue)
+		if (bwree_edit_wavebar.BoolValue)
 		{
 			if (IsValidEntity(g_iObjectiveResource))
 			{

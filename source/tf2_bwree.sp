@@ -424,7 +424,7 @@ enum eRobotSpawnType
 	ROBOT_SPAWN_TYPE_COUNT
 }
 
-bool g_bLateLoad;
+static bool m_bLateLoad;
 
 int g_iMaxEdicts;
 Handle g_hHudText;
@@ -508,39 +508,39 @@ static ArrayList m_adtKnownSpy[MAXPLAYERS + 1];
 static ArrayList m_adtSuspectedSpyInfo[MAXPLAYERS + 1];
 #endif
 
-ConVar bwr3_robot_spawn_time_min;
-ConVar bwr3_robot_spawn_time_max;
-ConVar bwr3_robot_taunt_mode;
-ConVar bwr3_bomb_upgrade_mode;
-ConVar bwr3_cosmetic_mode;
-ConVar bwr3_max_invaders;
-ConVar bwr3_min_players_for_giants;
-ConVar bwr3_allow_movement;
-ConVar bwr3_allow_readystate;
-ConVar bwr3_allow_drop_item;
-ConVar bwr3_allow_buyback;
-ConVar bwr3_player_robot_template_mode;
-ConVar bwr3_player_change_name;
-ConVar bwr3_edit_wavebar;
-ConVar bwr3_drop_credits;
-ConVar bwr3_invader_cooldown_mode;
-ConVar bwr3_flag_max_hold_time;
-ConVar bwr3_flag_idle_deal_method;
-ConVar bwr3_robot_template_file;
-ConVar bwr3_robot_giant_template_file;
-ConVar bwr3_robot_gatebot_template_file;
-ConVar bwr3_robot_gatebot_giant_template_file;
-ConVar bwr3_robot_sentrybuster_template_file;
-ConVar bwr3_robot_boss_template_file;
-ConVar bwr3_robot_giant_chance;
-ConVar bwr3_robot_gatebot_chance;
-ConVar bwr3_robot_own_loadout_chance;
-ConVar bwr3_robot_menu_allowed;
-ConVar bwr3_robot_menu_cooldown;
-ConVar bwr3_robot_menu_giant_cooldown;
-ConVar bwr3_engineer_teleport_method;
-ConVar bwr3_spy_teleport_method;
-ConVar bwr3_robot_teleporter_mode;
+ConVar bwree_robot_spawn_time_min;
+ConVar bwree_robot_spawn_time_max;
+ConVar bwree_robot_taunt_mode;
+ConVar bwree_bomb_upgrade_mode;
+ConVar bwree_cosmetic_mode;
+ConVar bwree_max_invaders;
+ConVar bwree_min_players_for_giants;
+ConVar bwree_allow_movement;
+ConVar bwree_allow_readystate;
+ConVar bwree_allow_drop_item;
+ConVar bwree_allow_buyback;
+ConVar bwree_player_robot_template_mode;
+ConVar bwree_player_change_name;
+ConVar bwree_edit_wavebar;
+ConVar bwree_drop_credits;
+ConVar bwree_invader_cooldown_mode;
+ConVar bwree_flag_max_hold_time;
+ConVar bwree_flag_idle_deal_method;
+ConVar bwree_robot_template_file;
+ConVar bwree_robot_giant_template_file;
+ConVar bwree_robot_gatebot_template_file;
+ConVar bwree_robot_gatebot_giant_template_file;
+ConVar bwree_robot_sentrybuster_template_file;
+ConVar bwree_robot_boss_template_file;
+ConVar bwree_robot_giant_chance;
+ConVar bwree_robot_gatebot_chance;
+ConVar bwree_robot_own_loadout_chance;
+ConVar bwree_robot_menu_allowed;
+ConVar bwree_robot_menu_cooldown;
+ConVar bwree_robot_menu_giant_cooldown;
+ConVar bwree_engineer_teleport_method;
+ConVar bwree_spy_teleport_method;
+ConVar bwree_robot_teleporter_mode;
 
 ConVar tf_mvm_defenders_team_size;
 ConVar nb_update_frequency;
@@ -1103,7 +1103,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.5.1",
+	version = "1.5.1.1",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1116,49 +1116,49 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 	LoadTranslations("bwree.phrases");
 	
-	bwr3_robot_spawn_time_min = CreateConVar("sm_bwr3_robot_spawn_time_min", "12", _, FCVAR_NOTIFY);
-	bwr3_robot_spawn_time_max = CreateConVar("sm_bwr3_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
-	bwr3_robot_taunt_mode = CreateConVar("sm_bwr3_robot_taunt_mode", "0", _, FCVAR_NOTIFY);
-	bwr3_bomb_upgrade_mode = CreateConVar("sm_bwr3_bomb_upgrade_mode", "2", _, FCVAR_NOTIFY);
-	bwr3_cosmetic_mode = CreateConVar("sm_bwr3_cosmetic_mode", "1", _, FCVAR_NOTIFY);
-	bwr3_max_invaders = CreateConVar("sm_bwr3_max_invaders", "4", _, FCVAR_NOTIFY);
-	bwr3_min_players_for_giants = CreateConVar("sm_bwr3_min_players_for_giants", "6", _, FCVAR_NOTIFY);
-	bwr3_allow_movement = CreateConVar("sm_bwr3_allow_movement", "1", _, FCVAR_NOTIFY);
-	bwr3_allow_readystate = CreateConVar("sm_bwr3_allow_readystate", "0", _, FCVAR_NOTIFY);
-	bwr3_allow_drop_item = CreateConVar("sm_bwr3_allow_drop_item", "0", _, FCVAR_NOTIFY);
-	bwr3_allow_buyback = CreateConVar("sm_bwr3_allow_buyback", "0", _, FCVAR_NOTIFY);
-	bwr3_player_robot_template_mode = CreateConVar("sm_bwr3_player_robot_template_mode", "0", _, FCVAR_NOTIFY);
-	bwr3_player_change_name = CreateConVar("sm_bwr3_player_change_name", "0", _, FCVAR_NOTIFY);
-	bwr3_edit_wavebar = CreateConVar("sm_bwr3_edit_wavebar", "1", _, FCVAR_NOTIFY);
-	bwr3_drop_credits = CreateConVar("sm_bwr3_drop_credits", "1", _, FCVAR_NOTIFY);
-	bwr3_invader_cooldown_mode = CreateConVar("sm_bwr3_invader_cooldown_mode", "2", _, FCVAR_NOTIFY);
-	bwr3_flag_max_hold_time = CreateConVar("sm_bwr3_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
-	bwr3_flag_idle_deal_method = CreateConVar("sm_bwr3_flag_idle_deal_method", "1", _, FCVAR_NOTIFY);
-	bwr3_robot_template_file = CreateConVar("sm_bwr3_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
-	bwr3_robot_giant_template_file = CreateConVar("sm_bwr3_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
-	bwr3_robot_gatebot_template_file = CreateConVar("sm_bwr3_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
-	bwr3_robot_gatebot_giant_template_file = CreateConVar("sm_bwr3_robot_gatebot_giant_template_file", "robot_gatebot_giant.cfg", _, FCVAR_NOTIFY);
-	bwr3_robot_sentrybuster_template_file = CreateConVar("sm_bwr3_robot_sentrybuster_template_file", "robot_sentrybuster.cfg", _, FCVAR_NOTIFY);
-	bwr3_robot_boss_template_file = CreateConVar("sm_bwr3_robot_boss_template_file", "robot_boss.cfg", _, FCVAR_NOTIFY);
-	bwr3_robot_giant_chance = CreateConVar("sm_bwr3_robot_giant_chance", "10", _, FCVAR_NOTIFY);
-	bwr3_robot_gatebot_chance = CreateConVar("sm_bwr3_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
-	bwr3_robot_own_loadout_chance = CreateConVar("sm_bwr3_robot_own_loadout_chance", "25", _, FCVAR_NOTIFY);
-	bwr3_robot_menu_allowed = CreateConVar("sm_bwr3_robot_menu_allowed", "0", _, FCVAR_NOTIFY);
-	bwr3_robot_menu_cooldown = CreateConVar("sm_bwr3_robot_menu_cooldown", "30.0", _, FCVAR_NOTIFY);
-	bwr3_robot_menu_giant_cooldown = CreateConVar("sm_bwr3_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
-	bwr3_engineer_teleport_method = CreateConVar("sm_bwr3_engineer_teleport_method", "0", _, FCVAR_NOTIFY);
-	bwr3_spy_teleport_method = CreateConVar("sm_bwr3_spy_teleport_method", "0", _, FCVAR_NOTIFY);
-	bwr3_robot_teleporter_mode = CreateConVar("sm_bwr3_robot_teleporter_mode", "1", _, FCVAR_NOTIFY);
+	bwree_robot_spawn_time_min = CreateConVar("sm_bwree_robot_spawn_time_min", "12", _, FCVAR_NOTIFY);
+	bwree_robot_spawn_time_max = CreateConVar("sm_bwree_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
+	bwree_robot_taunt_mode = CreateConVar("sm_bwree_robot_taunt_mode", "0", _, FCVAR_NOTIFY);
+	bwree_bomb_upgrade_mode = CreateConVar("sm_bwree_bomb_upgrade_mode", "2", _, FCVAR_NOTIFY);
+	bwree_cosmetic_mode = CreateConVar("sm_bwree_cosmetic_mode", "1", _, FCVAR_NOTIFY);
+	bwree_max_invaders = CreateConVar("sm_bwree_max_invaders", "4", _, FCVAR_NOTIFY);
+	bwree_min_players_for_giants = CreateConVar("sm_bwree_min_players_for_giants", "6", _, FCVAR_NOTIFY);
+	bwree_allow_movement = CreateConVar("sm_bwree_allow_movement", "1", _, FCVAR_NOTIFY);
+	bwree_allow_readystate = CreateConVar("sm_bwree_allow_readystate", "0", _, FCVAR_NOTIFY);
+	bwree_allow_drop_item = CreateConVar("sm_bwree_allow_drop_item", "0", _, FCVAR_NOTIFY);
+	bwree_allow_buyback = CreateConVar("sm_bwree_allow_buyback", "0", _, FCVAR_NOTIFY);
+	bwree_player_robot_template_mode = CreateConVar("sm_bwree_player_robot_template_mode", "0", _, FCVAR_NOTIFY);
+	bwree_player_change_name = CreateConVar("sm_bwree_player_change_name", "0", _, FCVAR_NOTIFY);
+	bwree_edit_wavebar = CreateConVar("sm_bwree_edit_wavebar", "1", _, FCVAR_NOTIFY);
+	bwree_drop_credits = CreateConVar("sm_bwree_drop_credits", "1", _, FCVAR_NOTIFY);
+	bwree_invader_cooldown_mode = CreateConVar("sm_bwree_invader_cooldown_mode", "2", _, FCVAR_NOTIFY);
+	bwree_flag_max_hold_time = CreateConVar("sm_bwree_flag_max_hold_time", "30.0", _, FCVAR_NOTIFY);
+	bwree_flag_idle_deal_method = CreateConVar("sm_bwree_flag_idle_deal_method", "1", _, FCVAR_NOTIFY);
+	bwree_robot_template_file = CreateConVar("sm_bwree_robot_template_file", "robot_standard.cfg", _, FCVAR_NOTIFY);
+	bwree_robot_giant_template_file = CreateConVar("sm_bwree_robot_giant_template_file", "robot_giant.cfg", _, FCVAR_NOTIFY);
+	bwree_robot_gatebot_template_file = CreateConVar("sm_bwree_robot_gatebot_template_file", "robot_gatebot.cfg", _, FCVAR_NOTIFY);
+	bwree_robot_gatebot_giant_template_file = CreateConVar("sm_bwree_robot_gatebot_giant_template_file", "robot_gatebot_giant.cfg", _, FCVAR_NOTIFY);
+	bwree_robot_sentrybuster_template_file = CreateConVar("sm_bwree_robot_sentrybuster_template_file", "robot_sentrybuster.cfg", _, FCVAR_NOTIFY);
+	bwree_robot_boss_template_file = CreateConVar("sm_bwree_robot_boss_template_file", "robot_boss.cfg", _, FCVAR_NOTIFY);
+	bwree_robot_giant_chance = CreateConVar("sm_bwree_robot_giant_chance", "10", _, FCVAR_NOTIFY);
+	bwree_robot_gatebot_chance = CreateConVar("sm_bwree_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
+	bwree_robot_own_loadout_chance = CreateConVar("sm_bwree_robot_own_loadout_chance", "25", _, FCVAR_NOTIFY);
+	bwree_robot_menu_allowed = CreateConVar("sm_bwree_robot_menu_allowed", "0", _, FCVAR_NOTIFY);
+	bwree_robot_menu_cooldown = CreateConVar("sm_bwree_robot_menu_cooldown", "30.0", _, FCVAR_NOTIFY);
+	bwree_robot_menu_giant_cooldown = CreateConVar("sm_bwree_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
+	bwree_engineer_teleport_method = CreateConVar("sm_bwree_engineer_teleport_method", "0", _, FCVAR_NOTIFY);
+	bwree_spy_teleport_method = CreateConVar("sm_bwree_spy_teleport_method", "0", _, FCVAR_NOTIFY);
+	bwree_robot_teleporter_mode = CreateConVar("sm_bwree_robot_teleporter_mode", "1", _, FCVAR_NOTIFY);
 	
-	HookConVarChange(bwr3_allow_movement, ConVarChanged_AllowMovement);
-	HookConVarChange(bwr3_allow_readystate, ConVarChanged_AllowReadystate);
-	HookConVarChange(bwr3_player_change_name, ConVarChanged_PlayerChangeName);
-	HookConVarChange(bwr3_robot_template_file, ConVarChanged_RobotTemplateFile);
-	HookConVarChange(bwr3_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
-	HookConVarChange(bwr3_robot_gatebot_template_file, ConVarChanged_RobotTemplateFile);
-	HookConVarChange(bwr3_robot_gatebot_giant_template_file, ConVarChanged_RobotTemplateFile);
-	HookConVarChange(bwr3_robot_sentrybuster_template_file, ConVarChanged_RobotTemplateFile);
-	HookConVarChange(bwr3_robot_boss_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwree_allow_movement, ConVarChanged_AllowMovement);
+	HookConVarChange(bwree_allow_readystate, ConVarChanged_AllowReadystate);
+	HookConVarChange(bwree_player_change_name, ConVarChanged_PlayerChangeName);
+	HookConVarChange(bwree_robot_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwree_robot_giant_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwree_robot_gatebot_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwree_robot_gatebot_giant_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwree_robot_sentrybuster_template_file, ConVarChanged_RobotTemplateFile);
+	HookConVarChange(bwree_robot_boss_template_file, ConVarChanged_RobotTemplateFile);
 	
 	RegConsoleCmd("sm_bwr", Command_JoinBlue, "Join the blue team and become a robot!");
 	RegConsoleCmd("sm_joinblu", Command_JoinBlue, "Join the blue team and become a robot!");
@@ -1181,22 +1181,22 @@ public void OnPluginStart()
 	RegConsoleCmd("sm_bwree_preference", Command_Preference);
 	RegConsoleCmd("sm_bwree_pref", Command_Preference);
 	
-	RegAdminCmd("sm_bwr3_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_robots", Command_ListRobots, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_setcooldown", Command_SetCooldownOnPlayer, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_viewcooldowns", Command_ViewCooldownData, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_debug_waveicons", Command_DebugWaveIcons, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_debug_playerstats", Command_DebugPlayerStats, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_debug_wavedata", Command_DebugWaveData, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_berobot", Command_PlayAsRobotType, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_robots", Command_ListRobots, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_setcooldown", Command_SetCooldownOnPlayer, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_viewcooldowns", Command_ViewCooldownData, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_debug_waveicons", Command_DebugWaveIcons, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_debug_playerstats", Command_DebugPlayerStats, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_debug_sentrybuster", Command_DebugSentryBuster, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_debug_wavedata", Command_DebugWaveData, ADMFLAG_GENERIC);
 	
 #if defined TESTING_ONLY	
 	RegConsoleCmd("sm_johnblue", Command_JoinBlue, "Join the blue team and become a robot!");
 #endif
 	
 #if defined SERIOUS_ACHIEVEMENT_CHECK
-	RegAdminCmd("sm_bwr3_debug_damagers", Command_DebugDamagers, ADMFLAG_GENERIC);
-	RegAdminCmd("sm_bwr3_debug_pushers", Command_DebugPushers, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_debug_damagers", Command_DebugDamagers, ADMFLAG_GENERIC);
+	RegAdminCmd("sm_bwree_debug_pushers", Command_DebugPushers, ADMFLAG_GENERIC);
 #endif
 	
 	AddCommandListener(CommandListener_Voicemenu, "voicemenu");
@@ -1249,7 +1249,7 @@ public void OnPluginStart()
 		SetFailState("Failed to load gamedata file tf2.bwree.txt");
 	}
 	
-	if (g_bLateLoad)
+	if (m_bLateLoad)
 	{
 		int maxEntCount = GetMaxEntities();
 		char classname[PLATFORM_MAX_PATH];
@@ -1276,7 +1276,7 @@ public void OnPluginStart()
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
-	g_bLateLoad = late;
+	m_bLateLoad = late;
 	
 	return APLRes_Success;
 }
@@ -1979,7 +1979,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if (bHasTheFlag)
 			{
-				if (bwr3_flag_idle_deal_method.IntValue)
+				if (bwree_flag_idle_deal_method.IntValue)
 				{
 					bool bMoving = buttons & (IN_FORWARD | IN_BACK | IN_MOVELEFT | IN_MOVERIGHT) != 0;
 					
@@ -1991,15 +1991,15 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					
 					float timeHoldingFlag = GetGameTime() - g_flLastTimeFlagInSpawn[client];
 					
-					if (timeHoldingFlag >= bwr3_flag_max_hold_time.FloatValue)
+					if (timeHoldingFlag >= bwree_flag_max_hold_time.FloatValue)
 					{
 						g_flLastTimeFlagInSpawn[client] = GetGameTime();
 						
-						switch (bwr3_flag_idle_deal_method.IntValue)
+						switch (bwree_flag_idle_deal_method.IntValue)
 						{
 							case 1:
 							{
-								if (roboPlayer.BombUpgradeLevel > 1 && bwr3_allow_drop_item.IntValue <= DROPITEM_DISABLED_BOMB_LEVEL2)
+								if (roboPlayer.BombUpgradeLevel > 1 && bwree_allow_drop_item.IntValue <= DROPITEM_DISABLED_BOMB_LEVEL2)
 								{
 									//At this point we have permanent buffs, so just suicide
 									ForcePlayerSuicide(client);
@@ -2068,7 +2068,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				
 				if (roboPlayer.BombUpgradeTimer_IsElapsed())
 				{
-					switch (bwr3_bomb_upgrade_mode.IntValue)
+					switch (bwree_bomb_upgrade_mode.IntValue)
 					{
 						case BOMB_UPGRADE_MANUAL:
 						{
@@ -2296,17 +2296,17 @@ public void ConVarChanged_RobotTemplateFile(ConVar convar, const char[] oldValue
 	}
 	
 	//If changed for a specific template file, re-read it
-	if (convar == bwr3_robot_template_file)
+	if (convar == bwree_robot_template_file)
 		UpdateRobotTemplateDataForType(ROBOT_STANDARD);
-	else if (convar == bwr3_robot_giant_template_file)
+	else if (convar == bwree_robot_giant_template_file)
 		UpdateRobotTemplateDataForType(ROBOT_GIANT);
-	else if (convar == bwr3_robot_gatebot_template_file)
+	else if (convar == bwree_robot_gatebot_template_file)
 		UpdateRobotTemplateDataForType(ROBOT_GATEBOT);
-	else if (convar == bwr3_robot_gatebot_giant_template_file)
+	else if (convar == bwree_robot_gatebot_giant_template_file)
 		UpdateRobotTemplateDataForType(ROBOT_GATEBOT_GIANT);
-	else if (convar == bwr3_robot_sentrybuster_template_file)
+	else if (convar == bwree_robot_sentrybuster_template_file)
 		UpdateRobotTemplateDataForType(ROBOT_SENTRYBUSTER);
-	else if (convar == bwr3_robot_boss_template_file)
+	else if (convar == bwree_robot_boss_template_file)
 	{
 		//Boss robot template file can actually be customized per wave per mission and this is used as a default
 		//Do not set the new default here though if the current wave is using bosses cause we might be using a custom file for it
@@ -2333,7 +2333,7 @@ public Action Command_JoinBlue(int client, int args)
 		return Plugin_Handled;
 	}
 	
-	if (GetRobotPlayerCount() >= bwr3_max_invaders.IntValue)
+	if (GetRobotPlayerCount() >= bwree_max_invaders.IntValue)
 	{
 		ReplyToCommand(client, "%s %t", PLUGIN_PREFIX, "Robot_Player_Limit_Reached");
 		return Plugin_Handled;
@@ -2350,13 +2350,13 @@ public Action Command_JoinBlue(int client, int args)
 	//Because we have custom loadouts now, we have to remove all upgrades or else they will carry over
 	VS_GrantOrRemoveAllUpgrades(client, true, true);
 	
-	if (!bwr3_allow_readystate.BoolValue)
+	if (!bwree_allow_readystate.BoolValue)
 		SetPlayerReady(client, false);
 	
 	if (GameRules_GetRoundState() == RoundState_RoundRunning)
 	{
 		//Since the player will die, set their next spawn time
-		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
+		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwree_robot_spawn_time_min.FloatValue, bwree_robot_spawn_time_max.FloatValue);
 		
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
 #if defined CORRECT_VISIBLE_RESPAWN_TIME
@@ -2368,7 +2368,7 @@ public Action Command_JoinBlue(int client, int args)
 		
 		TF2Util_SetPlayerRespawnTimeOverride(client, MvMRobotPlayer(client).NextSpawnTime - GetGameTime() + 0.1);
 #else
-		TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
+		TF2Util_SetPlayerRespawnTimeOverride(client, bwree_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif //CORRECT_VISIBLE_RESPAWN_TIME
 #endif //OVERRIDE_PLAYER_RESPAWN_TIME
 	}
@@ -2634,7 +2634,7 @@ public Action Command_SetCooldownOnPlayer(int client, int args)
 {
 	if (args < 2)
 	{
-		ReplyToCommand(client, "[SM] Usage: sm_bwr3_setcooldown <#userid|name> <seconds>");
+		ReplyToCommand(client, "[SM] Usage: sm_bwree_setcooldown <#userid|name> <seconds>");
 		return Plugin_Handled;
 	}
 	
@@ -2713,7 +2713,7 @@ public Action Command_DebugPlayerStats(int client, int args)
 {
 	if (args < 1)
 	{
-		ReplyToCommand(client, "[SM] Usage: sm_bwr3_debug_playerstats <#userid|name>");
+		ReplyToCommand(client, "[SM] Usage: sm_bwree_debug_playerstats <#userid|name>");
 		return Plugin_Handled;
 	}
 	
@@ -2871,7 +2871,7 @@ public Action CommandListener_TournamentPlayerReadystate(int client, const char[
 {
 	if (IsPlayingAsRobot(client))
 	{
-		if (!bwr3_allow_readystate.BoolValue && !IsPlayerReady(client))
+		if (!bwree_allow_readystate.BoolValue && !IsPlayerReady(client))
 			return Plugin_Handled;
 	}
 	
@@ -2889,7 +2889,7 @@ public Action CommandListener_Taunt(int client, const char[] command, int argc)
 		if (m_flNextActionTime[client] > GetEngineTime())
 			return Plugin_Handled;
 		
-		if (bwr3_bomb_upgrade_mode.IntValue == BOMB_UPGRADE_MANUAL)
+		if (bwree_bomb_upgrade_mode.IntValue == BOMB_UPGRADE_MANUAL)
 		{
 			if (CanStartOrResumeAction(client, ROBOT_ACTION_UPGRADE_BOMB) && MvMRobotPlayer(client).BombUpgradeTimer_IsElapsed() && TF2_HasTheFlag(client))
 			{
@@ -2901,7 +2901,7 @@ public Action CommandListener_Taunt(int client, const char[] command, int argc)
 			}
 		}
 		
-		if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL)
+		if (bwree_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL)
 		{
 			//Every taunting we do is delayed
 			DoBotTauntAction(client);
@@ -2916,7 +2916,7 @@ public Action CommandListener_Dropitem(int client, const char[] command, int arg
 {
 	if (IsPlayingAsRobot(client))
 	{
-		switch (bwr3_allow_drop_item.IntValue)
+		switch (bwree_allow_drop_item.IntValue)
 		{
 			case DROPITEM_DISABLED:
 			{
@@ -2951,7 +2951,7 @@ public Action CommandListener_Buyback(int client, const char[] command, int argc
 {
 	if (IsPlayingAsRobot(client))
 	{
-		if (!bwr3_allow_buyback.BoolValue)
+		if (!bwree_allow_buyback.BoolValue)
 			return Plugin_Handled;
 	}
 	
@@ -3065,7 +3065,7 @@ static Action Timer_Taunt(Handle timer, int data)
 	if (!IsClientInGame(data) || !IsPlayingAsRobot(data) || !IsPlayerAlive(data))
 		return Plugin_Stop;
 	
-	if (bwr3_robot_taunt_mode.IntValue >= TAUNTING_MODE_BEHAVORIAL_ON_KILL)
+	if (bwree_robot_taunt_mode.IntValue >= TAUNTING_MODE_BEHAVORIAL_ON_KILL)
 		FreezePlayerInput(data, false);
 	
 	//NOTE: we use Taunt instead of HandleTauntCommand to prevent us from accidentally doing partner taunts
@@ -3603,7 +3603,7 @@ bool HandleAutoTeam(int client)
 	if (GetTeamClientCount(view_as<int>(TFTeam_Red)) < tf_mvm_defenders_team_size.IntValue)
 		return false;
 	
-	if (GetRobotPlayerCount() >= bwr3_max_invaders.IntValue)
+	if (GetRobotPlayerCount() >= bwree_max_invaders.IntValue)
 		return false;
 	
 	float cooldown = GetBWRCooldownTimeLeft(client);
@@ -3613,7 +3613,7 @@ bool HandleAutoTeam(int client)
 	
 	if (GameRules_GetRoundState() == RoundState_RoundRunning)
 	{
-		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
+		MvMRobotPlayer(client).NextSpawnTime = GetGameTime() + GetRandomFloat(bwree_robot_spawn_time_min.FloatValue, bwree_robot_spawn_time_max.FloatValue);
 		
 #if defined OVERRIDE_PLAYER_RESPAWN_TIME
 #if defined CORRECT_VISIBLE_RESPAWN_TIME
@@ -3624,7 +3624,7 @@ bool HandleAutoTeam(int client)
 		
 		TF2Util_SetPlayerRespawnTimeOverride(client, MvMRobotPlayer(client).NextSpawnTime - GetGameTime() + 0.1);
 #else
-		TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
+		TF2Util_SetPlayerRespawnTimeOverride(client, bwree_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif //CORRECT_VISIBLE_RESPAWN_TIME
 #endif //OVERRIDE_PLAYER_RESPAWN_TIME
 	}
@@ -3985,7 +3985,7 @@ void CollectPlayerCurrentUniqueUbers(int client)
 //Returns the cooldown duration the player should get based on certain statistics
 float GetPlayerCalculatedCooldown(int client)
 {
-	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_DISABLED)
+	if (bwree_invader_cooldown_mode.IntValue == COOLDOWN_MODE_DISABLED)
 	{
 		return 0.0;
 	}
@@ -4010,7 +4010,7 @@ float GetPlayerCalculatedCooldown(int client)
 	float flRoundLength = GetGameTime() - g_flTimeRoundStarted;
 	float flBlueRoundTimeRatio = flBlueRoundTimePlayed / flRoundLength;
 	
-	if (bwr3_invader_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
+	if (bwree_invader_cooldown_mode.IntValue == COOLDOWN_MODE_BASIC)
 	{
 		if (iRoundState == RoundState_RoundRunning)
 			return 0.0;
@@ -4119,7 +4119,7 @@ void RobotPlayer_SpawnNow(int client)
 		return;
 	}
 	
-	if (bwr3_edit_wavebar.BoolValue)
+	if (bwree_edit_wavebar.BoolValue)
 	{
 		/* This is normally handled in CTFPlayer::Event_Killed when we die, but since we are changing robots now
 		we are going to respawn, so decrement the icon here manually if we haven't already died */
@@ -4136,7 +4136,7 @@ void RobotPlayer_SpawnNow(int client)
 
 void RobotPlayer_ChangeRobot(int client, bool bAdmin = false)
 {
-	if (!bwr3_robot_menu_allowed.BoolValue && !bAdmin)
+	if (!bwree_robot_menu_allowed.BoolValue && !bAdmin)
 	{
 		PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Robot_Menu_Not_Allowed");
 		return;
@@ -4573,7 +4573,7 @@ void DoBotTauntAction(int client)
 	CreateTimer(interval, Timer_Taunt, client, TIMER_FLAG_NO_MAPCHANGE);
 	SetNextBehaviorActionTime(client, interval + nb_update_frequency.FloatValue);
 	
-	if (bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL || bwr3_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_BOMB)
+	if (bwree_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_ALL || bwree_robot_taunt_mode.IntValue == TAUNTING_MODE_BEHAVORIAL_BOMB)
 		FreezePlayerInput(client, true);
 }
 

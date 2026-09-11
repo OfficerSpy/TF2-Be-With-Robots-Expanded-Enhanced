@@ -48,7 +48,7 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 			{
 				//CTFPlayer::ChangeTeam calls CBasePlayer::ChangeTeam before CTFPlayer::CommitSuicide
 				
-				if (bwr3_edit_wavebar.BoolValue)
+				if (bwree_edit_wavebar.BoolValue)
 				{
 					//We won't first die as a robot player so decrement the icon here
 					//Do this before our data is reset or else we forget what kind of robot it was
@@ -238,7 +238,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		roboPlayer.DestroySuicideBomber();
 	}
 	
-	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwr3_robot_spawn_time_min.FloatValue, bwr3_robot_spawn_time_max.FloatValue);
+	roboPlayer.NextSpawnTime = GetGameTime() + GetRandomFloat(bwree_robot_spawn_time_min.FloatValue, bwree_robot_spawn_time_max.FloatValue);
 	
 	if (roboPlayer.NextSpawnTime == GetGameTime())
 	{
@@ -253,7 +253,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 #if defined CORRECT_VISIBLE_RESPAWN_TIME
 	TF2Util_SetPlayerRespawnTimeOverride(client, roboPlayer.NextSpawnTime - GetGameTime() + 0.1);
 #else
-	TF2Util_SetPlayerRespawnTimeOverride(client, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
+	TF2Util_SetPlayerRespawnTimeOverride(client, bwree_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif //CORRECT_VISIBLE_RESPAWN_TIME
 #endif //OVERRIDE_PLAYER_RESPAWN_TIME
 	
@@ -267,7 +267,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	g_iRoundCapturablePoints = GetPotentiallyCapturablePointCount(TFTeam_Blue);
 	g_bCanBotsAttackInSpawn = CanBotsAttackWhileInSpawnRoom(g_iPopulationManager);
 	
-	if (bwr3_edit_wavebar.BoolValue)
+	if (bwree_edit_wavebar.BoolValue)
 		UpdateCurrentWaveUsedIcons();
 	
 	BWRCooldown_PurgeExpired();
@@ -279,7 +279,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	/* Since we control the spawning of robot players, they should never be allowed to respawn themselves
 	This should be set to a very high number so that the player can't spawn in whenever bot spawning gets disabled
 	Generally I'd like to think of this value as time it takes to cap (mannhattan 12) + current respawn wave time (usually 22) */
-	SetTeamRespawnWaveTime(TFTeam_Blue, bwr3_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
+	SetTeamRespawnWaveTime(TFTeam_Blue, bwree_robot_spawn_time_max.FloatValue + BWR_FAKE_SPAWN_DURATION_EXTRA);
 #endif
 	
 	for (int i = 1; i <= MaxClients; i++)
@@ -321,7 +321,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 	//Remove lingering projectiles that may exploit to hurt when the wave starts
 	RemoveAllRobotPlayerOwnedEntities();
 	
-	if (bwr3_edit_wavebar.BoolValue)
+	if (bwree_edit_wavebar.BoolValue)
 	{
 		if (IsValidEntity(g_iObjectiveResource))
 		{
@@ -452,7 +452,7 @@ static void Event_PlayerSpawn(Event event, const char[] name, bool dontBroadcast
 	{
 		if (IsPlayingAsRobot(client))
 		{
-			if (!bwr3_allow_movement.BoolValue)
+			if (!bwree_allow_movement.BoolValue)
 				SetPlayerToMove(client, false);
 			
 			//Robot players are ignored by sentries between rounds
