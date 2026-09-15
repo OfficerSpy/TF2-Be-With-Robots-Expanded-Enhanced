@@ -1263,6 +1263,12 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		SetEntProp(client, Prop_Data, "m_bPredictWeapons", 0);
 	}
 	
+	if (iClass == TFClass_Medic && !roboPlayer.HasAttribute(CTFBot_AGGRESSIVE) && Weapon_OwnsThisID(client, TF_WEAPON_MEDIGUN))
+	{
+		//Medics are able to know where their teammates always are, but only if they are intended healers
+		AddTeammateVision(client);
+	}
+	
 	ApplyTemplateFixes(client, iClass);
 	
 	PrintToChat(client, "%s %t", PLUGIN_PREFIX, "Player_Spawn_As_Robot", strName);

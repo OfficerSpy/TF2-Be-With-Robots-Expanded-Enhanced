@@ -103,7 +103,10 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		if (IsPlayingAsRobot(attacker))
 		{
 			if (attacker != client)
+			{
 				g_arrRobotPlayerStats[attacker].iKills++;
+				g_arrRobotPlayerStats[attacker].IncreaseAggressionForKill(g_arrCooldownSystem.flAggroAddPerKill);
+			}
 		}
 	}
 	
@@ -831,7 +834,6 @@ static void Frame_CheckTFBotBehavior(int client)
 		//This is so we can determine if we should spawn our player onto it as well
 		
 		//Temporarily "pause" the ai to give players time to decide if they want to replace this one
-		//TODO: bot can't move but can still pick up flag if it somehow touches it which could disrupt the flow of gameplay
 		VS_SetMission(client, CTFBot_NO_MISSION, true);
 		SetEntityMoveType(client, MOVETYPE_NONE);
 		

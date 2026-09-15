@@ -159,6 +159,7 @@ enum struct esPlayerStats
 	int iHealing;
 	int iPointCaptures;
 	int iPlayersUbered;
+	float flAggression;
 	float flRiskFactor;
 	int iSuccessiveRoundsPlayed;
 	
@@ -171,12 +172,23 @@ enum struct esPlayerStats
 		this.iHealing = 0;
 		this.iPointCaptures = 0;
 		this.iPlayersUbered = 0;
+		this.flAggression = 0.0;
 		this.flRiskFactor = 0.0;
 		
 		if (bFullReset)
 		{
 			this.iSuccessiveRoundsPlayed = 0;
 		}
+	}
+	
+	float GetKillDeathRatio()
+	{
+		return float(this.iKills) / float(this.iDeaths);
+	}
+	
+	void IncreaseAggressionForKill(float aggro)
+	{
+		this.flAggression += aggro * MaxFloat(1.0, this.GetKillDeathRatio());
 	}
 	
 	void IncreaseRiskFactor()
@@ -263,6 +275,9 @@ enum struct esMapSettings
 enum struct esCSProperties
 {
 	float flBaseDuration;
+	float flAggroForSec;
+	float flAggroForSecMult;
+	float flAggroAddPerKill;
 	float flFastCapWatchMaxSeconds;
 	float flFastCapMaxMinutes;
 	float flKDSecMultiplicand;
@@ -279,6 +294,9 @@ enum struct esCSProperties
 	void ResetToDefault()
 	{
 		this.flBaseDuration = 30.0;
+		this.flAggroForSec = 1.0;
+		this.flAggroForSecMult = 1.0;
+		this.flAggroAddPerKill = 4.0;
 		this.flFastCapWatchMaxSeconds = 120.0;
 		this.flFastCapMaxMinutes = 10.0;
 		this.flKDSecMultiplicand = 60.0;
@@ -1103,7 +1121,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.5.1.1",
+	version = "1.5.2",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1116,7 +1134,7 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 	LoadTranslations("bwree.phrases");
 	
-	bwree_robot_spawn_time_min = CreateConVar("sm_bwree_robot_spawn_time_min", "12", _, FCVAR_NOTIFY);
+	bwree_robot_spawn_time_min = CreateConVar("sm_bwree_robot_spawn_time_min", "9", _, FCVAR_NOTIFY);
 	bwree_robot_spawn_time_max = CreateConVar("sm_bwree_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
 	bwree_robot_taunt_mode = CreateConVar("sm_bwree_robot_taunt_mode", "0", _, FCVAR_NOTIFY);
 	bwree_bomb_upgrade_mode = CreateConVar("sm_bwree_bomb_upgrade_mode", "2", _, FCVAR_NOTIFY);
@@ -1142,7 +1160,7 @@ public void OnPluginStart()
 	bwree_robot_boss_template_file = CreateConVar("sm_bwree_robot_boss_template_file", "robot_boss.cfg", _, FCVAR_NOTIFY);
 	bwree_robot_giant_chance = CreateConVar("sm_bwree_robot_giant_chance", "10", _, FCVAR_NOTIFY);
 	bwree_robot_gatebot_chance = CreateConVar("sm_bwree_robot_gatebot_chance", "25", _, FCVAR_NOTIFY);
-	bwree_robot_own_loadout_chance = CreateConVar("sm_bwree_robot_own_loadout_chance", "25", _, FCVAR_NOTIFY);
+	bwree_robot_own_loadout_chance = CreateConVar("sm_bwree_robot_own_loadout_chance", "20", _, FCVAR_NOTIFY);
 	bwree_robot_menu_allowed = CreateConVar("sm_bwree_robot_menu_allowed", "0", _, FCVAR_NOTIFY);
 	bwree_robot_menu_cooldown = CreateConVar("sm_bwree_robot_menu_cooldown", "30.0", _, FCVAR_NOTIFY);
 	bwree_robot_menu_giant_cooldown = CreateConVar("sm_bwree_robot_menu_giant_cooldown", "60.0", _, FCVAR_NOTIFY);
@@ -3078,6 +3096,13 @@ public void CaptureFlag_OnPickup(const char[] output, int caller, int activator,
 {
 	int owner = BaseEntity_GetOwnerEntity(activator);
 	
+	if (g_arrBusterControl[owner].IsControllable())
+	{
+		//In case the bot thought it should have picked up the flag between updates, return it back to spawn
+		AcceptEntityInput(activator, "ForceReset");
+		return;
+	}
+	
 	if (!IsPlayingAsRobot(owner))
 		return;
 	
@@ -3091,6 +3116,12 @@ public void CaptureFlag_OnPickup(const char[] output, int caller, int activator,
 	
 	//Copy the tags from the flag onto the player
 	InheritFlagTags(owner, activator);
+	
+	if (TF2_GetPlayerClass(owner) == TFClass_Medic)
+	{
+		//Picking up the flag forfeits healing behavior
+		RemoveTeammateVision(owner);
+	}
 }
 
 public void Frame_CaptureFlagOnPickup(int data)
@@ -3197,7 +3228,7 @@ public Action Actor_OnTakeDamage(int victim, int &attacker, int &inflictor, floa
 
 public Action Actor_SetTransmit(int entity, int client)
 {
-	if (IsPlayingAsRobot(client))
+	if (IsPlayingAsRobot(client) && IsPlayerAlive(client))
 	{
 #if defined MOD_BUY_A_ROBOT_3
 		if (IsLeftForInvasionMode())
@@ -3232,6 +3263,10 @@ public Action CaptureFlag_Touch(int entity, int other)
 {
 	if (!BaseEntity_IsPlayer(other))
 		return Plugin_Continue;
+	
+	//Don't let our stalled busters be able to pick up the bomb
+	if (g_arrBusterControl[other].IsControllable())
+		return Plugin_Handled;
 	
 	if (!IsPlayingAsRobot(other))
 		return Plugin_Continue;
@@ -4889,6 +4924,16 @@ void RemoveAllRobotPlayerObjects(const char[] objectType = "obj_*")
 	}
 }
 #endif
+
+void AddTeammateVision(int client)
+{
+	TF2_AddCondition(client, TFCond_SpawnOutline);
+}
+
+void RemoveTeammateVision(int client)
+{
+	TF2_RemoveCondition(client, TFCond_SpawnOutline);
+}
 
 int GetRandomRobotPlayer(int excludePlayer = -1)
 {
