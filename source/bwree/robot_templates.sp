@@ -1010,7 +1010,7 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 		//NOTE: this part wouldn't actually change anything visibly due to how the client's game is coded
 		player.m_nSkin = 4;
 		
-		char itemName[64]; Format(itemName, sizeof(itemName), "Zombie %s", g_sClassNamesShort[nClassIndex]);
+		char itemName[18]; FormatEx(itemName, sizeof(itemName), "Zombie %s", g_sClassNamesShort[nClassIndex]);
 		
 		AddItemToPlayer(client, itemName);
 	}

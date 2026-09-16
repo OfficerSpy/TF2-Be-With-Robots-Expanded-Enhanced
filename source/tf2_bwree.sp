@@ -147,7 +147,8 @@ enum
 enum
 {
 	PREFERENCE_NONE = 0,
-	PREFERENCE_ROBOT_VIEWMODELS = (1 << 0)
+	PREFERENCE_ROBOT_VIEWMODELS = (1 << 0),
+	PREFERENCE_ANNOTATIONS = (1 << 1)
 }
 
 enum struct esPlayerStats
@@ -183,12 +184,23 @@ enum struct esPlayerStats
 	
 	float GetKillDeathRatio()
 	{
+		if (this.iDeaths < 1)
+			return float(this.iKills);
+		
 		return float(this.iKills) / float(this.iDeaths);
 	}
 	
 	void IncreaseAggressionForKill(float aggro)
 	{
 		this.flAggression += aggro * MaxFloat(1.0, this.GetKillDeathRatio());
+	}
+	
+	void AggressionDecreasing()
+	{
+		if (this.flAggression == 0.0)
+			return;
+		
+		this.flAggression = MaxFloat(0.0, this.flAggression - GetTickInterval());
 	}
 	
 	void IncreaseRiskFactor()
@@ -295,7 +307,7 @@ enum struct esCSProperties
 	{
 		this.flBaseDuration = 30.0;
 		this.flAggroForSec = 1.0;
-		this.flAggroForSecMult = 1.0;
+		this.flAggroForSecMult = 2.0;
 		this.flAggroAddPerKill = 4.0;
 		this.flFastCapWatchMaxSeconds = 120.0;
 		this.flFastCapMaxMinutes = 10.0;
@@ -1601,6 +1613,9 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		return Plugin_Continue;
 	}
 	
+	//Not with risk factor, intentionally only goes down while we're alive
+	g_arrRobotPlayerStats[client].AggressionDecreasing();
+	
 	//We have spawned in as one of the robots, so we are currently not allowed to respawn ourselves
 	g_bAllowRespawn[client] = false;
 	
@@ -2765,6 +2780,7 @@ public Action Command_DebugPlayerStats(int client, int args)
 		ReplyToCommand(client, "HEALING: %d", g_arrRobotPlayerStats[target_list[i]].iHealing);
 		ReplyToCommand(client, "POINT CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iPointCaptures);
 		ReplyToCommand(client, "TOTAL PLAYERS UBERED: %d", g_arrRobotPlayerStats[target_list[i]].iPlayersUbered);
+		ReplyToCommand(client, "AGGRESSION: %f", g_arrRobotPlayerStats[target_list[i]].flAggression);
 		ReplyToCommand(client, "BOSS RISK FACTOR: %f", g_arrRobotPlayerStats[target_list[i]].flRiskFactor);
 		ReplyToCommand(client, "ROUNDS PLAYED IN A ROW: %d", g_arrRobotPlayerStats[target_list[i]].iSuccessiveRoundsPlayed);
 	}
@@ -3921,7 +3937,12 @@ bool SetBWRCooldownTimeLeft(int client, float duration, int user = -1)
 	if (user != -1)
 		LogAction(user, client, "%L set a cooldown of %f seconds on %L.", user, duration, client);
 	else
+	{
 		LogAction(-1, client, "Applied a cooldown of %f seconds on %L.", duration, client);
+		
+		//TEMPORARY? We want to monitor how they're doing for now...
+		LogAction(-1, client, "Player Aggression (%N): %f", client, g_arrRobotPlayerStats[client].flAggression);
+	}
 	
 	if (duration <= 0.0)
 		return m_adtBWRCooldown.Remove(steamID);
@@ -3953,6 +3974,10 @@ void BWRCooldown_PurgeExpired()
 bool ShouldUseCustomViewmodels(int client)
 {
 	if (g_arrSettings.iCustomViewmodel < 1)
+		return false;
+	
+	//We're not robots in halloween missions
+	if (GetPopFileEventType(g_iPopulationManager) == MVM_EVENT_POPFILE_HALLOWEEN)
 		return false;
 	
 	return PlayerHasPreference(client, PREFERENCE_ROBOT_VIEWMODELS);
@@ -4112,6 +4137,9 @@ float GetPlayerCalculatedCooldown(int client)
 		//Additonal time for deploying the bomb while invulnerable
 		flTotalDuration += g_arrCooldownSystem.flInvulnDeploySec;
 	}
+	
+	//Aggression check
+	flTotalDuration += (g_arrRobotPlayerStats[client].flAggression / g_arrCooldownSystem.flAggroForSec) * g_arrCooldownSystem.flAggroForSecMult;
 	
 	flTotalDuration += g_arrRobotPlayerStats[client].iSuccessiveRoundsPlayed * g_arrCooldownSystem.flSecPerSuccessiveRoundPlayed;
 	
