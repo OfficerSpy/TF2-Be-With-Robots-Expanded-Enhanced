@@ -1798,18 +1798,6 @@ stock bool IsLeftForInvasionMode()
 	return isEnabled;
 }
 
-stock void ShowAnnotationToClient(int client, char[] message, int target, float duration, char[] sound = "")
-{
-	Event event = CreateEvent("show_annotation");
-	event.SetInt("id", target);
-	event.SetInt("follow_entindex", target);
-	event.SetFloat("lifetime", duration);
-	event.SetString("text", message);
-	event.SetString("play_sound", sound);
-	event.FireToClient(client);
-	event.Cancel();
-}
-
 //This seems heavily based on PlayerLocomotion::Approach
 stock void MovePlayerTowardsGoal(int client, const float vGoal[3], float vVel[3])
 {
@@ -1900,4 +1888,37 @@ stock void SendBuildCommand(int client, TFObjectType type, TFObjectMode mode = T
 stock bool IsPlayerReady(int client)
 {
 	return GameRules_GetProp("m_bPlayerReady", 1, client);
+}
+
+stock void ShowAnnotationToClient(int client, int id, const char[] text, int target = 0, const float worldPos[3] = NULL_VECTOR, float lifeTime = 10.0, const char[] sound = "ui/hint.wav", bool showDistance = true, bool showEffect = true)
+{
+	Event hEvent = CreateEvent("show_annotation");
+	
+	if (hEvent)
+	{
+		hEvent.SetString("text", text);
+		hEvent.SetInt("id", id);
+		hEvent.SetFloat("worldPosX", worldPos[0]);
+		hEvent.SetFloat("worldPosY", worldPos[1]);
+		hEvent.SetFloat("worldPosZ", worldPos[2]);
+		hEvent.SetInt("follow_entindex", target);
+		hEvent.SetFloat("lifetime", lifeTime);
+		hEvent.SetString("play_sound", sound);
+		hEvent.SetBool("show_distance", showDistance);
+		hEvent.SetBool("show_effect", showEffect);
+		hEvent.FireToClient(client);
+		hEvent.Cancel();
+	}
+}
+
+stock void HideAnnotationForClient(int client, int id)
+{
+	Event hEvent = CreateEvent("hide_annotation");
+	
+	if (hEvent)
+	{
+		hEvent.SetInt("id", id);
+		hEvent.FireToClient(client);
+		hEvent.Cancel();
+	}
 }

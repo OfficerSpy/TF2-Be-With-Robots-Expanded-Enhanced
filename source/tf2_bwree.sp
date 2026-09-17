@@ -1911,14 +1911,14 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	if (m_bIsWaitingForReload[client])
 	{
 		SetHudTextParams(-1.0, -0.55, 0.25, 0, 255, 0, 255, 0, 0.0, 0.0, 0.0);
-		ShowSyncHudText(client, g_hHudText, "%t", "Hud_Reloading_Barrage");
+		ShowSyncHudText(client, g_hHudText, "%t", "HUD_Reloading_Barrage");
 	}
 	else if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 	{
 		if (!MvMSuicideBomber(client).DetonateTimer_HasStarted())
 		{
 			SetHudTextParams(-1.0, -1.0, 0.1, 255, 0, 0, 0, 0, 0.0, 0.0, 0.0);
-			ShowSyncHudText(client, g_hHudText, "%t", "Hud_Instruct_SentryBuster_Detonate");
+			ShowSyncHudText(client, g_hHudText, "%t", "HUD_Instruct_SentryBuster_Detonate");
 		}
 	}
 	
@@ -4754,8 +4754,8 @@ bool CanStartOrResumeAction(int client, eRobotAction type)
 		return false;
 	
 	//Being dead cancels out everything!
-	// if (!IsPlayerAlive(client))
-		// return false;
+	if (!IsPlayerAlive(client))
+		return false;
 	
 	switch (type)
 	{
@@ -5225,6 +5225,14 @@ void MainConfig_UpdateSettings()
 		
 		if (kv.JumpToKey("DynamicPerformanceMode"))
 		{
+			if (kv.JumpToKey("Aggression"))
+			{
+				g_arrCooldownSystem.flAggroAddPerKill = kv.GetFloat("aggro_add_per_kill", g_arrCooldownSystem.flAggroAddPerKill);
+				g_arrCooldownSystem.flAggroForSec = kv.GetFloat("aggro_for_one_second", g_arrCooldownSystem.flAggroForSec);
+				g_arrCooldownSystem.flAggroForSecMult = kv.GetFloat("aggro_for_one_second_multiplier", g_arrCooldownSystem.flAggroForSecMult);
+				kv.GoBack();
+			}
+			
 			if (kv.JumpToKey("BombCaptureRush"))
 			{
 				g_arrCooldownSystem.flFastCapWatchMaxSeconds = kv.GetFloat("watch_max_seconds", g_arrCooldownSystem.flFastCapWatchMaxSeconds);

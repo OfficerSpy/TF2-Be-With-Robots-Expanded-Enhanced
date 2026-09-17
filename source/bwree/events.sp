@@ -104,8 +104,8 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 		{
 			if (attacker != client)
 			{
-				g_arrRobotPlayerStats[attacker].iKills++;
 				g_arrRobotPlayerStats[attacker].IncreaseAggressionForKill(g_arrCooldownSystem.flAggroAddPerKill);
+				g_arrRobotPlayerStats[attacker].iKills++;
 			}
 		}
 	}
@@ -232,6 +232,8 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	
 	if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
 	{
+		//NOTE: m_bHasDetonated should be here, but we don't really care about it right now?
+		
 		if (!roboPlayer.DetonateTimer_HasStarted())
 		{
 			//Would normally call StartDetonate here but it's pointless

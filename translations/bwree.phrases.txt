@@ -48,6 +48,111 @@
 		"#format"	"{1:s}"
 		"en"	"You will next spawn as {1}. Type !viewnextrobot for more information."
 	}
+	"Spy_Teleport_Victm_Not_Found"
+	{
+		"en"	"Your victim could not be found."
+	}
+	"Spy_Teleport_Victm_Not_Found_Retry"
+	{
+		"en"	"Your victim could not be found. Try again."
+	}
+	"Spy_Teleport_Custom_Failed"
+	{
+		"en"	"Desired victim could not be teleported to. Falling to backup plan!"
+	}
+	"Player_Backstabbed"
+	{
+		"en"	"!!!!!! YOU WERE BACKSTABBED !!!!!"
+	}
+	"Player_Robot_Denied_Cooldown"
+	{
+		"#format"	"{1:.1f}"
+		"en"	"You cannot join Blue for {1} second(s)."
+	}
+	"Robot_Class_No_Templates"
+	{
+		"en"	"There are no templates for this type with this class."
+	}
+	"Player_Robot_Cannot_Spawn_Now"
+	{
+		"en"	"You cannot spawn at this time."
+	}
+	"Player_Change_Robot_Denied_Cooldown"
+	{
+		"#format"	"{1:.1f}"
+		"en"	"You cannot choose your next robot for {1} second(s)."
+	}
+	"Player_Change_Robot_Denied_Chosen"
+	{
+		"en"	"You have already chosen your next robot."
+	}
+	"Player_Spawned_As_Boss_Robot"
+	{
+		"#format"	"{1:s},{2:s},{3:d}"
+		"en"	"{1} spawned as boss robot {2} with {3} health."
+	}
+	"Player_Robot_Cannot_Spawn_Now_RespawnRoom"
+	{
+		"en"	"You cannot do this outside of the spawn area."
+	}
+	"Player_Change_Robot_Denied_RespawnRoom"
+	{
+		"en"	"You cannot change robots outside of the spawn area."
+	}
+	"Player_Change_Robot_Denied_GameOver"
+	{
+		"en"	"You cannot change robots at this time."
+	}
+	"Player_Deployed_Bomb"
+	{
+		"#format"	"{1:s},{2:d},{3:d}"
+		"en"	"{1} deployed the bomb with {2}/{3} health left."
+	}
+	"Player_Idle_Flag_SpawnRoom"
+	{
+		"#format"	"{1:s}"
+		"en"	"{1} is stalling the game."
+	}
+	"FindNewSpawn_Denied_OutsideSpawn"
+	{
+		"en"	"You are outside the spawn room."
+	}
+	"FindNewSpawn_Denied_RoundState"
+	{
+		"en"	"You cannot use this as this time."
+	}
+	"FindNewSpawn_Failed_Search"
+	{
+		"en"	"Failed to find you a new spawnpoint!"
+	}
+	"Spy_Teleport_Failed_MaxTries"
+	{
+		"#format"	"{1:d}"
+		"en"	"Failed to teleport to a victim after {1} tries!"
+	}
+	"ReplaceBuster_Search_Failed"
+	{
+		"en"	"There is no Sentry Buster available."
+	}
+	"ReplaceBuster_Already_Playing"
+	{
+		"en"	"You are already playing as a Sentry Buster."
+	}
+	"Advertise_SentryBuster_Command"
+	{
+		"#format"	"{1:s}"
+		"en"	"Type {1} to play as a Sentry Buster."
+	}
+	"Robot_Name_Own_Loadout"
+	{
+		"#format"	"{1:s}"
+		"en"	"Your Own Loadout ({1})"
+	}
+	"Changed_Heal_Target"
+	{
+		"#format"	"{1:s}"
+		"en"	"You changed your healing target to {1}."
+	}
 	"Menu_ViewNextRobot"
 	{
 		"#format"	"{1:s}"
@@ -118,117 +223,36 @@
 		"#format"	"{1:t}"
 		"en"	"Custom Viewmodels: {1}"
 	}
-	"Spy_Teleport_Victm_Not_Found"
-	{
-		"en"	"Your victim could not be found."
-	}
-	"Spy_Teleport_Victm_Not_Found_Retry"
-	{
-		"en"	"Your victim could not be found. Try again."
-	}
-	"Spy_Teleport_Custom_Failed"
-	{
-		"en"	"Desired victim could not be teleported to. Falling to backup plan!"
-	}
-	"Player_Backstabbed"
-	{
-		"en"	"!!!!!! YOU WERE BACKSTABBED !!!!!"
-	}
-	"Player_Robot_Denied_Cooldown"
-	{
-		"#format"	"{1:.1f}"
-		"en"	"You cannot join Blue for {1} second(s)."
-	}
-	"Robot_Class_No_Templates"
-	{
-		"en"	"There are no templates for this type with this class."
-	}
-	"Player_Robot_Cannot_Spawn_Now"
-	{
-		"en"	"You cannot spawn at this time."
-	}
-	"Player_Change_Robot_Denied_Cooldown"
-	{
-		"#format"	"{1:.1f}"
-		"en"	"You cannot choose your next robot for {1} second(s)."
-	}
-	"Player_Change_Robot_Denied_Chosen"
-	{
-		"en"	"You have already chosen your next robot."
-	}
-	"Player_Spawned_As_Boss_Robot"
-	{
-		"#format"	"{1:s},{2:s},{3:d}"
-		"en"	"{1} spawned as boss robot {2} with {3} health."
-	}
-	"Player_Robot_Cannot_Spawn_Now_RespawnRoom"
-	{
-		"en"	"You cannot do this outside of the spawn area."
-	}
-	"Player_Change_Robot_Denied_RespawnRoom"
-	{
-		"en"	"You cannot change robots outside of the spawn area."
-	}
-	"Player_Change_Robot_Denied_GameOver"
-	{
-		"en"	"You cannot change robots at this time."
-	}
-	"Player_Deployed_Bomb"
-	{
-		"#format"	"{1:s},{2:d},{3:d}"
-		"en"	"{1} deployed the bomb with {2}/{3} health left."
-	}
-	"Player_Idle_Flag_SpawnRoom"
-	{
-		"#format"	"{1:s}"
-		"en"	"{1} is stalling the game."
-	}
-	"Hud_Reloading_Barrage"
+	"HUD_Reloading_Barrage"
 	{
 		"en"	"RELOADING BARRAGE"
 	}
-	"Hud_Instruct_SentryBuster_Detonate"
+	"HUD_Instruct_SentryBuster_Detonate"
 	{
 		"en"	"Use VoiceCommand \"MEDIC!\" to detonate"
 	}
-	"FindNewSpawn_Denied_OutsideSpawn"
+	"Annotation_Deploy_Bomb"
 	{
-		"en"	"You are outside the spawn room."
+		"en"	"Deploy the bomb here."
 	}
-	"FindNewSpawn_Denied_RoundState"
+	"Annotation_Capture_ControlPoint"
 	{
-		"en"	"You cannot use this as this time."
+		"en"	"Capture the point."
 	}
-	"FindNewSpawn_Failed_Search"
+	"Annotation_Target_Sentry"
 	{
-		"en"	"Failed to find you a new spawnpoint!"
+		"en"	"Target the sentry."
 	}
-	"Spy_Teleport_Failed_MaxTries"
+	"Annotation_Enemy_Spy"
 	{
-		"#format"	"{1:d}"
-		"en"	"Failed to teleport to a victim after {1} tries!"
+		"en"	"Enemy Spy!"
 	}
-	"ReplaceBuster_Search_Failed"
+	"Annotation_Fetch_Flag"
 	{
-		"en"	"There is no Sentry Buster available."
+		"en"	"Pick up the fag."
 	}
-	"ReplaceBuster_Already_Playing"
+	"Annotation_Escort_Flag_Carrier"
 	{
-		"en"	"You are already playing as a Sentry Buster."
-	}
-	"Advertise_SentryBuster_Command"
-	{
-		"#format"	"{1:s}"
-		"en"	"Type {1} to play as a Sentry Buster."
-	}
-	"Robot_Name_Own_Loadout"
-	{
-		"#format"	"{1:s}"
-		"en"	"Your Own Loadout ({1})"
-	}
-	"Changed_Heal_Target"
-	{
-		"#format"	"{1:s}"
-		"en"	"You changed your healing target to {1}."
+		"en"	"Escort ther flag carrier."
 	}
 }

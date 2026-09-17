@@ -189,7 +189,7 @@ float g_vecMapEngineerHintOrigin[MAX_ENGINEER_NEST_HINT_LOCATIONS][3];
 
 float g_vecLastKnownVictimPosition[MAXPLAYERS + 1][3]; //Global, but only used for sentry buster related things
 static Handle m_hDetonateTimer[MAXPLAYERS + 1];
-static bool m_bHasDetonated[MAXPLAYERS + 1];
+// static bool m_bHasDetonated[MAXPLAYERS + 1];
 static bool m_bWasSuccessful[MAXPLAYERS + 1];
 static bool m_bWasKilled[MAXPLAYERS + 1];
 
@@ -200,12 +200,17 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		return view_as<MvMSuicideBomber>(index);
 	}
 	
+	/* property bool m_bHasDetonated
+	{
+		public get()	{ return m_bHasDetonated[this.index]; }
+	} */
+	
 	public void InitializeSuicideBomber(int victim)
 	{
 		//Initialize
 		g_vecLastKnownVictimPosition[this.index] = NULL_VECTOR;
 		
-		m_bHasDetonated[this.index] = false;
+		// m_bHasDetonated[this.index] = false;
 		m_bWasSuccessful[this.index] = false;
 		m_bWasKilled[this.index] = false;
 		
@@ -271,7 +276,7 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 	
 	public void Detonate()
 	{
-		m_bHasDetonated[this.index] = true;
+		// m_bHasDetonated[this.index] = true;
 		
 		//Use vscript to emit the particles
 		OSLib_RunScriptCode(this.index, _, _, "DispatchParticleEffect(\"explosionTrail_seeds_mvm\",self.GetOrigin(),self.GetAngles());DispatchParticleEffect(\"fluidSmokeExpl_ring_mvm\",self.GetOrigin(),self.GetAngles())");
