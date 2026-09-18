@@ -207,7 +207,7 @@ enum struct esPlayerStats
 	
 	void IncreaseAggressionForDamage(float aggro)
 	{
-		this.flAggression += aggro * MaxFloat(1.0, this.GetKillDeathRatio());
+		this.flAggression += aggro * MaxFloat(0.1, this.GetKillDeathRatio());
 	}
 	
 	void AggressionDecreasing()
