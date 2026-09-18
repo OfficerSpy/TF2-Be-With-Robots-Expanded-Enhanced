@@ -77,6 +77,14 @@ enum eRobotAction
 
 enum
 {
+	DEBUG_MODE_NONE = 0,
+	DEBUG_MODE_PATHFINDING,
+	DEBUG_MODE_STATS_STATIC,
+	DEBUG_MODE_STATS_TICKING
+}
+
+enum
+{
 	TAUNTING_MODE_NONE = 0,
 	TAUNTING_MODE_BEHAVORIAL_ON_KILL,
 	TAUNTING_MODE_BEHAVORIAL_BOMB,
@@ -151,6 +159,8 @@ enum
 	PREFERENCE_ANNOTATIONS = (1 << 1)
 }
 
+Handle g_hHudDebugText;
+
 enum struct esPlayerStats
 {
 	int iKills;
@@ -192,6 +202,11 @@ enum struct esPlayerStats
 	
 	void IncreaseAggressionForKill(float aggro)
 	{
+		this.flAggression += aggro + (this.flAggression * (this.iDamage / 10000.0));
+	}
+	
+	void IncreaseAggressionForDamage(float aggro)
+	{
 		this.flAggression += aggro * MaxFloat(1.0, this.GetKillDeathRatio());
 	}
 	
@@ -218,6 +233,12 @@ enum struct esPlayerStats
 		
 		if (this.flRiskFactor < 0.0)
 			this.flRiskFactor = 0.0;
+	}
+	
+	void ShowTickingStats(int client)
+	{
+		SetHudTextParams(0.05, 0.05, 1.1, 255, 255, 200, 255, 0, 0.0, 0.0, 0.0);
+		ShowSyncHudText(client, g_hHudDebugText, "RISK FACTOR: %.2f\nAGGRESSION: %.2f", this.flRiskFactor, this.flAggression);
 	}
 }
 
@@ -307,8 +328,8 @@ enum struct esCSProperties
 	{
 		this.flBaseDuration = 30.0;
 		this.flAggroForSec = 1.0;
-		this.flAggroForSecMult = 2.0;
-		this.flAggroAddPerKill = 4.0;
+		this.flAggroForSecMult = 1.2;
+		this.flAggroAddPerKill = 10.0;
 		this.flFastCapWatchMaxSeconds = 120.0;
 		this.flFastCapMaxMinutes = 10.0;
 		this.flKDSecMultiplicand = 60.0;
@@ -538,6 +559,7 @@ static ArrayList m_adtKnownSpy[MAXPLAYERS + 1];
 static ArrayList m_adtSuspectedSpyInfo[MAXPLAYERS + 1];
 #endif
 
+ConVar bwree_debug_mode;
 ConVar bwree_robot_spawn_time_min;
 ConVar bwree_robot_spawn_time_max;
 ConVar bwree_robot_taunt_mode;
@@ -1146,6 +1168,7 @@ public void OnPluginStart()
 	LoadTranslations("common.phrases");
 	LoadTranslations("bwree.phrases");
 	
+	bwree_debug_mode = CreateConVar("sm_bwree_debug_mode", "0", _, FCVAR_HIDDEN);
 	bwree_robot_spawn_time_min = CreateConVar("sm_bwree_robot_spawn_time_min", "9", _, FCVAR_NOTIFY);
 	bwree_robot_spawn_time_max = CreateConVar("sm_bwree_robot_spawn_time_max", "12", _, FCVAR_NOTIFY);
 	bwree_robot_taunt_mode = CreateConVar("sm_bwree_robot_taunt_mode", "0", _, FCVAR_NOTIFY);
@@ -1180,6 +1203,7 @@ public void OnPluginStart()
 	bwree_spy_teleport_method = CreateConVar("sm_bwree_spy_teleport_method", "0", _, FCVAR_NOTIFY);
 	bwree_robot_teleporter_mode = CreateConVar("sm_bwree_robot_teleporter_mode", "1", _, FCVAR_NOTIFY);
 	
+	HookConVarChange(bwree_debug_mode, ConVarChanged_DebugMode);
 	HookConVarChange(bwree_allow_movement, ConVarChanged_AllowMovement);
 	HookConVarChange(bwree_allow_readystate, ConVarChanged_AllowReadystate);
 	HookConVarChange(bwree_player_change_name, ConVarChanged_PlayerChangeName);
@@ -1575,6 +1599,18 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		// player.AddCond(TFCond_ImmuneToPushback, 1.0);
 		
 		return Plugin_Continue;
+	}
+	
+	switch (bwree_debug_mode.IntValue)
+	{
+		case DEBUG_MODE_STATS_STATIC:
+		{
+			//TODO
+		}
+		case DEBUG_MODE_STATS_TICKING:
+		{
+			g_arrRobotPlayerStats[client].ShowTickingStats(client);
+		}
 	}
 	
 	g_arrRobotPlayerStats[client].RiskFactorDecreasing();
@@ -2268,6 +2304,18 @@ public void TF2_OnConditionRemoved(int client, TFCond condition)
 	{
 		//Stop the particle we may have added earlier in TF2_OnConditionAdded
 		// StopParticleEffects(client);
+	}
+}
+
+public void ConVarChanged_DebugMode(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+	if (StringToInt(newValue) > DEBUG_MODE_NONE)
+	{
+		g_hHudDebugText = CreateHudSynchronizer();
+	}
+	else
+	{
+		delete g_hHudDebugText;
 	}
 }
 

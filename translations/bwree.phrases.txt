@@ -223,6 +223,11 @@
 		"#format"	"{1:t}"
 		"en"	"Custom Viewmodels: {1}"
 	}
+	"Menu_Preference_Annotations"
+	{
+		"#format"	"{1:t}"
+		"en"	"Annotations: {1}"
+	}
 	"HUD_Reloading_Barrage"
 	{
 		"en"	"RELOADING BARRAGE"
@@ -230,6 +235,10 @@
 	"HUD_Instruct_SentryBuster_Detonate"
 	{
 		"en"	"Use VoiceCommand \"MEDIC!\" to detonate"
+	}
+	"HUD_Instruct_SentryBuster_Replacement"
+	{
+		"en"	"Use VoiceCommand \"MEDIC!\" to become a Sentry Buster"
 	}
 	"Annotation_Deploy_Bomb"
 	{
@@ -254,5 +263,13 @@
 	"Annotation_Escort_Flag_Carrier"
 	{
 		"en"	"Escort ther flag carrier."
+	}
+	"Annotation_Escort_Tank"
+	{
+		"en"	"Escort the tan."
+	}
+	"Annotation_Spy_Target"
+	{
+		"en"	"Targe this player."
 	}
 }

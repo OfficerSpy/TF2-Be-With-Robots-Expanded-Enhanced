@@ -25,6 +25,9 @@ void ShowModPreferenceMenu(int client, int itemPosition = 0)
 	FormatEx(sFormat, sizeof(sFormat), "%t", "Menu_Preference_CustomViewmodels", PlayerHasPreference(client, PREFERENCE_ROBOT_VIEWMODELS) ? "Yes" : "No");
 	hMenu.AddItem("0", sFormat);
 	
+	FormatEx(sFormat, sizeof(sFormat), "%t", "Menu_Preference_Annotations", PlayerHasPreference(client, PREFERENCE_ANNOTATIONS) ? "Yes" : "No");
+	hMenu.AddItem("1", sFormat);
+	
 	hMenu.DisplayAt(client, itemPosition, DISPLAY_MENU_DURATION);
 }
 
@@ -250,6 +253,7 @@ static void MenuHandler_Preference(Menu menu, MenuAction action, int param1, int
 			switch (param2)
 			{
 				case 0:	TogglePlayerPreference(param1, PREFERENCE_ROBOT_VIEWMODELS);
+				case 1:	TogglePlayerPreference(param1, PREFERENCE_ANNOTATIONS);
 			}
 			
 			ShowModPreferenceMenu(param1, GetMenuSelectionPosition());
