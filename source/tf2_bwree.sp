@@ -202,7 +202,7 @@ enum struct esPlayerStats
 	
 	void IncreaseAggressionForKill(float aggro)
 	{
-		this.flAggression += aggro + (this.flAggression * (this.iDamage / 10000.0));
+		this.flAggression += aggro;
 	}
 	
 	void IncreaseAggressionForDamage(float aggro)
@@ -311,10 +311,12 @@ enum struct esCSProperties
 	float flAggroForSec;
 	float flAggroForSecMult;
 	float flAggroAddPerKill;
+	float flAggroDamageScale;
 	float flFastCapWatchMaxSeconds;
 	float flFastCapMaxMinutes;
-	float flKDSecMultiplicand;
-	float flSecPerKillNoDeath;
+	float flKillingFullSeconds;
+	int iKillingQuotaKills;
+	float flKillingQuotaTime;
 	float flSecPerCapFlag;
 	int iDmgForSec;
 	float flDmgForSecMult;
@@ -328,12 +330,14 @@ enum struct esCSProperties
 	{
 		this.flBaseDuration = 30.0;
 		this.flAggroForSec = 1.0;
-		this.flAggroForSecMult = 1.2;
+		this.flAggroForSecMult = 1.0;
 		this.flAggroAddPerKill = 10.0;
+		this.flAggroDamageScale = 0.1;
 		this.flFastCapWatchMaxSeconds = 120.0;
 		this.flFastCapMaxMinutes = 10.0;
-		this.flKDSecMultiplicand = 60.0;
-		this.flSecPerKillNoDeath = 66.0;
+		this.flKillingFullSeconds = 600.0;
+		this.iKillingQuotaKills = 12;
+		this.flKillingQuotaTime = 60.0;
 		this.flSecPerCapFlag = 60.0;
 		this.iDmgForSec = 750;
 		this.flDmgForSecMult = 1.0;
@@ -342,6 +346,12 @@ enum struct esCSProperties
 		this.flCapturePointSec = 60.0;
 		this.flInvulnDeploySec = 60.0;
 		this.flSecPerSuccessiveRoundPlayed = 30.0;
+	}
+	
+	float CalculatedTimeForKilling(int iKills, float flRoundLength)
+	{
+		//Killing to build the scale based on how much we met the fraction
+		return this.flKillingFullSeconds * ((iKills / flRoundLength) / (this.iKillingQuotaKills / this.flKillingQuotaTime));
 	}
 }
 
@@ -1155,7 +1165,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.5.2",
+	version = "1.5.3",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -4151,17 +4161,7 @@ float GetPlayerCalculatedCooldown(int client)
 	
 	if (g_arrRobotPlayerStats[client].iKills > 0)
 	{
-		if (g_arrRobotPlayerStats[client].iDeaths > 0)
-		{
-			float ratioKD = float(g_arrRobotPlayerStats[client].iKills) / float(g_arrRobotPlayerStats[client].iDeaths);
-			
-			flTotalDuration += g_arrCooldownSystem.flKDSecMultiplicand * ratioKD;
-		}
-		else
-		{
-			//No deaths, add a minute for each kill obtained
-			flTotalDuration += g_arrCooldownSystem.flSecPerKillNoDeath * g_arrRobotPlayerStats[client].iKills;
-		}
+		flTotalDuration += g_arrCooldownSystem.CalculatedTimeForKilling(g_arrRobotPlayerStats[client].iKills, flRoundLength);
 	}
 	
 	if (g_arrRobotPlayerStats[client].iDamage > 0)
@@ -5288,8 +5288,9 @@ void MainConfig_UpdateSettings()
 				kv.GoBack();
 			}
 			
-			g_arrCooldownSystem.flKDSecMultiplicand = kv.GetFloat("kd_seconds_multiplicand", g_arrCooldownSystem.flKDSecMultiplicand);
-			g_arrCooldownSystem.flSecPerKillNoDeath = kv.GetFloat("seconds_per_kill_no_death", g_arrCooldownSystem.flSecPerKillNoDeath);
+			g_arrCooldownSystem.flKillingFullSeconds = kv.GetFloat("killing_full_seconds", g_arrCooldownSystem.flKillingFullSeconds);
+			g_arrCooldownSystem.iKillingQuotaKills = kv.GetNum("killing_quota_kills", g_arrCooldownSystem.iKillingQuotaKills);
+			g_arrCooldownSystem.flKillingQuotaTime = kv.GetFloat("killing_quota_time", g_arrCooldownSystem.flKillingQuotaTime);
 			g_arrCooldownSystem.flSecPerCapFlag = kv.GetFloat("seconds_per_capture_flag", g_arrCooldownSystem.flSecPerCapFlag);
 			g_arrCooldownSystem.iDmgForSec = kv.GetNum("damage_for_one_second", g_arrCooldownSystem.iDmgForSec);
 			g_arrCooldownSystem.flDmgForSecMult = kv.GetFloat("damage_for_one_second_multiplier", g_arrCooldownSystem.flDmgForSecMult);

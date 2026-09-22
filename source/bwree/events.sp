@@ -650,7 +650,7 @@ static void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 			if (TF2_GetClientTeam(client) == TFTeam_Red)
 			{
 				int damage = event.GetInt("damageamount");
-				g_arrRobotPlayerStats[attacker].IncreaseAggressionForDamage(damage * 1.0);
+				g_arrRobotPlayerStats[attacker].IncreaseAggressionForDamage(damage * g_arrCooldownSystem.flAggroDamageScale);
 				g_arrRobotPlayerStats[attacker].iDamage += damage;
 			}
 		}
