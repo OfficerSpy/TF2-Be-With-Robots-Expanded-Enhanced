@@ -535,6 +535,7 @@ static bool m_bBypassBotCheck[MAXPLAYERS + 1];
 static char m_sPlayerName[MAXPLAYERS + 1][MAX_NAME_LENGTH];
 static float m_flNextActionTime[MAXPLAYERS + 1];
 static float m_flNoAttackTime[MAXPLAYERS + 1];
+static float m_flInstructTime[MAXPLAYERS + 1];
 static bool m_bIsWaitingForReload[MAXPLAYERS + 1];
 // static eRobotTemplateType m_nRobotVariantType[MAXPLAYERS + 1];
 static eRobotTemplateType m_nNextRobotTemplateType[MAXPLAYERS + 1];
@@ -1386,6 +1387,7 @@ public void OnClientPutInServer(int client)
 	m_bBypassBotCheck[client] = false;
 	m_flNextActionTime[client] = 0.0;
 	m_flNoAttackTime[client] = -1.0;
+	m_flInstructTime[client] = 0.0;
 	m_bIsWaitingForReload[client] = false;
 	
 	MvMRobotPlayer(client).Reset();
@@ -2255,6 +2257,34 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						//They already can't attack, but this prevents them from aborting the reload
 						buttons &= ~IN_ATTACK;
 					}
+				}
+			}
+		}
+	}
+	
+	if (PlayerHasPreference(client, PREFERENCE_ANNOTATIONS))
+	{
+		if (m_flInstructTime[client] <= GetGameTime())
+		{
+			m_flInstructTime[client] = GetGameTime() + 30.0;
+			char sMessage[64];
+			
+			if (bHasTheFlag)
+			{
+				FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Deliver_Flag");
+				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, _, GetBombHatchPosition(), 10.0, "coach/coach_go_here.wav");
+			}
+			else
+			{
+				//TODO: the player should already know their flag here
+				//They should not be fetching a new random flag every time, even if it is picked up
+				//Bots are only assigned to one flag at the start of their behavior
+				int flag = GetFlagToFetch(client);
+				
+				if (flag != -1)
+				{
+					FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Fetch_Flag");
+					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, flag, _, 10.0, "coach/coach_go_here.wav");
 				}
 			}
 		}

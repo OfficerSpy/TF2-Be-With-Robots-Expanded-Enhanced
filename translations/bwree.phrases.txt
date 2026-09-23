@@ -240,7 +240,7 @@
 	{
 		"en"	"Use VoiceCommand \"MEDIC!\" to become a Sentry Buster"
 	}
-	"Annotation_Deploy_Bomb"
+	"Annotation_Deliver_Flag"
 	{
 		"en"	"Deploy the bomb here."
 	}
@@ -248,7 +248,7 @@
 	{
 		"en"	"Capture the point."
 	}
-	"Annotation_Target_Sentry"
+	"Annotation_Target_MissionTarget"
 	{
 		"en"	"Target the sentry."
 	}

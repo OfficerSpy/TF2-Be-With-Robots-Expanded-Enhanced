@@ -217,7 +217,26 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		this.SetMissionTarget(victim);
 		
 		if (victim != -1)
+		{
 			g_vecLastKnownVictimPosition[this.index] = GetAbsOrigin(victim);
+			
+			if (PlayerHasPreference(this.index, PREFERENCE_ANNOTATIONS))
+			{
+				OSBaseObject cboTarget = OSBaseObject(victim);
+				char sMessage[64];
+				
+				if (cboTarget.IsBaseObject() && cboTarget.IsCarried() && cboTarget.GetOwner() != -1)
+				{
+					FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Target_MissionTarget");
+					ShowAnnotationToClient(this.index, this.index + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.GetOwner(), _, 5.0, "coach/coach_attack_here.wav");
+				}
+				else
+				{
+					FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Target_MissionTarget");
+					ShowAnnotationToClient(this.index, this.index + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, victim, _, 5.0, "coach/coach_attack_here.wav");
+				}
+			}
+		}
 	}
 	
 	public void DestroySuicideBomber()
