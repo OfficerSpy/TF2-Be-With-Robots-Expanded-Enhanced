@@ -227,12 +227,12 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 				
 				if (cboTarget.IsBaseObject() && cboTarget.IsCarried() && cboTarget.GetOwner() != -1)
 				{
-					FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Target_MissionTarget");
+					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
 					ShowAnnotationToClient(this.index, this.index + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.GetOwner(), _, 5.0, "coach/coach_attack_here.wav");
 				}
 				else
 				{
-					FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Target_MissionTarget");
+					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
 					ShowAnnotationToClient(this.index, this.index + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, victim, _, 5.0, "coach/coach_attack_here.wav");
 				}
 			}
