@@ -2271,7 +2271,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			
 			if (bHasTheFlag)
 			{
-				FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Deliver_Flag");
+				FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Deliver_Flag");
 				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, _, GetBombHatchPosition(), 10.0, "coach/coach_go_here.wav");
 			}
 			else
@@ -2283,7 +2283,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				
 				if (flag != -1)
 				{
-					FormatEx(sMessage, sizeof(sMessage), "%T", "Annotation_Fetch_Flag");
+					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Fetch_Flag");
 					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, flag, _, 10.0, "coach/coach_go_here.wav");
 				}
 			}
