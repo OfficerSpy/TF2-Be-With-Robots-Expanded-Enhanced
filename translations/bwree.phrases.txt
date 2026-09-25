@@ -258,18 +258,18 @@
 	}
 	"Annotation_Fetch_Flag"
 	{
-		"en"	"Pick up the fag."
+		"en"	"Pick up the flag."
 	}
 	"Annotation_Escort_Flag_Carrier"
 	{
-		"en"	"Escort ther flag carrier."
+		"en"	"Escort the flag carrier."
 	}
 	"Annotation_Escort_Tank"
 	{
-		"en"	"Escort the tan."
+		"en"	"Escort the tank."
 	}
 	"Annotation_Spy_Target"
 	{
-		"en"	"Targe this player."
+		"en"	"Target this player."
 	}
 }

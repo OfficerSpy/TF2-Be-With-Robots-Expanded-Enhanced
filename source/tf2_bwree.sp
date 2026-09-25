@@ -489,6 +489,7 @@ static bool m_bLateLoad;
 
 int g_iMaxEdicts;
 Handle g_hHudText;
+char g_sCurrentMission[PLATFORM_MAX_PATH];
 float g_flTimeRoundStarted;
 int g_iRoundCapturablePoints;
 bool g_bCanBotsAttackInSpawn;
@@ -1331,9 +1332,11 @@ public void OnPluginStart()
 			}
 			
 			//Rehook all other entities
-			if (IsValidEntity(i) && GetEntityClassname(i, classname, sizeof(classname)))
+			if (IsValidEntity(i) && GetEdictClassname(i, classname, sizeof(classname)))
 				OnEntityCreated(i, classname);
 		}
+		
+		StoreCurrentMissionName();
 	}
 	
 	FindGameConsoleVariables();
@@ -1433,6 +1436,9 @@ public void OnConfigsExecuted()
 	// HookConVarChange(tf_mvm_miniboss_scale, ConVarChanged_MinibossScale);
 	
 	BaseServer_AddTag("bwree");
+	
+	//Not explicitly needed here, but the mod complains about file import failure before we actually load a population file
+	g_arrBossSystem.ResetTemplateFile();
 	
 	for (eRobotTemplateType i = ROBOT_STANDARD; i < ROBOT_TEMPLATE_TYPE_COUNT; i++)
 		UpdateRobotTemplateDataForType(i);
@@ -2274,6 +2280,10 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Deliver_Flag");
 				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, _, GetBombHatchPosition(), 10.0, "coach/coach_go_here.wav");
 			}
+			else if (roboPlayer.HasAttribute(CTFBot_AGGRESSIVE))
+			{
+				//TODO: show a point to capture
+			}
 			else
 			{
 				//TODO: the player should already know their flag here
@@ -2281,7 +2291,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				//Bots are only assigned to one flag at the start of their behavior
 				int flag = GetFlagToFetch(client);
 				
-				if (flag != -1)
+				if (flag != -1 && !CaptureFlag_IsHome(flag))
 				{
 					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Fetch_Flag");
 					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, flag, _, 10.0, "coach/coach_go_here.wav");
@@ -2735,6 +2745,12 @@ public Action Command_ListRobots(int client, int args)
 	{
 		char arg1[2]; GetCmdArg(1, arg1, sizeof(arg1));
 		type = view_as<eRobotTemplateType>(StringToInt(arg1));
+	}
+	
+	if (view_as<int>(type) >= sizeof(g_iTotalRobotTemplates))
+	{
+		ReplyToCommand(client, "Invalid type number.");
+		return Plugin_Handled;
 	}
 	
 	PrintToConsole(client, "#ID - NAME");
@@ -3595,7 +3611,8 @@ public Action PlayerRobot_OnTakeDamage(int victim, int &attacker, int &inflictor
 		{
 			cbpVictim.m_iHealth = 1;
 			
-			roboVictim.StartDetonate(false, true);
+			if (CanStartOrResumeAction(victim, ROBOT_ACTION_SUICIDE_BOMBER))
+				roboVictim.StartDetonate(false, true);
 			
 			return Plugin_Handled;
 		}
@@ -4443,6 +4460,8 @@ void CleanupClientFixes(int client)
 			if (StringToInt(sValue) != 0)
 				SetEntProp(client, Prop_Data, "m_bPredictWeapons", 1);
 	}
+	
+	FreezePlayerInput(client, false); //Current method leaves us frozen afterwards
 }
 
 // Called when the player begins to deploy the bomb
@@ -5067,6 +5086,24 @@ int GetRandomRobotPlayer(int excludePlayer = -1)
 		return arrPlayers[GetRandomInt(0, total - 1)];
 	
 	return -1;
+}
+
+void StoreCurrentMissionName()
+{
+	int rsrc = g_iObjectiveResource; //Please stop being lazy...
+	
+	if (rsrc != -1)
+	{
+		TF2_GetMvMPopfileName(rsrc, g_sCurrentMission, sizeof(g_sCurrentMission));
+		
+		//Trim these off
+		ReplaceString(g_sCurrentMission, sizeof(g_sCurrentMission), "scripts/population/", "");
+		ReplaceString(g_sCurrentMission, sizeof(g_sCurrentMission), ".pop", "");
+	}
+	else
+	{
+		g_sCurrentMission = "FUCK YO BICHASS FAKE NAME";
+	}
 }
 
 static bool MakePlayerLeaveSpawn(int client, float vel[3])

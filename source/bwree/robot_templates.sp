@@ -145,6 +145,10 @@ enum struct esBossWaveInfo
 	
 	bool CanSpawnBossNow()
 	{
+		//NEVER this early, or else this will be their first robot
+		if (GameRules_GetRoundState() == RoundState_BetweenRounds)
+			return false;
+		
 		if (!this.bBossAvailable)
 			return false;
 		
@@ -219,23 +223,6 @@ methodmap MvMSuicideBomber < MvMRobotPlayer
 		if (victim != -1)
 		{
 			g_vecLastKnownVictimPosition[this.index] = GetAbsOrigin(victim);
-			
-			if (PlayerHasPreference(this.index, PREFERENCE_ANNOTATIONS))
-			{
-				OSBaseObject cboTarget = OSBaseObject(victim);
-				char sMessage[64];
-				
-				if (cboTarget.IsBaseObject() && cboTarget.IsCarried() && cboTarget.GetOwner() != -1)
-				{
-					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
-					ShowAnnotationToClient(this.index, this.index + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.GetOwner(), _, 5.0, "coach/coach_attack_here.wav");
-				}
-				else
-				{
-					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
-					ShowAnnotationToClient(this.index, this.index + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, victim, _, 5.0, "coach/coach_attack_here.wav");
-				}
-			}
 		}
 	}
 	
@@ -460,10 +447,12 @@ static int m_iSpyTeleportAttempt[MAXPLAYERS + 1];
 
 static Action Timer_SuicideBomberDetonate(Handle timer, int data)
 {
-	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data) && CanStartOrResumeAction(data, ROBOT_ACTION_SUICIDE_BOMBER))
+	if (IsClientInGame(data) && IsPlayingAsRobot(data) && IsPlayerAlive(data))
 	{
-		MvMSuicideBomber(data).Detonate();
-		// MvMSuicideBomber(data).DetonatePost();
+		if (CanStartOrResumeAction(data, ROBOT_ACTION_SUICIDE_BOMBER))
+			MvMSuicideBomber(data).Detonate();
+		
+		FreezePlayerInput(data, false);
 	}
 	
 	m_hDetonateTimer[data] = null;
@@ -1313,6 +1302,26 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	
 	if (strlen(strDescription) > 0)
 		PrintToChat(client, strDescription);
+	
+	if (PlayerHasPreference(client, PREFERENCE_ANNOTATIONS))
+	{
+		if (nMission == CTFBot_MISSION_DESTROY_SENTRIES && roboPlayer.GetMissionTarget() != -1)
+		{
+			OSBaseObject cboTarget = OSBaseObject(roboPlayer.GetMissionTarget());
+			char sMessage[64];
+			
+			if (cboTarget.IsBaseObject() && cboTarget.IsCarried() && cboTarget.GetOwner() != -1)
+			{
+				FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
+				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.GetOwner(), _, 5.0, "coach/coach_attack_here.wav");
+			}
+			else
+			{
+				FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
+				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.index, _, 5.0, "coach/coach_attack_here.wav");
+			}
+		}
+	}
 	
 	return Plugin_Stop;
 }
@@ -3139,14 +3148,9 @@ bool BossRobotSystem_UpdateSettings()
 	int waveNumber = TF2_GetMannVsMachineWaveCount(g_iObjectiveResource);
 	int maxWaveNumber = TF2_GetMannVsMachineMaxWaveCount(g_iObjectiveResource);
 	
-	char missionName[PLATFORM_MAX_PATH]; TF2_GetMvMPopfileName(g_iObjectiveResource, missionName, sizeof(missionName));
 	char sectionWaveNum[16];
 	
-	//Remove these things
-	ReplaceString(missionName, sizeof(missionName), "scripts/population/", "");
-	ReplaceString(missionName, sizeof(missionName), ".pop", "");
-	
-	if (kv.JumpToKey(missionName))
+	if (kv.JumpToKey(g_sCurrentMission))
 	{
 		FormatEx(sectionWaveNum, sizeof(sectionWaveNum), "wave%d", waveNumber);
 		
@@ -3171,7 +3175,7 @@ bool BossRobotSystem_UpdateSettings()
 			delete kv;
 			
 #if defined TESTING_ONLY
-			LogMessage("BossRobotSystem_UpdateSettings: No data found for wave %d of mission %s", waveNumber, missionName);
+			LogMessage("BossRobotSystem_UpdateSettings: No data found for wave %d of mission %s", waveNumber, g_sCurrentMission);
 #endif
 		}
 	}

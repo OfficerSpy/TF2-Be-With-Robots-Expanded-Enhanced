@@ -262,7 +262,6 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 #endif //CORRECT_VISIBLE_RESPAWN_TIME
 #endif //OVERRIDE_PLAYER_RESPAWN_TIME
 	
-	FreezePlayerInput(client, false); //Current method leaves us frozen afterwards
 	CleanupClientFixes(client);
 }
 
@@ -276,7 +275,7 @@ static void Event_MvmBeginWave(Event event, const char[] name, bool dontBroadcas
 		UpdateCurrentWaveUsedIcons();
 	
 	BWRCooldown_PurgeExpired();
-	BossRobotSystem_UpdateSettings();
+	// BossRobotSystem_UpdateSettings();
 	g_arrBossSystem.SelectNewBoss();
 	g_arrBossSystem.StartCooldown();
 	
@@ -528,7 +527,8 @@ static void Event_TeamplayRoundStart(Event event, const char[] name, bool dontBr
 	if (!UpdateSentryBusterSpawnData())
 		LogError("Failed to update sentry buster spawning criteria for the current mission!");
 	
-	g_arrBossSystem.Reset();
+	StoreCurrentMissionName();
+	BossRobotSystem_UpdateSettings();
 	
 	/* From CTFGameRules::FireGameEvent, when this event is fired all BLUE players are switched to spectator
 	So here we are just going to switch them to RED, but only the actual human players! */
