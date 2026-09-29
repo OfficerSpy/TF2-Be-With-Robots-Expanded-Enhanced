@@ -308,6 +308,7 @@ enum struct esMapSettings
 enum struct esCSProperties
 {
 	float flBaseDuration;
+	float flAggroQuitScale;
 	float flAggroForSec;
 	float flAggroForSecMult;
 	float flAggroAddPerKill;
@@ -329,6 +330,7 @@ enum struct esCSProperties
 	void ResetToDefault()
 	{
 		this.flBaseDuration = 30.0;
+		this.flAggroQuitScale = 0.5;
 		this.flAggroForSec = 1.0;
 		this.flAggroForSecMult = 1.0;
 		this.flAggroAddPerKill = 10.0;
@@ -1167,7 +1169,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.5.3",
+	version = "1.5.4",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1655,6 +1657,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 		//Spawn the player in the next respawn wave
 		if (roboPlayer.NextSpawnTime <= GetGameTime() && !IsBotSpawningPaused(g_iPopulationManager))
 		{
+			// m_flInstructTime[client] = GetGameTime() + 30.0;
 			roboPlayer.NextSpawnTime = GetGameTime() + 1.0;
 			TurnPlayerIntoHisNextRobot(client);
 			SelectPlayerNextRobot(client);
@@ -2279,6 +2282,30 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 			{
 				FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Deliver_Flag");
 				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, _, GetBombHatchPosition(), 10.0, "coach/coach_go_here.wav");
+			}
+			else if (roboPlayer.HasMission(CTFBot_MISSION_DESTROY_SENTRIES))
+			{
+				if (roboPlayer.GetMissionTarget() != -1)
+				{
+					OSBaseObject cboTarget = OSBaseObject(roboPlayer.GetMissionTarget());
+					
+					if (cboTarget.IsBaseObject() && cboTarget.IsCarried() && cboTarget.GetOwner() != -1)
+					{
+						FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
+						ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.GetOwner(), _, 5.0, "coach/coach_attack_here.wav");
+					}
+					else
+					{
+						FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
+						ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.index, _, 5.0, "coach/coach_attack_here.wav");
+					}
+				}
+				else
+				{
+					//Target is NULL, we want to know where it is last located instead...
+					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
+					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, _, g_vecLastKnownVictimPosition[client], 5.0, "coach/coach_attack_here.wav");
+				}
 			}
 			else if (roboPlayer.HasAttribute(CTFBot_AGGRESSIVE))
 			{
@@ -3214,6 +3241,14 @@ static Action Timer_Taunt(Handle timer, int data)
 
 public void CaptureFlag_OnPickup(const char[] output, int caller, int activator, float delay)
 {
+	/* for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i))
+		{
+			HideAnnotationForClient(i, i + ANNOTATION_ID_OFFSET_GENERIC);
+		}
+	} */
+	
 	int owner = BaseEntity_GetOwnerEntity(activator);
 	
 	if (g_arrBusterControl[owner].IsControllable())
@@ -4148,7 +4183,7 @@ void CollectPlayerCurrentUniqueUbers(int client)
 }
 
 //Returns the cooldown duration the player should get based on certain statistics
-float GetPlayerCalculatedCooldown(int client)
+float GetPlayerCalculatedCooldown(int client, bool bQuit = false)
 {
 	if (bwree_invader_cooldown_mode.IntValue == COOLDOWN_MODE_DISABLED)
 	{
@@ -4234,7 +4269,7 @@ float GetPlayerCalculatedCooldown(int client)
 	}
 	
 	//Aggression check
-	flTotalDuration += (g_arrRobotPlayerStats[client].flAggression / g_arrCooldownSystem.flAggroForSec) * g_arrCooldownSystem.flAggroForSecMult;
+	flTotalDuration += ((bQuit ? g_arrCooldownSystem.flAggroQuitScale : 1.0) * g_arrRobotPlayerStats[client].flAggression / g_arrCooldownSystem.flAggroForSec) * g_arrCooldownSystem.flAggroForSecMult;
 	
 	flTotalDuration += g_arrRobotPlayerStats[client].iSuccessiveRoundsPlayed * g_arrCooldownSystem.flSecPerSuccessiveRoundPlayed;
 	
@@ -5342,9 +5377,10 @@ void MainConfig_UpdateSettings()
 		{
 			if (kv.JumpToKey("Aggression"))
 			{
-				g_arrCooldownSystem.flAggroAddPerKill = kv.GetFloat("aggro_add_per_kill", g_arrCooldownSystem.flAggroAddPerKill);
+				g_arrCooldownSystem.flAggroQuitScale = kv.GetFloat("aggro_quit_scale", g_arrCooldownSystem.flAggroQuitScale);
 				g_arrCooldownSystem.flAggroForSec = kv.GetFloat("aggro_for_one_second", g_arrCooldownSystem.flAggroForSec);
 				g_arrCooldownSystem.flAggroForSecMult = kv.GetFloat("aggro_for_one_second_multiplier", g_arrCooldownSystem.flAggroForSecMult);
+				g_arrCooldownSystem.flAggroAddPerKill = kv.GetFloat("aggro_add_per_kill", g_arrCooldownSystem.flAggroAddPerKill);
 				kv.GoBack();
 			}
 			

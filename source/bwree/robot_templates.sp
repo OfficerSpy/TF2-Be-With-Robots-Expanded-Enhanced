@@ -1303,26 +1303,6 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 	if (strlen(strDescription) > 0)
 		PrintToChat(client, strDescription);
 	
-	if (PlayerHasPreference(client, PREFERENCE_ANNOTATIONS))
-	{
-		if (nMission == CTFBot_MISSION_DESTROY_SENTRIES && roboPlayer.GetMissionTarget() != -1)
-		{
-			OSBaseObject cboTarget = OSBaseObject(roboPlayer.GetMissionTarget());
-			char sMessage[64];
-			
-			if (cboTarget.IsBaseObject() && cboTarget.IsCarried() && cboTarget.GetOwner() != -1)
-			{
-				FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
-				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.GetOwner(), _, 5.0, "coach/coach_attack_here.wav");
-			}
-			else
-			{
-				FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
-				ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, cboTarget.index, _, 5.0, "coach/coach_attack_here.wav");
-			}
-		}
-	}
-	
 	return Plugin_Stop;
 }
 

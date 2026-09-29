@@ -23,6 +23,8 @@ void InitGameEventHooks()
 	HookEvent("player_chargedeployed", Event_PlayerChargedeployed);
 	HookEvent("player_invulned", Event_PlayerInvulned);
 	HookEvent("mvm_wave_failed", Event_MvmWaveFailed);
+	HookEvent("object_destroyed", Event_ObjectDestroyed);
+	HookEvent("object_detonated", Event_ObjectDetonated);
 	
 #if defined FIX_VOTE_CONTROLLER
 	HookEvent("vote_options", Event_VoteOptions);
@@ -42,7 +44,7 @@ static void Event_PlayerTeam(Event event, const char[] name, bool dontBroadcast)
 		if (team != TFTeam_Blue)
 		{
 			if (GetBWRCooldownTimeLeft(client) <= 0.0)
-				SetBWRCooldownTimeLeft(client, GetPlayerCalculatedCooldown(client));
+				SetBWRCooldownTimeLeft(client, GetPlayerCalculatedCooldown(client, true));
 			
 			if (IsPlayerAlive(client))
 			{
@@ -102,7 +104,7 @@ static void Event_PlayerDeath(Event event, const char[] name, bool dontBroadcast
 	{
 		if (IsPlayingAsRobot(attacker))
 		{
-			if (attacker != client)
+			if (attacker != client && !TF2_IsPlayerInCondition(client, TFCond_Reprogrammed))
 			{
 				g_arrRobotPlayerStats[attacker].IncreaseAggressionForKill(g_arrCooldownSystem.flAggroAddPerKill);
 				g_arrRobotPlayerStats[attacker].iKills++;
@@ -647,7 +649,7 @@ static void Event_PlayerHurt(Event event, const char[] name, bool dontBroadcast)
 		{
 			int client = GetClientOfUserId(event.GetInt("userid"));
 			
-			if (TF2_GetClientTeam(client) == TFTeam_Red)
+			if (TF2_GetClientTeam(client) == TFTeam_Red && !TF2_IsPlayerInCondition(client, TFCond_Reprogrammed))
 			{
 				int damage = event.GetInt("damageamount");
 				g_arrRobotPlayerStats[attacker].IncreaseAggressionForDamage(damage * g_arrCooldownSystem.flAggroDamageScale);
@@ -749,6 +751,33 @@ static void Event_MvmWaveFailed(Event event, const char[] name, bool dontBroadca
 	}
 	
 	CreateTimer(0.1, Timer_WaveFailed, .flags = TIMER_FLAG_NO_MAPCHANGE);
+}
+
+static void Event_ObjectDestroyed(Event event, const char[] name, bool dontBroadcast)
+{
+#if 0
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && IsPlayingAsRobot(i) && MvMRobotPlayer(i).GetMissionTarget() == event.GetInt("index"))
+		{
+			//Our target got destroyed and our annotation cannot track it anymore
+			HideAnnotationForClient(i, i + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER);
+		}
+	}
+#endif
+}
+
+static void Event_ObjectDetonated(Event event, const char[] name, bool dontBroadcast)
+{
+#if 0
+	for (int i = 1; i <= MaxClients; i++)
+	{
+		if (IsClientInGame(i) && IsPlayingAsRobot(i) && MvMRobotPlayer(i).GetMissionTarget() == event.GetInt("index"))
+		{
+			HideAnnotationForClient(i, i + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER);
+		}
+	}
+#endif
 }
 
 #if defined FIX_VOTE_CONTROLLER
