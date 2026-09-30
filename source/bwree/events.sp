@@ -688,7 +688,7 @@ static void Event_PlayerHealed(Event event, const char[] name, bool dontBroadcas
 			int patient = GetClientOfUserId(event.GetInt("patient"));
 			
 			//Only count healing of actual teammates, enemy spies do not count
-			if (patient != healer && TF2_GetClientTeam(patient) == TFTeam_Blue)
+			if (patient != healer && TF2_GetClientTeam(patient) == TF2_GetClientTeam(healer))
 			{
 				g_arrRobotPlayerStats[healer].iHealing += event.GetInt("amount");
 			}

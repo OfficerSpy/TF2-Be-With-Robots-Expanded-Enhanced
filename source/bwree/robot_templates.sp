@@ -813,6 +813,8 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				
 				MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 				
+				roboPlayer.SetFlagTarget(-1);
+				
 				//Now we set the robot's basic details here
 				roboPlayer.SetAutoJump(kv.GetFloat("AutoJumpMin"), kv.GetFloat("AutoJumpMax"));
 				
@@ -1257,10 +1259,15 @@ static Action Timer_FinishRobotPlayer(Handle timer, DataPack pack)
 			{
 				int flag = GetFlagToFetch(client);
 				
-				if (flag != -1 && CaptureFlag_IsHome(flag))
+				if (flag != -1)
 				{
-					g_flLastTimeFlagInSpawn[client] = GetGameTime();
-					CTFItemPickup(flag, client, true);
+					roboPlayer.SetFlagTarget(flag);
+					
+					if (CaptureFlag_IsHome(flag))
+					{
+						g_flLastTimeFlagInSpawn[client] = GetGameTime();
+						CTFItemPickup(flag, client, true);
+					}
 				}
 			}
 		}
@@ -1466,6 +1473,8 @@ static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassTyp
 	
 	MvMRobotPlayer roboPlayer = MvMRobotPlayer(client);
 	
+	roboPlayer.SetFlagTarget(-1);
+	
 	roboPlayer.SetAutoJump(0.0, 0.0);
 	roboPlayer.SetMission(CTFBot_NO_MISSION);
 	roboPlayer.ClearEventChangeAttributes();
@@ -1643,10 +1652,15 @@ public void Timer_FinishCustomLoadout(Handle timer, DataPack hPack)
 			{
 				int flag = GetFlagToFetch(client);
 				
-				if (flag != -1 && CaptureFlag_IsHome(flag))
+				if (flag != -1)
 				{
-					g_flLastTimeFlagInSpawn[client] = GetGameTime();
-					CTFItemPickup(flag, client, true);
+					roboPlayer.SetFlagTarget(flag);
+					
+					if (CaptureFlag_IsHome(flag))
+					{
+						g_flLastTimeFlagInSpawn[client] = GetGameTime();
+						CTFItemPickup(flag, client, true);
+					}
 				}
 			}
 		}

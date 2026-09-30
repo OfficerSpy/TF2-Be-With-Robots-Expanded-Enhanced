@@ -566,6 +566,7 @@ static float m_flMaxVisionRange[MAXPLAYERS + 1];
 static ArrayList m_adtTeleportWhereName[MAXPLAYERS + 1];
 static float m_flAutoJumpMin[MAXPLAYERS + 1];
 static float m_flAutoJumpMax[MAXPLAYERS + 1];
+static int m_iFollowingFlagTarget[MAXPLAYERS + 1];
 static KeyValues m_kvEventChangeAttributes[MAXPLAYERS + 1];
 
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
@@ -729,6 +730,7 @@ methodmap MvMRobotPlayer
 		this.SetMaxVisionRange(-1.0);
 		delete m_adtTeleportWhereName[this.index];
 		this.SetAutoJump(0.0, 0.0);
+		this.SetFlagTarget(-1);
 		this.ClearEventChangeAttributes();
 		
 #if !defined SPY_DISGUISE_VISION_OVERRIDE
@@ -893,6 +895,28 @@ methodmap MvMRobotPlayer
 	{
 		m_flAutoJumpMin[this.index] = min;
 		m_flAutoJumpMax[this.index] = max;
+	}
+	
+	public void SetFlagTarget(int iFlag)
+	{
+		int followingFlagTarget = EntRefToEntIndex(m_iFollowingFlagTarget[this.index]);
+		
+		if (followingFlagTarget != iFlag)
+		{
+			//TODO: m_followers?
+			m_iFollowingFlagTarget[this.index] = iFlag == -1 ? INVALID_ENT_REFERENCE : EntIndexToEntRef(iFlag);
+			//TODO: m_followers?
+		}
+	}
+	
+	public int GetFlagTarget()
+	{
+		return EntRefToEntIndex(m_iFollowingFlagTarget[this.index]);
+	}
+	
+	public bool HasFlagTaget()
+	{
+		return EntRefToEntIndex(m_iFollowingFlagTarget[this.index]) != INVALID_ENT_REFERENCE;
 	}
 	
 	public void InitializeEventChangeAttributes()
@@ -2275,7 +2299,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		if (m_flInstructTime[client] <= GetGameTime())
 		{
-			m_flInstructTime[client] = GetGameTime() + 30.0;
+			m_flInstructTime[client] = GetGameTime() + GetRandomFloat(30.0, 60.0);
 			char sMessage[64];
 			
 			if (bHasTheFlag)
@@ -2302,23 +2326,26 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				}
 				else
 				{
-					//Target is NULL, we want to know where it is last located instead...
+					//Target is NULL, we want to know where it was last located instead...
 					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Target_MissionTarget");
-					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, _, g_vecLastKnownVictimPosition[client], 5.0, "coach/coach_attack_here.wav");
+					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_SUICIDE_BOMBER, sMessage, _, g_vecLastKnownVictimPosition[client], 15.0, "coach/coach_attack_here.wav");
 				}
 			}
 			else if (roboPlayer.HasAttribute(CTFBot_AGGRESSIVE))
 			{
-				//TODO: show a point to capture
+				int trigger = GetCapturableAreaTrigger(TF2_GetClientTeam(client));
+				
+				if (trigger != -1)
+				{
+					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Capture_ControlPoint");
+					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, _, WorldSpaceCenter(trigger), 10.0, "coach/coach_go_here.wav");
+				}
 			}
 			else
 			{
-				//TODO: the player should already know their flag here
-				//They should not be fetching a new random flag every time, even if it is picked up
-				//Bots are only assigned to one flag at the start of their behavior
-				int flag = GetFlagToFetch(client);
+				int flag = roboPlayer.GetFlagTarget();
 				
-				if (flag != -1 && !CaptureFlag_IsHome(flag))
+				if (flag != INVALID_ENT_REFERENCE)
 				{
 					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Fetch_Flag");
 					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, flag, _, 10.0, "coach/coach_go_here.wav");
@@ -3271,6 +3298,8 @@ public void CaptureFlag_OnPickup(const char[] output, int caller, int activator,
 	
 	//Copy the tags from the flag onto the player
 	InheritFlagTags(owner, activator);
+	
+	MvMRobotPlayer(owner).SetFlagTarget(activator);
 	
 	if (TF2_GetPlayerClass(owner) == TFClass_Medic)
 	{
@@ -4934,11 +4963,16 @@ void SetNextBehaviorActionTime(int client, float value)
 
 int GetFlagToFetch(int client)
 {
+	//We are always in MvM mode here...
+	
 	if (TF2_GetPlayerClass(client) == TFClass_Engineer)
 		return -1;
 	
 	if (MvMRobotPlayer(client).HasAttribute(CTFBot_IGNORE_FLAG))
 		return -1;
+	
+	// if (MvMRobotPlayer(client).HasFlagTaget())
+		// return MvMRobotPlayer(client).GetFlagTarget();
 	
 	int ent = -1;
 	ArrayList adtFlags = new ArrayList();
@@ -4950,12 +4984,19 @@ int GetFlagToFetch(int client)
 		if (CaptureFlag_IsDisabled(ent))
 			continue;
 		
-		//We do not look for these as we are not looking for the enemy's flag
-		if (CaptureFlag_GetType(ent) == TF_FLAGTYPE_CTF)
-			continue;
-		
-		if (BaseEntity_GetTeamNumber(ent) != enemyTeam)
-			adtFlags.Push(ent);
+		switch (CaptureFlag_GetType(ent))
+		{
+			case TF_FLAGTYPE_CTF:
+			{
+				//We do not look for these as we are not looking for the enemy's flag
+				continue;
+			}
+			case TF_FLAGTYPE_ATTACK_DEFEND, TF_FLAGTYPE_TERRITORY_CONTROL, TF_FLAGTYPE_INVADE:
+			{
+				if (BaseEntity_GetTeamNumber(ent) != enemyTeam)
+					adtFlags.Push(ent);
+			}
+		}
 		
 		if (CaptureFlag_IsStolen(ent))
 			nCarriedFlags++;
@@ -5381,6 +5422,7 @@ void MainConfig_UpdateSettings()
 				g_arrCooldownSystem.flAggroForSec = kv.GetFloat("aggro_for_one_second", g_arrCooldownSystem.flAggroForSec);
 				g_arrCooldownSystem.flAggroForSecMult = kv.GetFloat("aggro_for_one_second_multiplier", g_arrCooldownSystem.flAggroForSecMult);
 				g_arrCooldownSystem.flAggroAddPerKill = kv.GetFloat("aggro_add_per_kill", g_arrCooldownSystem.flAggroAddPerKill);
+				g_arrCooldownSystem.flAggroDamageScale = kv.GetFloat("aggro_damage_scale", g_arrCooldownSystem.flAggroDamageScale);
 				kv.GoBack();
 			}
 			
