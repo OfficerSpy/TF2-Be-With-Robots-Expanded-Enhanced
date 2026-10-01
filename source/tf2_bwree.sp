@@ -1447,7 +1447,7 @@ public void OnClientDisconnect(int client)
 
 public void OnClientCookiesCached(int client)
 {
-	m_nPlayerPref[client] = g_hPlayerPreference.GetInt(client, g_arrSettings.iCustomViewmodel > 0 ? PREFERENCE_ROBOT_VIEWMODELS : PREFERENCE_NONE);
+	m_nPlayerPref[client] = g_hPlayerPreference.GetInt(client, g_arrSettings.iCustomViewmodel > 0 ? PREFERENCE_ROBOT_VIEWMODELS : PREFERENCE_ANNOTATIONS);
 }
 
 public void OnConfigsExecuted()
@@ -2340,12 +2340,22 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Capture_ControlPoint");
 					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, _, WorldSpaceCenter(trigger), 10.0, "coach/coach_go_here.wav");
 				}
+				else
+				{
+					int flag = roboPlayer.GetFlagTarget();
+					
+					if (flag != INVALID_ENT_REFERENCE && BaseEntity_GetOwnerEntity(flag) == -1)
+					{
+						FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Fetch_Flag");
+						ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, flag, _, 10.0, "coach/coach_go_here.wav");
+					}
+				}
 			}
 			else
 			{
 				int flag = roboPlayer.GetFlagTarget();
 				
-				if (flag != INVALID_ENT_REFERENCE)
+				if (flag != INVALID_ENT_REFERENCE && BaseEntity_GetOwnerEntity(flag) == -1)
 				{
 					FormatEx(sMessage, sizeof(sMessage), "%t", "Annotation_Fetch_Flag");
 					ShowAnnotationToClient(client, client + ANNOTATION_ID_OFFSET_GENERIC, sMessage, flag, _, 10.0, "coach/coach_go_here.wav");
