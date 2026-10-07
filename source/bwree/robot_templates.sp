@@ -41,6 +41,29 @@ enum struct esRobotTemplateData
 	float flCooldown;
 }
 
+enum struct esAddcond
+{
+	TFCond cond;
+	float duration;
+	float delay;
+	int health_below;
+	int health_above;
+	bool if_left_spawn;
+	
+	//Extra for delayed conditions
+	float when;
+	
+	void Initialize()
+	{
+		// this.cond = TF2Util_GetLastCondition();
+		this.duration = TFCondDuration_Infinite;
+		this.delay = 0.0;
+		this.health_below = 0;
+		this.health_above = 0;
+		this.if_left_spawn = false;
+	}
+}
+
 // Robot template property arrays
 int g_iTotalRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT];
 esRobotTemplateData g_arrRobotTemplates[ROBOT_TEMPLATE_TYPE_COUNT][MAX_ROBOT_TEMPLATES];
@@ -893,6 +916,16 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				pack.WriteCell(credits);
 				pack.WriteString(description);
 				
+				do
+				{
+					//Check for extra KeyValues...
+					if (kv.JumpToKey("AddCond"))
+					{
+						Parse_AddCond(client, kv);
+						kv.GoBack();
+					}
+				} while (kv.GotoNextKey(false));
+				
 				break;
 			}
 			
@@ -1450,6 +1483,50 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 		}
 		
 		kv.GoBack();
+	}
+}
+
+static void Parse_AddCond(int client, KeyValues kv)
+{
+	bool got_cond = false;
+	
+	if (!kv.GotoFirstSubKey(false))
+	{
+		if (kv.GetDataType("AddCond") == KvData_Int)
+		{
+			TF2_AddCondition(client, kv.GetNum(NULL_STRING));
+			got_cond = true;
+		}
+		else
+		{
+#if 0
+			char sCondName[PLATFORM_MAX_PATH]; kv.GetString(NULL_STRING, sCondName, sizeof(sCondName));
+			TFCond cond = GetTFConditionFromName(sCondName);
+			
+			if (cond != -1)
+			{
+				TF2_AddCondition(client, cond);
+				got_cond = true;
+			}
+			else
+			{
+				LogError("Unrecognized condition name \"%s\" in AddCond block.", sCondName);
+			}
+#endif
+		}
+	}
+	
+	TFCond cond = kv.GetNum("Index", TF_COND_INVALID);
+	
+	if (cond == TF_COND_INVALID)
+	{
+		//TODO: same as above
+	}
+	
+	if (!got_cond)
+	{
+		LogError("Could not find a valid condition index/name in AddCond block.");
+		return;
 	}
 }
 
