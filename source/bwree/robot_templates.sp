@@ -874,6 +874,9 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				roboPlayer.ClearEventChangeAttributes();
 				SetEntProp(client, Prop_Send, "m_bIsABot", 1);
 				
+				//Scan our values for the first time, we may scan for some keyvalues again in the block below...
+				ParseEventChangeAttributesForPlayer(client, kv);
+				
 				if (kv.JumpToKey("EventChangeAttributes"))
 				{
 					//If we enter this block, this means we want to parse multiple blocks of robot stats
@@ -881,11 +884,6 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 					roboPlayer.InitializeEventChangeAttributes();
 					ParseEventChangeAttributesForPlayer(client, kv, true);
 					kv.GoBack();
-				}
-				else
-				{
-					//Don't store anything as this robot will only use default stats
-					ParseEventChangeAttributesForPlayer(client, kv);
 				}
 				
 				roboPlayer.ClearTeleportWhere();
@@ -1364,40 +1362,57 @@ static void ParseEventChangeAttributesForPlayer(int client, KeyValues kv, bool b
 	//Default describes what the robot's stats are for when it first spawns in
 	bool isReadingDefaultAttributes = kv.JumpToKey("Default");
 	
-	ReadEventChangeAttributesForPlayer(roboPlayer, kv);
+	ReadEventChangeAttributesForPlayer(roboPlayer, kv, bStoreToPlayer);
 	
 	if (isReadingDefaultAttributes)
 		kv.GoBack();
 }
 
-void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
+void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv, bool bSecondParse = false)
 {
 	char kvStringBuffer[16]; kv.GetString("Skill", kvStringBuffer, sizeof(kvStringBuffer));
 	
-	/* FIXME: this is a stupid hack, but we need some way to tell the client game
-	to update the eyeglow effect after we apply the custom model to the player
-	If we don't do this then the particles don't attach to the model properly
-	Another way to cause an update is by changing the m_iMaxHealth property
-	in the CTFPlayerResource entity but that's just even more ridiculous */
-	roboPlayer.SetDifficulty(CTFBot_UNDEFINED);
-	DataPack pack;
-	CreateDataTimer(0.2, Timer_SetPlayerBotSkill, pack, TIMER_FLAG_NO_MAPCHANGE);
-	pack.WriteCell(roboPlayer.index);
-	pack.WriteCell(GetSkillFromString(kvStringBuffer));
+	if (kvStringBuffer[0])
+	{
+		/* FIXME: this is a stupid hack, but we need some way to tell the client game
+		to update the eyeglow effect after we apply the custom model to the player
+		If we don't do this then the particles don't attach to the model properly
+		Another way to cause an update is by changing the m_iMaxHealth property
+		in the CTFPlayerResource entity but that's just even more ridiculous */
+		roboPlayer.SetDifficulty(CTFBot_UNDEFINED);
+		DataPack pack;
+		CreateDataTimer(0.2, Timer_SetPlayerBotSkill, pack, TIMER_FLAG_NO_MAPCHANGE);
+		pack.WriteCell(roboPlayer.index);
+		pack.WriteCell(GetSkillFromString(kvStringBuffer));
+	}
 	
-	roboPlayer.ClearWeaponRestrictions();
+	//If we parse again, we don't reset most things as it is meant to assume the values we were given the first time
+	//If we find values for the key names this time around, then we completely overwrite it (see what happens below)
+	if (!bSecondParse)
+		roboPlayer.ClearWeaponRestrictions();
 	
 	kv.GetString("WeaponRestrictions", kvStringBuffer, sizeof(kvStringBuffer));
 	
-	roboPlayer.SetWeaponRestriction(GetWeaponRestrictionFlagsFromString(kvStringBuffer));
+	if (kvStringBuffer[0])
+		roboPlayer.SetWeaponRestriction(GetWeaponRestrictionFlagsFromString(kvStringBuffer));
 	
-	roboPlayer.SetMaxVisionRange(kv.GetFloat("MaxVisionRange", -1.0));
-	roboPlayer.ClearTags();
+	//Checking strings for non-string values is stupid, but it ensures if it was left blank or not
+	kv.GetString("MaxVisionRange", kvStringBuffer, sizeof(kvStringBuffer));
+	
+	if (kvStringBuffer[0])
+		roboPlayer.SetMaxVisionRange(kv.GetFloat("MaxVisionRange", -1.0));
+	
+	if (!bSecondParse)
+		roboPlayer.ClearTags();
 	
 	char botTags[BOT_TAGS_BUFFER_MAX_LENGTH]; kv.GetString("Tags", botTags, sizeof(botTags));
 	
 	if (strlen(botTags) > 0)
 	{
+		//Needs to be cleared on the second one cause they're not meant to stack with each other
+		if (bSecondParse)
+			roboPlayer.ClearTags();
+		
 		char splitTags[MAX_BOT_TAG_CHECKS][BOT_TAG_EACH_MAX_LENGTH];
 		int splitTagsCount = ExplodeString(botTags, ",", splitTags, sizeof(splitTags), sizeof(splitTags[]));
 		
@@ -1405,10 +1420,15 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 			roboPlayer.AddTag(splitTags[i]);
 	}
 	
-	roboPlayer.ClearAllAttributes();
+	if (!bSecondParse)
+		roboPlayer.ClearAllAttributes();
 	
 	if (kv.JumpToKey("BotAttributes"))
 	{
+		//No need to clear on second parse here, the below function completely overwrites it
+		//if (bSecondParse)
+			//roboPlayer.ClearAllAttributes();
+		
 		roboPlayer.SetAttribute(GetBotAttributesFromKeyValues(kv));
 		kv.GoBack();
 	}
