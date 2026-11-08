@@ -916,15 +916,18 @@ static void ParseTemplateOntoPlayerFromKeyValues(KeyValues kv, int client, const
 				pack.WriteCell(credits);
 				pack.WriteString(description);
 				
+				//This is horribly written, and not ideal for any future blocks we add you know?
 				do
 				{
-					//Check for extra KeyValues...
-					if (kv.JumpToKey("AddCond"))
+					if (!Parse_AddCond_SingleLine(client, kv))
 					{
-						Parse_AddCond(client, kv);
-						kv.GoBack();
+						if (kv.JumpToKey("AddCond"))
+						{
+							Parse_AddCond(client, kv);
+							kv.GoBack();
+						}
 					}
-				} while (kv.GotoNextKey(false));
+				} while (kv.DeleteKey("AddCond"));
 				
 				break;
 			}
@@ -1486,43 +1489,65 @@ void ReadEventChangeAttributesForPlayer(MvMRobotPlayer roboPlayer, KeyValues kv)
 	}
 }
 
+static bool Parse_AddCond_SingleLine(int client, KeyValues kv)
+{
+	esAddcond addcond;
+	addcond.Initialize();
+	
+	bool got_cond;
+	
+	if (kv.GetDataType("AddCond") == KvData_Int)
+	{
+		addcond.cond = kv.GetNum("AddCond");
+		got_cond = true;
+	}
+	else
+	{
+		char sCondName[PLATFORM_MAX_PATH]; kv.GetString("AddCond", sCondName, sizeof(sCondName));
+		
+		//Blank does not exist
+		if (!sCondName[0])
+			return false;
+		
+		addcond.cond = TF2Util_GetConditionFromName(sCondName);
+		
+		if (addcond.cond >= TFCond_Slowed)
+		{
+			got_cond = true;
+		}
+		else
+		{
+			LogError("Unrecognized condition name \"%s\" in AddCond line.", sCondName);
+		}
+	}
+	
+	if (got_cond)
+	{
+#if 0
+		DataPack hPack;
+		CreateDataTimer(0.1, Timer_ApplyAddCond, hPack);
+		hPack.WriteCell(client);
+		hPack.WriteCellArray(addcond, sizeof(addcond));
+#else
+		TF2_AddCondition(client, addcond.cond);
+#endif
+	}
+	
+	return got_cond;
+}
+
 static void Parse_AddCond(int client, KeyValues kv)
 {
 	esAddcond addcond;
 	addcond.Initialize();
 	
 	bool got_cond = false;
+	addcond.cond = kv.GetNum("Index", TF_COND_INVALID);
 	
-	if (!kv.GotoFirstSubKey(false))
-	{
-		if (kv.GetDataType("AddCond") == KvData_Int)
-		{
-			addcond.cond = kv.GetNum("AddCond");
-			got_cond = true;
-		}
-		else
-		{
-			char sCondName[PLATFORM_MAX_PATH]; kv.GetString("AddCond", sCondName, sizeof(sCondName));
-			TFCond cond = TF2Util_GetConditionFromName(sCondName);
-			
-			if (cond >= TFCond_Slowed)
-			{
-				addcond.cond = cond;
-				got_cond = true;
-			}
-			else
-			{
-				LogError("Unrecognized condition name \"%s\" in AddCond block.", sCondName);
-			}
-		}
-	}
-	
-	TFCond cond = kv.GetNum("Index", TF_COND_INVALID);
-	
-	if (cond == TF_COND_INVALID)
+	if (addcond.cond == TF_COND_INVALID)
 	{
 		char sCondName[PLATFORM_MAX_PATH]; kv.GetString("Name", sCondName, sizeof(sCondName));
-		cond = TF2Util_GetConditionFromName(sCondName);
+		TFCond cond = TF2Util_GetConditionFromName(sCondName);
 		
 		if (cond >= TFCond_Slowed)
 		{
@@ -1533,6 +1558,10 @@ static void Parse_AddCond(int client, KeyValues kv)
 		{
 			LogError("Unrecognized condition name \"%s\" in AddCond block.", sCondName);
 		}
+	}
+	else
+	{
+		got_cond = true;
 	}
 	
 	addcond.duration = kv.GetFloat("Duration", addcond.duration);
@@ -1548,12 +1577,38 @@ static void Parse_AddCond(int client, KeyValues kv)
 	if (addcond.delay == 0.0 && addcond.health_below == 0 && addcond.health_above == 0 && addcond.if_left_spawn == false)
 	{
 		//There's no need to store the data for later in this case since it's a one and done type of deal
+#if 0
+		DataPack hPack;
+		CreateDataTimer(0.1, Timer_ApplyAddCond, hPack);
+		hPack.WriteCell(client);
+		hPack.WriteCellArray(addcond, sizeof(addcond));
+#else
 		TF2_AddCondition(client, addcond.cond, addcond.duration);
+#endif
 		return;
 	}
 	
 	//TODO: we need to figure out how we're gonna handle the rest of the keyvalues...
 }
+
+#if 0
+//Several conds get removed for whatever reason after spawning, so we delay it here
+static void Timer_ApplyAddCond(Handle timer, DataPack data)
+{
+	data.Reset();
+	
+	int client = data.ReadCell();
+	
+	if (!IsClientInGame(client))
+	{
+		data.Close();
+		return;
+	}
+	
+	esAddcond addcond; data.ReadCellArray(addcond, sizeof(addcond));
+	TF2_AddCondition(client, addcond.cond, addcond.duration);
+}
+#endif
 
 static void MakePlayerOwnLoadout(int client, eRobotTemplateType type, TFClassType nClass)
 {
