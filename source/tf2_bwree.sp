@@ -235,6 +235,12 @@ enum struct esPlayerStats
 			this.flRiskFactor = 0.0;
 	}
 	
+	void ShowStaticStats(int client)
+	{
+		SetHudTextParams(0.05, 0.05, 1.1, 255, 255, 200, 255, 0, 0.0, 0.0, 0.0);
+		ShowSyncHudText(client, g_hHudDebugText, "KILLS: %d\nDEATHS: %d\nFLAG CAPTURES: %d\nDAMAGE: %d\nHEALING: %d\nPOINT CAPTURES: %d\nPLAYERS UBERED: %d", this.iKills, this.iDeaths, this.iFlagCaptures, this.iDamage, this.iHealing, this.iPointCaptures, this.iPlayersUbered);
+	}
+	
 	void ShowTickingStats(int client)
 	{
 		SetHudTextParams(0.05, 0.05, 1.1, 255, 255, 200, 255, 0, 0.0, 0.0, 0.0);
@@ -332,7 +338,7 @@ enum struct esCSProperties
 		this.flBaseDuration = 30.0;
 		this.flAggroQuitScale = 0.5;
 		this.flAggroForSec = 1.0;
-		this.flAggroForSecMult = 1.0;
+		this.flAggroForSecMult = 0.8;
 		this.flAggroAddPerKill = 10.0;
 		this.flAggroDamageScale = 0.1;
 		this.flFastCapWatchMaxSeconds = 120.0;
@@ -343,7 +349,7 @@ enum struct esCSProperties
 		this.flSecPerCapFlag = 60.0;
 		this.iDmgForSec = 750;
 		this.flDmgForSecMult = 1.0;
-		this.iHealingForSec = 600;
+		this.iHealingForSec = 35;
 		this.flHealingForSecMult = 1.0;
 		this.flCapturePointSec = 60.0;
 		this.flInvulnDeploySec = 60.0;
@@ -1193,7 +1199,7 @@ public Plugin myinfo =
 	name = PLUGIN_NAME,
 	author = "Officer Spy",
 	description = "Perhaps this is the true BWR experience?",
-	version = "1.5.5",
+	version = "1.5.6",
 	url = "https://github.com/OfficerSpy/TF2-Be-With-Robots-Expanded-Enhanced"
 };
 
@@ -1649,7 +1655,7 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 	{
 		case DEBUG_MODE_STATS_STATIC:
 		{
-			//TODO
+			g_arrRobotPlayerStats[client].ShowStaticStats(client);
 		}
 		case DEBUG_MODE_STATS_TICKING:
 		{
@@ -1903,6 +1909,27 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 						PrintToChat(client, "No space for teleporter at %f %f %f!", telePos[0], telePos[1], telePos[2] - TFBOT_STEP_HEIGHT);
 #endif
 					}
+				}
+			}
+		}
+		
+		if (TF2Util_GetWeaponID(myWeapon) == TF_WEAPON_MEDIGUN)
+		{
+			if (buttons & IN_ATTACK3 && !roboPlayer.HasAttribute(CTFBot_PROJECTILE_SHIELD))
+			{
+				//Need bot attribute to actually press this
+				buttons &= ~IN_ATTACK3;
+				PrintCenterText(client, "This medic can't use this function.");
+			}
+			
+			if (GetEntProp(myWeapon, Prop_Send, "m_bChargeRelease"))
+			{
+				int patient = GetEntPropEnt(myWeapon, Prop_Send, "m_hHealingTarget");
+				
+				if (patient != -1 && BaseEntity_IsPlayer(patient) && GetClientTeam(patient) == GetClientTeam(client))
+				{
+					//Aggressively buffing my teammate
+					g_arrRobotPlayerStats[client].flAggression += 0.1;
 				}
 			}
 		}
@@ -4287,12 +4314,12 @@ float GetPlayerCalculatedCooldown(int client, bool bQuit = false)
 	
 	if (g_arrRobotPlayerStats[client].iDamage > 0)
 	{
-		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iDamage) / float(g_arrCooldownSystem.iDmgForSec)) * g_arrCooldownSystem.flDmgForSecMult;
+		flTotalDuration += (float(g_arrRobotPlayerStats[client].iDamage) / float(g_arrCooldownSystem.iDmgForSec)) * g_arrCooldownSystem.flDmgForSecMult;
 	}
 	
 	if (g_arrRobotPlayerStats[client].iHealing > 0)
 	{
-		flTotalDuration += RoundToFloor(float(g_arrRobotPlayerStats[client].iHealing) / float(g_arrCooldownSystem.iHealingForSec)) * g_arrCooldownSystem.flHealingForSecMult;
+		flTotalDuration += (float(g_arrRobotPlayerStats[client].iHealing) / float(g_arrCooldownSystem.iHealingForSec)) * g_arrCooldownSystem.flHealingForSecMult;
 	}
 	
 	if (g_arrRobotPlayerStats[client].iPointCaptures > 0)
