@@ -168,6 +168,7 @@ enum struct esPlayerStats
 	int iFlagCaptures;
 	int iDamage;
 	int iHealing;
+	float flOverhealTime;
 	int iPointCaptures;
 	int iPlayersUbered;
 	float flAggression;
@@ -181,6 +182,7 @@ enum struct esPlayerStats
 		this.iFlagCaptures = 0;
 		this.iDamage = 0;
 		this.iHealing = 0;
+		this.flOverhealTime = 0.0;
 		this.iPointCaptures = 0;
 		this.iPlayersUbered = 0;
 		this.flAggression = 0.0;
@@ -208,6 +210,11 @@ enum struct esPlayerStats
 	void IncreaseAggressionForDamage(float aggro)
 	{
 		this.flAggression += aggro * MaxFloat(0.1, this.GetKillDeathRatio());
+	}
+	
+	void IncreaseAggressionForDamageAsHealer(float aggro)
+	{
+		this.flAggression += aggro;
 	}
 	
 	void AggressionDecreasing()
@@ -238,7 +245,7 @@ enum struct esPlayerStats
 	void ShowStaticStats(int client)
 	{
 		SetHudTextParams(0.05, 0.05, 1.1, 255, 255, 200, 255, 0, 0.0, 0.0, 0.0);
-		ShowSyncHudText(client, g_hHudDebugText, "KILLS: %d\nDEATHS: %d\nFLAG CAPTURES: %d\nDAMAGE: %d\nHEALING: %d\nPOINT CAPTURES: %d\nPLAYERS UBERED: %d", this.iKills, this.iDeaths, this.iFlagCaptures, this.iDamage, this.iHealing, this.iPointCaptures, this.iPlayersUbered);
+		ShowSyncHudText(client, g_hHudDebugText, "KILLS: %d\nDEATHS: %d\nFLAG CAPTURES: %d\nDAMAGE: %d\nHEALING: %d\nOVERHEAL TIME: %.2f\nPOINT CAPTURES: %d\nPLAYERS UBERED: %d", this.iKills, this.iDeaths, this.iFlagCaptures, this.iDamage, this.iHealing, this.flOverhealTime, this.iPointCaptures, this.iPlayersUbered);
 	}
 	
 	void ShowTickingStats(int client)
@@ -347,10 +354,10 @@ enum struct esCSProperties
 		this.iKillingQuotaKills = 12;
 		this.flKillingQuotaTime = 60.0;
 		this.flSecPerCapFlag = 60.0;
-		this.iDmgForSec = 750;
+		this.iDmgForSec = 250;
 		this.flDmgForSecMult = 1.0;
 		this.iHealingForSec = 35;
-		this.flHealingForSecMult = 1.0;
+		this.flHealingForSecMult = 2.0;
 		this.flCapturePointSec = 60.0;
 		this.flInvulnDeploySec = 60.0;
 		this.flSecPerSuccessiveRoundPlayed = 30.0;
@@ -1922,11 +1929,17 @@ public Action OnPlayerRunCmd(int client, int &buttons, int &impulse, float vel[3
 				PrintCenterText(client, "This medic can't use this function.");
 			}
 			
-			if (GetEntProp(myWeapon, Prop_Send, "m_bChargeRelease"))
+			int patient = GetEntPropEnt(myWeapon, Prop_Send, "m_hHealingTarget");
+			
+			if (patient != -1 && BaseEntity_IsPlayer(patient) && GetClientTeam(patient) == GetClientTeam(client))
 			{
-				int patient = GetEntPropEnt(myWeapon, Prop_Send, "m_hHealingTarget");
+				if (GetClientHealth(patient) >= RoundToFloor(TF2Util_GetPlayerMaxHealthBoost(patient) * 0.95))
+				{
+					//Keeping my teammate at max overheal
+					g_arrRobotPlayerStats[client].flOverhealTime += GetTickInterval();
+				}
 				
-				if (patient != -1 && BaseEntity_IsPlayer(patient) && GetClientTeam(patient) == GetClientTeam(client))
+				if (GetEntProp(myWeapon, Prop_Send, "m_bChargeRelease"))
 				{
 					//Aggressively buffing my teammate
 					g_arrRobotPlayerStats[client].flAggression += 0.1;
@@ -2973,6 +2986,7 @@ public Action Command_DebugPlayerStats(int client, int args)
 		ReplyToCommand(client, "FLAG CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iFlagCaptures);
 		ReplyToCommand(client, "DAMAGE: %d", g_arrRobotPlayerStats[target_list[i]].iDamage);
 		ReplyToCommand(client, "HEALING: %d", g_arrRobotPlayerStats[target_list[i]].iHealing);
+		ReplyToCommand(client, "OVERHEAL TIME: %f", g_arrRobotPlayerStats[target_list[i]].flOverhealTime);
 		ReplyToCommand(client, "POINT CAPTURES: %d", g_arrRobotPlayerStats[target_list[i]].iPointCaptures);
 		ReplyToCommand(client, "TOTAL PLAYERS UBERED: %d", g_arrRobotPlayerStats[target_list[i]].iPlayersUbered);
 		ReplyToCommand(client, "AGGRESSION: %f", g_arrRobotPlayerStats[target_list[i]].flAggression);
@@ -5568,6 +5582,28 @@ void TogglePlayerPreference(int client, int iPreferenceFlag)
 		m_nPlayerPref[client] |= iPreferenceFlag;
 	
 	g_hPlayerPreference.SetInt(client, m_nPlayerPref[client]);
+	
+#if defined TESTING_ONLY
+	if (iPreferenceFlag == PREFERENCE_ROBOT_VIEWMODELS && g_arrSettings.iCustomViewmodel == 1 && GetPopFileEventType(g_iPopulationManager) != MVM_EVENT_POPFILE_HALLOWEEN)
+	{
+		for (int i = 0; i < GetEntPropArraySize(client, Prop_Send, "m_hMyWeapons"); i++)
+		{
+			int weapon = GetEntPropEnt(client, Prop_Send, "m_hMyWeapons", i);
+			
+			if (weapon != -1)
+			{
+				if (m_nPlayerPref[client] & PREFERENCE_ROBOT_VIEWMODELS)
+				{
+					//TODO: you need to handle this better first
+				}
+				else
+				{
+					SetEntProp(weapon, Prop_Send, "m_nCustomViewmodelModelIndex", 0);
+				}
+			}
+		}
+	}
+#endif
 }
 
 bool PlayerHasPreference(int client, int iPreferenceFlag)
